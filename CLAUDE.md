@@ -1,0 +1,125 @@
+# encoraj
+
+Sistema web de gestão de encomendas para condomínios. Next.js 15, App Router, MongoDB, JWT, OCR com Gemini Flash, notificações via WhatsApp (Z-API), fotos no S3, QR Code.
+
+See `PROJECT.md` for full context, flows, personas and data models.
+See `ROADMAP.md` for development phases and milestones.
+
+## Commands
+
+```bash
+yarn dev          # start dev server
+yarn build        # production build
+yarn typecheck    # tsc --noEmit
+yarn lint         # eslint
+yarn seed         # run scripts/seed.ts via tsx
+```
+
+## Stack
+
+- **Framework**: Next.js 15 (App Router), React 19
+- **Database**: MongoDB Atlas (`mongodb` driver)
+- **Auth**: JWT (`jsonwebtoken`) + password hashing (`bcryptjs`)
+- **Validation**: Zod v4
+- **Styling**: Panda CSS
+- **QR codes**: `qrcode`
+- **Storage**: AWS S3 (photos + QR code images)
+- **OCR / AI**: Google Gemini Flash (`@google/generative-ai`)
+- **WhatsApp**: Z-API
+- **Language**: TypeScript strict
+
+## Conventions
+
+- App Router only — no Pages Router
+- Use `yarn` (not npm/pnpm/bun)
+- Prefer Server Components; mark client components with `'use client'`
+- Validate all external input with Zod at API/server boundaries
+- Keep secrets in environment variables, never hardcode
+- Images from `**.amazonaws.com` are allowed via `next/image`
+- Role-based access: validate role in every protected API route and page
+- Soft-delete pattern for users and residents (`active: boolean`)
+
+## Roles
+
+- `admin` — full access: residents, users, packages, reports, config
+- `porteiro` — register arrivals, confirm deliveries
+- `sindico` — read-only: reports and listings
+
+## Folder Structure
+
+```
+app/
+  (auth)/login/
+  (dashboard)/
+    layout.tsx          ← sidebar + auth guard by role
+    page.tsx            ← dashboard home
+    packages/
+      page.tsx          ← package listing
+      new/page.tsx      ← register arrival (photo + OCR)
+      [id]/page.tsx     ← detail + delivery action
+    residents/
+      page.tsx
+      new/page.tsx
+      [id]/edit/page.tsx
+    users/page.tsx      ← admin only
+    reports/page.tsx    ← admin + sindico
+  api/
+    auth/route.ts
+    packages/route.ts
+    packages/[id]/route.ts
+    packages/[id]/deliver/route.ts
+    residents/route.ts
+    users/route.ts
+    ocr/route.ts        ← Gemini Flash
+    upload/route.ts     ← S3
+    whatsapp/route.ts   ← Z-API
+lib/
+  db/       ← MongoDB client + collection helpers
+  s3/       ← AWS S3 client (upload, presigned URLs)
+  gemini/   ← Gemini Flash client (OCR)
+  zapi/     ← Z-API client (WhatsApp messages)
+  auth/     ← JWT helpers (sign, verify, extract payload)
+  qrcode/   ← QR code generation (PNG buffer)
+```
+
+## Environment Variables
+
+```bash
+# MongoDB
+MONGODB_URI=
+
+# JWT
+JWT_SECRET=
+
+# AWS S3
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=
+AWS_S3_BUCKET=
+
+# Google Gemini
+GOOGLE_AI_API_KEY=
+
+# Z-API (WhatsApp)
+ZAPI_INSTANCE_ID=
+ZAPI_TOKEN=
+ZAPI_CLIENT_TOKEN=
+```
+
+## Data Models (MongoDB)
+
+```ts
+// users
+{ _id, name, email, password_hash, role: 'admin'|'porteiro'|'sindico', active, created_at }
+
+// residents
+{ _id, name, apartment, whatsapp, active, created_at }
+
+// packages
+{ _id, resident_id, code, qrcode_url, photo_url,
+  status: 'arrived'|'notified'|'delivered',
+  arrived_at, arrived_by,
+  notified_at?,
+  delivered_at?, delivered_by?,
+  notes?, created_at }
+```
