@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { css } from '@/styled-system/css'
-import { Button, FormField } from '@encoraj/ui'
+import { Button } from '@encoraj/ui'
+import { FormField } from '@encoraj/ui'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,7 +31,8 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = '/'
+      router.push('/')
+      router.refresh()
     } catch {
       setError('Erro de conexão. Tente novamente.')
     } finally {

@@ -12,7 +12,7 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: '/packages', roles: ['admin', 'porteiro'] },
 ]
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Rotas públicas — deixa passar
@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   let payload
   try {
-    payload = await verifyToken(token)
+    payload = verifyToken(token)
   } catch {
     const response = NextResponse.redirect(new URL('/login', request.url))
     response.cookies.set(AUTH_COOKIE, '', { maxAge: 0, path: '/' })

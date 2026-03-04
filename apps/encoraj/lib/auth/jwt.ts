@@ -1,11 +1,11 @@
-import { SignJWT, jwtVerify } from 'jose'
+import jwt from 'jsonwebtoken'
 import type { Role } from '../db/collections'
 
-if (!process.env.JWT_SECRET) {
+const SECRET = process.env.JWT_SECRET
+
+if (!SECRET) {
   throw new Error('JWT_SECRET não definido nas variáveis de ambiente')
 }
-
-const secret = new TextEncoder().encode(process.env.JWT_SECRET)
 
 export interface JwtPayload {
   sub: string   // user _id como string
@@ -13,15 +13,10 @@ export interface JwtPayload {
   role: Role
 }
 
-export async function signToken(payload: JwtPayload): Promise<string> {
-  return new SignJWT(payload as unknown as Record<string, unknown>)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('8h')
-    .sign(secret)
+export function signToken(payload: JwtPayload): string {
+  return jwt.sign(payload, SECRET!, { expiresIn: '8h' })
 }
 
-export async function verifyToken(token: string): Promise<JwtPayload> {
-  const { payload } = await jwtVerify(token, secret)
-  return payload as unknown as JwtPayload
+export function verifyToken(token: string): JwtPayload {
+  return jwt.verify(token, SECRET!) as JwtPayload
 }
