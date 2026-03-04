@@ -1,0 +1,11 @@
+{
+  "extends": "@encoraj/tsconfig/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@encoraj/styled-system/*": ["../../apps/encoraj/styled-system/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

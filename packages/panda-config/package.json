@@ -1,0 +1,20 @@
+{
+  "name": "@encoraj/panda-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@pandacss/dev": "^1.8.2"
+  },
+  "devDependencies": {
+    "@encoraj/tsconfig": "*",
+    "@pandacss/dev": "^1.8.2",
+    "typescript": "^5"
+  }
+}
