@@ -8,7 +8,7 @@ import type { Role } from '@/lib/db/collections'
 const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: '/users', roles: ['admin'] },
   { prefix: '/reports', roles: ['admin', 'sindico'] },
-  { prefix: '/residents', roles: ['admin'] },
+  { prefix: '/residents', roles: ['admin', 'zelador'] },
   { prefix: '/packages', roles: ['admin', 'porteiro'] },
 ]
 
@@ -50,6 +50,7 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-user-id', payload.sub)
   requestHeaders.set('x-user-name', payload.name)
   requestHeaders.set('x-user-role', payload.role)
+  requestHeaders.set('x-condo-id', payload.condo_id)
 
   return NextResponse.next({ request: { headers: requestHeaders } })
 }

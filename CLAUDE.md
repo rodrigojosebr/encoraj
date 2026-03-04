@@ -26,7 +26,7 @@ yarn panda        # panda codegen → regenerate styled-system/
 
 - **Framework**: Next.js 15 (App Router), React 19
 - **Database**: MongoDB Atlas (`mongodb` driver)
-- **Auth**: JWT (`jsonwebtoken`) + password hashing (`bcryptjs`)
+- **Auth**: JWT (`jose`) + password hashing (`bcryptjs`)
 - **Validation**: Zod v4
 - **Styling**: Panda CSS
 - **QR codes**: `qrcode`
@@ -44,13 +44,16 @@ yarn panda        # panda codegen → regenerate styled-system/
 - Keep secrets in environment variables, never hardcode
 - Images from `**.amazonaws.com` are allowed via `next/image`
 - Role-based access: validate role in every protected API route and page
-- Soft-delete pattern for users and residents (`active: boolean`)
+- Soft-delete pattern: never delete documents; set `active: false` + `deleted_at` + `deleted_by`; listagens filtram `{ active: true }`
+- Audit log: toda escrita (create/update/delete) gera documento em `audit_logs` via `lib/audit/log.ts`
 
 ## Roles
 
 - `admin` — full access: residents, users, packages, reports, config
+- `zelador` — residents CRUD
 - `porteiro` — register arrivals, confirm deliveries
 - `sindico` — read-only: reports and listings
+- `morador` — reserved, not implemented
 
 ## Monorepo Structure
 
@@ -139,10 +142,15 @@ ZAPI_CLIENT_TOKEN=
 
 ```ts
 // users
-{ _id, name, email, password_hash, role: 'admin'|'porteiro'|'sindico', active, created_at }
+{ _id, name, email, password_hash, role: 'admin'|'zelador'|'porteiro'|'sindico', active, created_at }
 
 // residents
-{ _id, name, apartment, whatsapp, active, created_at }
+{ _id, name, apartment, whatsapp, active, created_at, created_by,
+  updated_at?, updated_by?, deleted_at?, deleted_by? }
+
+// audit_logs
+{ _id, entity, entity_id, action: 'created'|'updated'|'deleted',
+  actor_id, actor_name, before?, after?, timestamp }
 
 // packages
 { _id, resident_id, code, qrcode_url, photo_url,

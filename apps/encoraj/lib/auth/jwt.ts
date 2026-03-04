@@ -11,6 +11,7 @@ export interface JwtPayload {
   sub: string   // user _id como string
   name: string
   role: Role
+  condo_id: string
 }
 
 export async function signToken(payload: JwtPayload): Promise<string> {

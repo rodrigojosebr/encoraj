@@ -3,11 +3,20 @@ import { getDb } from './client'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
-export type Role = 'admin' | 'porteiro' | 'sindico'
+export type Role = 'admin' | 'zelador' | 'porteiro' | 'sindico'
 export type PackageStatus = 'arrived' | 'notified' | 'delivered'
+
+export interface CondominiumDoc {
+  _id?: ObjectId
+  name: string
+  slug: string
+  active: boolean
+  created_at: Date
+}
 
 export interface UserDoc {
   _id?: ObjectId
+  condo_id: ObjectId
   name: string
   email: string
   password_hash: string
@@ -18,15 +27,35 @@ export interface UserDoc {
 
 export interface ResidentDoc {
   _id?: ObjectId
+  condo_id: ObjectId
   name: string
   apartment: string
   whatsapp: string
   active: boolean
   created_at: Date
+  created_by: ObjectId
+  updated_at?: Date
+  updated_by?: ObjectId
+  deleted_at?: Date
+  deleted_by?: ObjectId
+}
+
+export interface AuditLogDoc {
+  _id?: ObjectId
+  condo_id: ObjectId
+  entity: 'residents' | 'users' | 'packages'
+  entity_id: ObjectId
+  action: 'created' | 'updated' | 'deleted'
+  actor_id: ObjectId
+  actor_name: string
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+  timestamp: Date
 }
 
 export interface PackageDoc {
   _id?: ObjectId
+  condo_id: ObjectId
   resident_id: ObjectId
   code: string
   qrcode_url: string
@@ -43,6 +72,11 @@ export interface PackageDoc {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+export async function condominiums(): Promise<Collection<CondominiumDoc>> {
+  const db = await getDb()
+  return db.collection<CondominiumDoc>('condominiums')
+}
+
 export async function users(): Promise<Collection<UserDoc>> {
   const db = await getDb()
   return db.collection<UserDoc>('users')
@@ -56,4 +90,9 @@ export async function residents(): Promise<Collection<ResidentDoc>> {
 export async function packages(): Promise<Collection<PackageDoc>> {
   const db = await getDb()
   return db.collection<PackageDoc>('packages')
+}
+
+export async function auditLogs(): Promise<Collection<AuditLogDoc>> {
+  const db = await getDb()
+  return db.collection<AuditLogDoc>('audit_logs')
 }

@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       sub: user._id!.toString(),
       name: user.name,
       role: user.role,
+      condo_id: user.condo_id.toString(),
     })
 
     const response = NextResponse.json({ ok: true })

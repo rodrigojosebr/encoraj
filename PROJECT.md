@@ -25,8 +25,11 @@ Usa o sistema no dia a dia. Precisa de uma interface rápida e simples — regis
 ### Síndico
 Quer visibilidade sem precisar perguntar ao porteiro. Acessa relatórios para ver volume de entregas, encomendas em aberto, histórico de retiradas.
 
+### Zelador
+Responsável pelo cadastro de moradores — cria, edita e desativa registros. Não acessa encomendas nem relatórios.
+
 ### Admin
-Gerencia o condomínio no sistema: cadastra moradores, cria usuários (porteiros e síndicos), configura o template da mensagem WhatsApp.
+Gerencia o condomínio no sistema: cadastra moradores, cria usuários (porteiros, zeladores e síndicos), configura o template da mensagem WhatsApp.
 
 ### Morador
 Não usa o sistema diretamente. Recebe notificação no WhatsApp com foto da encomenda, código de retirada e QR Code.
@@ -75,28 +78,48 @@ Admin ou Síndico acessa /reports
 
 ## Modelos de Dados
 
+### `condominiums`
+```ts
+{
+  _id: ObjectId
+  name: string             // "Residencial Bela Vista"
+  slug: string             // "residencial-bela-vista" — único, usado em URLs futuras
+  active: boolean
+  created_at: Date
+}
+// Índice: { slug: 1 } unique
+```
+
 ### `users`
 ```ts
 {
   _id: ObjectId
+  condo_id: ObjectId       // ref: condominiums
   name: string
-  email: string
+  email: string            // único global (um email = uma pessoa no sistema)
   password_hash: string
-  role: 'admin' | 'porteiro' | 'sindico'
+  role: 'admin' | 'zelador' | 'porteiro' | 'sindico'
   active: boolean
   created_at: Date
 }
+// Índice: { email: 1 } unique
 ```
 
 ### `residents`
 ```ts
 {
   _id: ObjectId
+  condo_id: ObjectId       // ref: condominiums
   name: string
   apartment: string        // ex: "101", "5B"
   whatsapp: string         // formato internacional: +5511999999999
   active: boolean
   created_at: Date
+  created_by: ObjectId     // ref: users
+  updated_at?: Date
+  updated_by?: ObjectId    // ref: users
+  deleted_at?: Date        // soft delete
+  deleted_by?: ObjectId    // ref: users
 }
 ```
 
@@ -104,6 +127,7 @@ Admin ou Síndico acessa /reports
 ```ts
 {
   _id: ObjectId
+  condo_id: ObjectId       // ref: condominiums
   resident_id: ObjectId    // ref: residents
   code: string             // código único de 6 caracteres (ex: "A3K7X2")
   qrcode_url: string       // URL do QR Code gerado (S3)
@@ -116,6 +140,22 @@ Admin ou Síndico acessa /reports
   delivered_by?: ObjectId  // ref: users (porteiro)
   notes?: string
   created_at: Date
+}
+```
+
+### `audit_logs`
+```ts
+{
+  _id: ObjectId
+  condo_id: ObjectId       // ref: condominiums
+  entity: 'residents' | 'users' | 'packages'
+  entity_id: ObjectId      // ID do documento afetado
+  action: 'created' | 'updated' | 'deleted'
+  actor_id: ObjectId       // ref: users
+  actor_name: string       // snapshot do nome no momento da ação
+  before?: Record<string, unknown>   // estado anterior (update/delete)
+  after?: Record<string, unknown>    // estado novo (create/update)
+  timestamp: Date
 }
 ```
 

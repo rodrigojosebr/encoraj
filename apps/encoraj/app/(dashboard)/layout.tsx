@@ -14,7 +14,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/',           label: 'Dashboard',   roles: ['admin', 'porteiro', 'sindico'] },
   { href: '/packages',  label: 'Encomendas',   roles: ['admin', 'porteiro'] },
-  { href: '/residents', label: 'Moradores',    roles: ['admin'] },
+  { href: '/residents', label: 'Moradores',    roles: ['admin', 'zelador'] },
   { href: '/users',     label: 'Usuários',     roles: ['admin'] },
   { href: '/reports',   label: 'Relatórios',   roles: ['admin', 'sindico'] },
 ]

@@ -36,24 +36,39 @@
 
 ---
 
-## Fase 2 — Moradores ← próxima
+## Fase 2 — Moradores ✅
 
 **Objetivo**: Admin consegue gerenciar o cadastro de moradores.
 
-- [ ] Modelo `residents` no MongoDB
-- [ ] `GET /api/residents` — listar com paginação
-- [ ] `POST /api/residents` — criar morador
-- [ ] `PUT /api/residents/[id]` — editar
-- [ ] `DELETE /api/residents/[id]` — desativar (soft delete)
-- [ ] Página `/residents` — listagem com busca
-- [ ] Página `/residents/new` — formulário de criação
-- [ ] Página `/residents/[id]/edit` — formulário de edição
+- [x] Modelo `residents` no MongoDB (soft delete: `active`, `deleted_at`, `deleted_by`)
+- [x] `GET /api/residents` — listar com busca por nome e apartamento
+- [x] `POST /api/residents` — criar morador
+- [x] `PUT /api/residents/[id]` — editar
+- [x] `DELETE /api/residents/[id]` — desativar (soft delete)
+- [x] Audit log: toda escrita gera entrada em `audit_logs` via `lib/audit/log.ts`
+- [x] Página `/residents` — listagem com busca
+- [x] Página `/residents/new` — formulário de criação
+- [x] Página `/residents/[id]/edit` — formulário de edição
 
-**Milestone**: Admin cria e edita moradores completos.
+**Milestone**: Admin e zelador criam, editam e desativam moradores. ✅
 
 ---
 
-## Fase 3 — Registro de Encomendas (núcleo)
+## Multi-tenancy Scaffolding ✅
+
+**Objetivo**: Suporte a múltiplos condomínios (shared DB + `condo_id`) antes da Fase 3.
+
+- [x] Collection `condominiums` com `slug` único
+- [x] `condo_id: ObjectId` em todas as collections (`users`, `residents`, `packages`, `audit_logs`)
+- [x] `condo_id` no JWT payload — middleware injeta header `x-condo-id`
+- [x] Rotas de residents filtram e salvam por `condo_id` (isolamento entre tenants)
+- [x] `scripts/seed.ts` cria condomínio demo e vincula admin ao `condo_id`
+
+**Milestone**: Infraestrutura multi-tenant pronta; dados isolados por condomínio. ✅
+
+---
+
+## Fase 3 — Registro de Encomendas (núcleo) ← próxima
 
 **Objetivo**: Porteiro registra chegada de encomenda com foto e OCR.
 
