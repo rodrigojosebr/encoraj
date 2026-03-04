@@ -1,4 +1,1 @@
-/* Reset mínimo — o Panda CSS preflight já cuida do resto */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+@layer reset, base, tokens, recipes, utilities;
