@@ -1,39 +1,42 @@
 # Roadmap de Desenvolvimento — Encoraj
 
-## Fase 0 — Fundação (atual)
+## Fase 0 — Fundação ✅
 
 **Objetivo**: Projeto estruturado, pronto para começar a codar.
 
 - [x] Definir stack técnica definitiva
 - [x] Documentar arquitetura, fluxos e modelos de dados (`PROJECT.md`)
 - [x] Atualizar `CLAUDE.md` com stack, convenções e estrutura
-- [ ] Instalar e configurar Panda CSS (substituir styled-components)
-- [ ] Configurar variáveis de ambiente (`.env.local.example`)
-- [ ] Conectar MongoDB Atlas (lib/db)
-- [ ] Estrutura de pastas inicial (`app/`, `lib/`)
+- [x] Converter para monorepo Turborepo + Yarn workspaces
+- [x] Instalar e configurar Panda CSS (PostCSS + preset próprio)
+- [x] Design system `@encoraj/ui` (atoms + molecules)
+- [x] Configurar variáveis de ambiente (`.env.local.example`)
+- [x] Estrutura de pastas inicial (`app/`, `lib/`)
 
-**Milestone**: `yarn dev` sobe, MongoDB conecta, Panda CSS funciona.
+**Milestone**: `yarn dev` sobe, Panda CSS funciona, login no ar. ✅
 
 ---
 
-## Fase 1 — Auth e Base
+## Fase 1 — Auth e Base ✅
 
 **Objetivo**: Sistema de login funcional com proteção por role.
 
-- [ ] Modelo `users` no MongoDB + índice único em `email`
-- [ ] `POST /api/auth` — login com email/senha, retorna JWT
-- [ ] JWT helper: gerar, verificar, extrair payload
-- [ ] Middleware de autenticação (Next.js middleware.ts)
-- [ ] Layout do dashboard com sidebar (rotas por role)
-- [ ] Página de login (`/login`)
-- [ ] Auth guard no layout do dashboard
-- [ ] Script seed: criar usuário admin inicial
+- [x] Modelo `users` no MongoDB + índice único em `email`
+- [x] `POST /api/auth` — login com email/senha, retorna JWT cookie httpOnly
+- [x] `DELETE /api/auth` — logout (limpa cookie)
+- [x] JWT helper: gerar, verificar, extrair payload (`lib/auth/jwt.ts`)
+- [x] Middleware de autenticação (`middleware.ts`) com proteção por role
+- [x] Layout do dashboard com sidebar filtrada por role
+- [x] Página de login (`/login`)
+- [x] Auth guard no layout do dashboard via headers `x-user-*`
+- [x] Script seed: criar usuário admin inicial (`scripts/seed.ts`)
+- [ ] Pendente: rodar seed após configurar MongoDB Atlas
 
-**Milestone**: Login funciona, dashboard protegido por role, admin consegue entrar.
+**Milestone**: Login no ar, dashboard protegido por role. ✅ (MongoDB pendente do usuário)
 
 ---
 
-## Fase 2 — Moradores
+## Fase 2 — Moradores ← próxima
 
 **Objetivo**: Admin consegue gerenciar o cadastro de moradores.
 
