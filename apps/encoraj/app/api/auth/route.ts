@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email ou senha incorretos' }, { status: 401 })
     }
 
-    const token = signToken({
+    const token = await signToken({
       sub: user._id!.toString(),
       name: user.name,
       role: user.role,
