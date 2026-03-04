@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, FormField, Input, Alert } from '@encoraj/ui'
+import { Button, FormField, Alert } from '@encoraj/ui'
 import { css } from '@/styled-system/css'
+import { WhatsAppField } from './WhatsAppField'
 
 interface ResidentFormProps {
   id?: string
@@ -21,10 +22,19 @@ export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
     setLoading(true)
 
     const form = new FormData(e.currentTarget)
+    const whatsapp = form.get('whatsapp') as string
+
+    // Valida E.164 completo: +55 + DDD (2) + número (9) = 14 chars
+    if (!whatsapp || whatsapp.length < 14) {
+      setError('Preencha o WhatsApp completo com DDD')
+      setLoading(false)
+      return
+    }
+
     const body = {
       name: form.get('name') as string,
       apartment: form.get('apartment') as string,
-      whatsapp: form.get('whatsapp') as string,
+      whatsapp,
     }
 
     try {
@@ -52,36 +62,24 @@ export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
     >
       {error && <Alert variant="error">{error}</Alert>}
 
-      <FormField label="Nome" htmlFor="name">
-        <Input
-          id="name"
-          name="name"
-          required
-          minLength={2}
-          defaultValue={defaultValues?.name}
-          placeholder="Nome completo"
-        />
-      </FormField>
+      <FormField
+        label="Nome"
+        name="name"
+        required
+        minLength={2}
+        defaultValue={defaultValues?.name}
+        placeholder="Nome completo"
+      />
 
-      <FormField label="Apartamento" htmlFor="apartment">
-        <Input
-          id="apartment"
-          name="apartment"
-          required
-          defaultValue={defaultValues?.apartment}
-          placeholder="Ex: 101, Bloco A"
-        />
-      </FormField>
+      <FormField
+        label="Apartamento"
+        name="apartment"
+        required
+        defaultValue={defaultValues?.apartment}
+        placeholder="Ex: 101, Bloco A"
+      />
 
-      <FormField label="WhatsApp" htmlFor="whatsapp">
-        <Input
-          id="whatsapp"
-          name="whatsapp"
-          required
-          defaultValue={defaultValues?.whatsapp}
-          placeholder="+55 11 99999-9999"
-        />
-      </FormField>
+      <WhatsAppField defaultValue={defaultValues?.whatsapp} />
 
       <div className={css({ display: 'flex', gap: '3', pt: '2' })}>
         <Button type="submit" disabled={loading}>

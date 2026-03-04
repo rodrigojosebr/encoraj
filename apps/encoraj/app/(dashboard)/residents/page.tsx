@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { residents } from '@/lib/db/collections'
+import { getStatusId } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Button } from '@encoraj/ui'
 import DeleteButton from './_components/DeleteButton'
@@ -12,7 +13,7 @@ export default async function ResidentsPage({
   const { q } = await searchParams
   const col = await residents()
 
-  const filter: Record<string, unknown> = { active: true }
+  const filter: Record<string, unknown> = { status_id: await getStatusId('active') }
   if (q?.trim()) {
     filter.$or = [
       { name: { $regex: q.trim(), $options: 'i' } },

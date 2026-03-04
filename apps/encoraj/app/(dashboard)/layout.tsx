@@ -1,14 +1,13 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import type { Role } from '@/lib/db/collections'
 import { css } from '@/styled-system/css'
 import LogoutButton from './_components/LogoutButton'
 
 interface NavItem {
   href: string
   label: string
-  roles: Role[]
+  roles: string[]
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -25,7 +24,7 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const headersList = await headers()
-  const role = headersList.get('x-user-role') as Role | null
+  const role = headersList.get('x-user-role')
   const name = headersList.get('x-user-name')
 
   if (!role) redirect('/login')

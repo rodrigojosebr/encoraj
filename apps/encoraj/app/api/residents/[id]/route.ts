@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { headers } from 'next/headers'
 import { residents } from '@/lib/db/collections'
+import { getStatusId } from '@/lib/db/status-map'
 import { logAction } from '@/lib/audit/log'
 
 const UpdateResidentSchema = z.object({
@@ -44,7 +45,8 @@ export async function PUT(request: Request, { params }: RouteContext) {
     }
 
     const col = await residents()
-    const before = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), active: true })
+    const activeStatusId = await getStatusId('active')
+    const before = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: activeStatusId })
 
     if (!before) {
       return NextResponse.json({ error: 'Morador não encontrado' }, { status: 404 })
@@ -99,7 +101,8 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     }
 
     const col = await residents()
-    const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), active: true })
+    const activeStatusId = await getStatusId('active')
+    const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: activeStatusId })
 
     if (!doc) {
       return NextResponse.json({ error: 'Morador não encontrado' }, { status: 404 })
@@ -108,7 +111,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     const now = new Date()
     await col.updateOne(
       { _id: new ObjectId(id) },
-      { $set: { active: false, deleted_at: now, deleted_by: new ObjectId(actorId) } },
+      { $set: { status_id: await getStatusId('deleted'), deleted_at: now, deleted_by: new ObjectId(actorId) } },
     )
 
     await logAction({

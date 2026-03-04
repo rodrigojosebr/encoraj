@@ -72,13 +72,24 @@
 
 **Objetivo**: Porteiro registra chegada de encomenda com foto e OCR.
 
-- [ ] Configurar AWS S3 (lib/s3): upload de arquivo, gerar URL pública
+> **Decisão de implementação**: S3 e Gemini são dependências externas que requerem credenciais.
+> Optamos por implementar primeiro tudo que independe delas (leitura, entrega, código),
+> e deixar o registro de chegada (upload + OCR) para quando as credenciais estiverem disponíveis.
+
+**3a — Sem dependências externas (implementar agora):**
+- [ ] `lib/packages/code.ts` — gerador de código único 6 chars alfanumérico
+- [ ] `GET /api/packages` — listar encomendas com filtro por status + `condo_id`
+- [ ] `GET /api/packages/[id]` — detalhe da encomenda
+- [ ] `POST /api/packages/[id]/deliver` — confirmar retirada (valida status, registra `delivered_at`)
+- [ ] Página `/packages` — listagem com badge de status e filtros
+- [ ] Página `/packages/[id]` — detalhe + botão "Confirmar Entrega"
+
+**3b — Requer S3 + Gemini (implementar depois):**
+- [ ] Configurar AWS S3 (`lib/s3`): upload de arquivo, gerar URL pública
 - [ ] `POST /api/upload` — recebe imagem, salva no S3, retorna URL
-- [ ] Configurar Gemini Flash (lib/gemini): enviar imagem, extrair JSON
+- [ ] Configurar Gemini Flash (`lib/gemini`): enviar imagem, extrair JSON
 - [ ] `POST /api/ocr` — recebe URL de imagem, retorna `{ name, apartment }`
-- [ ] Geração de código único (6 chars alfanumérico)
-- [ ] Geração de QR Code PNG (lib/qrcode) + upload para S3
-- [ ] Modelo `packages` no MongoDB
+- [ ] Geração de QR Code PNG (`lib/qrcode`) + upload para S3
 - [ ] `POST /api/packages` — criar encomenda (valida residente, gera código+QR, salva)
 - [ ] Página `/packages/new` — câmera/upload → OCR → confirmar destinatário → salvar
 
@@ -146,7 +157,7 @@
 
 ## Fase 8 — Polimento e Produção
 
-**Objetivo**: Sistema estável e pronto para uso real.
+**Objetivo**: Sistema estável e pronto para uso real, instalável como app no celular.
 
 - [ ] Tratamento de erros em todas as rotas de API (respostas padronizadas)
 - [ ] Loading states e feedback visual nas ações críticas
@@ -155,8 +166,12 @@
 - [ ] Deploy na Vercel + configuração de variáveis de ambiente
 - [ ] Seed de dados iniciais (admin + moradores de exemplo)
 - [ ] Documentação de onboarding no `README.md`
+- [ ] **PWA**: `manifest.json` + ícones (512/192px) + meta tags + `next-pwa` (Service Worker)
+  - Porteiro instala direto pelo browser, sem App Store
+  - Android: banner automático de instalação
+  - iOS: menu Compartilhar → Adicionar à Tela Inicial
 
-**Milestone**: Sistema em produção, porteiro treinado, condomínio usando.
+**Milestone**: Sistema em produção, porteiro instala como app no celular, condomínio usando.
 
 ---
 

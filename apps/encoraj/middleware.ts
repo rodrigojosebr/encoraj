@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
-import type { Role } from '@/lib/db/collections'
 
 // Rotas que exigem role mínima
-const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
+const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
   { prefix: '/users', roles: ['admin'] },
   { prefix: '/reports', roles: ['admin', 'sindico'] },
   { prefix: '/residents', roles: ['admin', 'zelador'] },
@@ -43,6 +42,13 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url))
       }
     }
+  }
+
+  // JWT sem condo_id = token emitido antes do multi-tenancy → forçar novo login
+  if (!payload.condo_id) {
+    const response = NextResponse.redirect(new URL('/login', request.url))
+    response.cookies.set(AUTH_COOKIE, '', { maxAge: 0, path: '/' })
+    return response
   }
 
   // Passa o payload no header para Server Components lerem sem re-verificar

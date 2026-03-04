@@ -1,5 +1,4 @@
 import { SignJWT, jwtVerify } from 'jose'
-import type { Role } from '../db/collections'
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET não definido nas variáveis de ambiente')
@@ -10,7 +9,7 @@ const secret = new TextEncoder().encode(process.env.JWT_SECRET)
 export interface JwtPayload {
   sub: string   // user _id como string
   name: string
-  role: Role
+  role: string
   condo_id: string
 }
 

@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { headers } from 'next/headers'
 import { residents } from '@/lib/db/collections'
+import { getStatusId } from '@/lib/db/status-map'
 import { logAction } from '@/lib/audit/log'
 
 const CreateResidentSchema = z.object({
@@ -23,7 +24,10 @@ export async function GET(request: Request) {
     }
 
     const col = await residents()
-    const filter: Record<string, unknown> = { active: true, condo_id: new ObjectId(condoId) }
+    const filter: Record<string, unknown> = {
+      status_id: await getStatusId('active'),
+      condo_id: new ObjectId(condoId),
+    }
 
     if (q) {
       filter.$or = [
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
     const doc = {
       ...parsed.data,
       condo_id: new ObjectId(condoId),
-      active: true,
+      status_id: await getStatusId('active'),
       created_at: now,
       created_by: new ObjectId(actorId),
     }

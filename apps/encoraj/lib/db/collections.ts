@@ -1,16 +1,28 @@
 import type { Collection, ObjectId } from 'mongodb'
 import { getDb } from './client'
 
-// ── Tipos ──────────────────────────────────────────────────────────────────
+// ── Interfaces ──────────────────────────────────────────────────────────────
 
-export type Role = 'admin' | 'zelador' | 'porteiro' | 'sindico'
-export type PackageStatus = 'arrived' | 'notified' | 'delivered'
+export interface StatusDoc {
+  _id?: ObjectId
+  name: string
+  label: string
+  created_at: Date
+}
+
+export interface RoleDoc {
+  _id?: ObjectId
+  name: string
+  label: string
+  status_id: ObjectId
+  created_at: Date
+}
 
 export interface CondominiumDoc {
   _id?: ObjectId
   name: string
   slug: string
-  active: boolean
+  status_id: ObjectId
   created_at: Date
 }
 
@@ -20,8 +32,8 @@ export interface UserDoc {
   name: string
   email: string
   password_hash: string
-  role: Role
-  active: boolean
+  role_id: ObjectId
+  status_id: ObjectId
   created_at: Date
 }
 
@@ -31,7 +43,7 @@ export interface ResidentDoc {
   name: string
   apartment: string
   whatsapp: string
-  active: boolean
+  status_id: ObjectId
   created_at: Date
   created_by: ObjectId
   updated_at?: Date
@@ -60,7 +72,7 @@ export interface PackageDoc {
   code: string
   qrcode_url: string
   photo_url: string
-  status: PackageStatus
+  status_id: ObjectId
   arrived_at: Date
   arrived_by: ObjectId
   notified_at?: Date
@@ -70,7 +82,17 @@ export interface PackageDoc {
   created_at: Date
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Collection helpers ───────────────────────────────────────────────────────
+
+export async function statuses(): Promise<Collection<StatusDoc>> {
+  const db = await getDb()
+  return db.collection<StatusDoc>('statuses')
+}
+
+export async function roles(): Promise<Collection<RoleDoc>> {
+  const db = await getDb()
+  return db.collection<RoleDoc>('roles')
+}
 
 export async function condominiums(): Promise<Collection<CondominiumDoc>> {
   const db = await getDb()
