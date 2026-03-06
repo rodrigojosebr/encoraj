@@ -14,6 +14,7 @@ export const inputRecipe = defineSlotRecipe({
       fontSize: 'sm',
       fontWeight: 'medium',
       color: 'gray.700',
+      _dark: { color: 'gray.300' },
     },
     input: {
       width: '100%',
@@ -35,6 +36,21 @@ export const inputRecipe = defineSlotRecipe({
         color: 'gray.400',
         cursor: 'not-allowed',
         borderColor: 'gray.200',
+      },
+      _dark: {
+        bg: 'gray.800',
+        borderColor: 'gray.600',
+        color: 'gray.100',
+        _placeholder: { color: 'gray.500' },
+        _focus: {
+          borderColor: 'blue.400',
+          boxShadow: '0 0 0 3px token(colors.blue.900)',
+        },
+        _disabled: {
+          bg: 'gray.900',
+          color: 'gray.500',
+          borderColor: 'gray.700',
+        },
       },
     },
     errorMessage: {

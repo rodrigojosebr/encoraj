@@ -2,162 +2,144 @@
 
 ## Fase 0 — Fundação ✅
 
-**Objetivo**: Projeto estruturado, pronto para começar a codar.
-
 - [x] Definir stack técnica definitiva
 - [x] Documentar arquitetura, fluxos e modelos de dados (`PROJECT.md`)
-- [x] Atualizar `CLAUDE.md` com stack, convenções e estrutura
 - [x] Converter para monorepo Turborepo + Yarn workspaces
 - [x] Instalar e configurar Panda CSS (PostCSS + preset próprio)
 - [x] Design system `@encoraj/ui` (atoms + molecules)
-- [x] Configurar variáveis de ambiente (`.env.local.example`)
 - [x] Estrutura de pastas inicial (`app/`, `lib/`)
-
-**Milestone**: `yarn dev` sobe, Panda CSS funciona, login no ar. ✅
 
 ---
 
 ## Fase 1 — Auth e Base ✅
 
-**Objetivo**: Sistema de login funcional com proteção por role.
-
-- [x] Modelo `users` no MongoDB + índice único em `email`
-- [x] `POST /api/auth` — login com email/senha, retorna JWT cookie httpOnly
-- [x] `DELETE /api/auth` — logout (limpa cookie)
-- [x] JWT helper: gerar, verificar, extrair payload (`lib/auth/jwt.ts`)
-- [x] Middleware de autenticação (`middleware.ts`) com proteção por role
+- [x] Modelo `users` + `POST /api/auth` + `DELETE /api/auth`
+- [x] JWT helper (`lib/auth/jwt.ts`) + middleware com proteção por role
 - [x] Layout do dashboard com sidebar filtrada por role
-- [x] Página de login (`/login`)
-- [x] Auth guard no layout do dashboard via headers `x-user-*`
-- [x] Script seed: criar usuário admin inicial (`scripts/seed.ts`)
-- [ ] Pendente: rodar seed após configurar MongoDB Atlas
-
-**Milestone**: Login no ar, dashboard protegido por role. ✅ (MongoDB pendente do usuário)
+- [x] Página `/login` com toggle mostrar/ocultar senha
+- [x] Auth guard via headers `x-user-*` injetados pelo middleware
+- [x] Script seed: `scripts/seed.ts`
 
 ---
 
-## Fase 2 — Moradores ← próxima
+## Fase 2 — Moradores ✅
 
-**Objetivo**: Admin consegue gerenciar o cadastro de moradores.
-
-- [ ] Modelo `residents` no MongoDB
-- [ ] `GET /api/residents` — listar com paginação
-- [ ] `POST /api/residents` — criar morador
-- [ ] `PUT /api/residents/[id]` — editar
-- [ ] `DELETE /api/residents/[id]` — desativar (soft delete)
-- [ ] Página `/residents` — listagem com busca
-- [ ] Página `/residents/new` — formulário de criação
-- [ ] Página `/residents/[id]/edit` — formulário de edição
-
-**Milestone**: Admin cria e edita moradores completos.
+- [x] Modelo `residents` com soft-delete + audit log
+- [x] `GET/POST /api/residents` + `PUT/DELETE/PATCH /api/residents/[id]`
+- [x] Campo `bloco` opcional no modelo e formulários
+- [x] Páginas `/residents`, `/residents/new`, `/residents/[id]/edit`
+- [x] Listagem: cards em mobile, tabela em desktop
+- [x] Toggle "mostrar excluídos" + RestoreButton
 
 ---
 
-## Fase 3 — Registro de Encomendas (núcleo)
+## Multi-tenancy ✅
 
-**Objetivo**: Porteiro registra chegada de encomenda com foto e OCR.
-
-- [ ] Configurar AWS S3 (lib/s3): upload de arquivo, gerar URL pública
-- [ ] `POST /api/upload` — recebe imagem, salva no S3, retorna URL
-- [ ] Configurar Gemini Flash (lib/gemini): enviar imagem, extrair JSON
-- [ ] `POST /api/ocr` — recebe URL de imagem, retorna `{ name, apartment }`
-- [ ] Geração de código único (6 chars alfanumérico)
-- [ ] Geração de QR Code PNG (lib/qrcode) + upload para S3
-- [ ] Modelo `packages` no MongoDB
-- [ ] `POST /api/packages` — criar encomenda (valida residente, gera código+QR, salva)
-- [ ] Página `/packages/new` — câmera/upload → OCR → confirmar destinatário → salvar
-
-**Milestone**: Porteiro fotografa etiqueta, sistema identifica destinatário, encomenda registrada.
+- [x] Collection `condominiums` com `slug` único
+- [x] `condo_id: ObjectId` em todas as collections
+- [x] `condo_id` + `condo_name` no JWT payload
+- [x] Middleware injeta `x-condo-id`, `x-condo-name`, `x-user-photo`, `x-condo-photo`
+- [x] Rotas isolam dados por `condo_id`
 
 ---
 
-## Fase 4 — Notificação WhatsApp
+## Fase 3a — Encomendas (leitura/entrega) ✅
 
-**Objetivo**: Morador recebe WhatsApp automaticamente ao registrar encomenda.
-
-- [ ] Configurar Z-API (lib/zapi): enviar mensagem de texto, enviar imagem
-- [ ] `POST /api/whatsapp` — envia mensagem para número com template
-- [ ] Template de mensagem configurável (salvo em settings ou env)
-- [ ] Integrar envio ao fluxo de criação de encomenda (após salvar no MongoDB)
-- [ ] Atualizar `notified_at` no registro após envio bem-sucedido
-
-**Milestone**: Ao registrar encomenda, morador recebe WhatsApp com foto, código e QR Code.
+- [x] `GET /api/packages` — listagem com filtro por status + `condo_id`
+- [x] `GET /api/packages/[id]` — detalhe
+- [x] `POST /api/packages/[id]/deliver` — confirmar retirada
+- [x] Página `/packages` — listagem com badge de status e filtros
+- [x] Página `/packages/[id]` — detalhe + botão "Confirmar Entrega"
 
 ---
 
-## Fase 5 — Retirada de Encomenda
+## Fase 6 — Gestão de Usuários ✅
 
-**Objetivo**: Porteiro confirma entrega via código ou QR Code.
-
-- [ ] `GET /api/packages/[id]` — buscar encomenda por ID
-- [ ] `GET /api/packages?code=XXXX` — buscar por código único
-- [ ] `POST /api/packages/[id]/deliver` — confirmar entrega (valida status, atualiza)
-- [ ] Página `/packages/[id]` — exibe detalhes + botão "Confirmar Entrega"
-- [ ] Página `/packages` — listagem com filtro de status
-- [ ] Componente de scan de QR Code (câmera) ou input de código
-
-**Milestone**: Porteiro busca encomenda por código, confirma entrega, registro atualizado.
+- [x] `GET/POST /api/users` + `PUT/DELETE /api/users/[id]`
+- [x] Páginas `/users`, `/users/new`, `/users/[id]/edit`
+- [x] Listagem: cards mobile, tabela desktop; seções Ativos / Desativados
+- [x] Proteção: admin não pode desativar a própria conta; email único por condo
 
 ---
 
-## Fase 6 — Gestão de Usuários
+## Fase 8 — Onboarding de Condomínio ✅
 
-**Objetivo**: Admin gerencia porteiros e síndicos.
-
-- [ ] `GET /api/users` — listar usuários (admin only)
-- [ ] `POST /api/users` — criar usuário
-- [ ] `PUT /api/users/[id]` — editar usuário
-- [ ] `DELETE /api/users/[id]` — desativar usuário
-- [ ] Página `/users` — listagem (admin only)
-- [ ] Formulário criar/editar usuário
-
-**Milestone**: Admin cria porteiros e síndicos, gerencia acesso.
+- [x] Página pública `/register`
+- [x] `POST /api/register` — cria condo + admin + login automático
+- [x] Slug auto-gerado com sufixo numérico se duplicado
+- [x] Link "Criar conta" no login / "Já tem conta?" no register
 
 ---
 
-## Fase 7 — Relatórios
+## Layout e UX ✅
+
+- [x] Sidebar colapsável: expandido (220px) / recolhido (64px, só ícones)
+- [x] Mobile: `MobileTopBar` fixa + overlay com backdrop
+- [x] Estado `collapsed` persistido em `localStorage`
+- [x] Dark mode: `ThemeToggle` + `_dark` variants em todas as páginas
+- [x] `Avatar` com iniciais + cor gerada pelo nome (pronto para `photo_url`)
+- [x] Sidebar: avatar do condo (xl, centralizado) + avatar do usuário no rodapé
+
+---
+
+## Configurações do Condomínio ✅ (foto pendente de S3)
+
+- [x] `GET/PUT /api/condo` — lê e atualiza nome; re-assina JWT na hora
+- [x] `CondominiumDoc.photo_url?` + `UserDoc.photo_url?` no modelo
+- [x] `JwtPayload`: `photo_url?` + `condo_photo_url?` prontos para S3
+- [x] Página `/settings` com formulário de nome + placeholder de foto
+- [ ] **Pendente (S3)**: upload de foto do condomínio + foto de perfil do usuário
+
+---
+
+## Fase 7 — Relatórios ✅
 
 **Objetivo**: Admin e síndico têm visibilidade completa do sistema.
 
-- [ ] `GET /api/packages` com filtros: status, data, residente, porteiro
-- [ ] Página `/reports` — tabela com filtros avançados
-- [ ] Timeline por encomenda: chegada → notificação → retirada
-- [ ] Indicadores: total hoje, em aberto, retiradas hoje
-- [ ] Exportação CSV (opcional)
+- [x] Página `/reports` — indicadores: total hoje, em aberto, retiradas hoje
+- [x] Tabela de encomendas com filtros: status, data, residente
+- [x] Timeline por encomenda: chegada → notificação → retirada (dots coloridos com tooltip)
+- [x] Exportação CSV (client-side, BOM UTF-8 para Excel)
 
-**Milestone**: Síndico vê relatório completo de encomendas com filtros.
+**Milestone**: Síndico vê relatório completo com filtros e indicadores.
 
 ---
 
-## Fase 8 — Polimento e Produção
+## Fase 3b — Registro de Encomendas completo ← requer S3 + Gemini
 
-**Objetivo**: Sistema estável e pronto para uso real.
+- [ ] `lib/s3/` — upload de arquivo, URL pública
+- [ ] `lib/gemini/` — OCR: enviar imagem, extrair `{ name, apartment }`
+- [ ] `lib/qrcode/` — gerar PNG + upload para S3
+- [ ] `POST /api/upload` — recebe imagem → S3 → URL
+- [ ] `POST /api/ocr` — URL de imagem → Gemini → JSON
+- [ ] `POST /api/packages` — criar encomenda com foto + QR code
+- [ ] Página `/packages/new` — câmera/upload → OCR → confirmar → salvar
+- [ ] **Bonus**: foto do condo e foto de perfil do usuário (`PUT /api/condo`, `PUT /api/me`)
 
-- [ ] Tratamento de erros em todas as rotas de API (respostas padronizadas)
+**Milestone**: Porteiro fotografa etiqueta, sistema identifica destinatário, QR code gerado.
+
+---
+
+## Fase 4 — Notificação WhatsApp ← requer Z-API
+
+- [ ] `lib/zapi/` — enviar mensagem de texto e imagem
+- [ ] `POST /api/whatsapp` — template de mensagem para o morador
+- [ ] Integrar ao fluxo de criação de encomenda → atualizar `notified_at`
+
+**Milestone**: Morador recebe WhatsApp com foto, código e QR Code.
+
+---
+
+## Fase 9 — Polimento e Produção
+
+- [ ] Tratamento de erros padronizado em todas as rotas
 - [ ] Loading states e feedback visual nas ações críticas
-- [ ] Validação de formulários no cliente (Zod + react-hook-form)
-- [ ] Testes de fumaça dos fluxos principais
-- [ ] Deploy na Vercel + configuração de variáveis de ambiente
-- [ ] Seed de dados iniciais (admin + moradores de exemplo)
-- [ ] Documentação de onboarding no `README.md`
-
-**Milestone**: Sistema em produção, porteiro treinado, condomínio usando.
+- [ ] Deploy na Vercel + variáveis de ambiente de produção
+- [ ] **PWA**: `manifest.json` + ícones + `next-pwa` (Service Worker)
 
 ---
 
-## Dependências entre Fases
-
-```
-Fase 0 → Fase 1 → Fase 2 → Fase 3 → Fase 4
-                              ↓
-                           Fase 5
-                              ↓
-Fase 1 → Fase 6          Fase 7 ← (Fase 5 + Fase 6)
-                              ↓
-                           Fase 8
-```
-
-## Variáveis de Ambiente Necessárias
+## Variáveis de Ambiente
 
 ```bash
 # MongoDB
@@ -173,7 +155,7 @@ AWS_REGION=
 AWS_S3_BUCKET=
 
 # Google Gemini
-GOOGLE_AI_API_KEY=
+GEMINI_API_KEY=
 
 # Z-API (WhatsApp)
 ZAPI_INSTANCE_ID=

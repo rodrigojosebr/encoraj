@@ -18,18 +18,22 @@ export const badgeRecipe = defineRecipe({
       arrived: {
         bg: 'blue.100',
         color: 'blue.800',
+        _dark: { bg: 'blue.950', color: 'blue.300' },
       },
       notified: {
         bg: 'yellow.100',
         color: 'yellow.800',
+        _dark: { bg: 'yellow.950', color: 'yellow.300' },
       },
       delivered: {
         bg: 'green.100',
         color: 'green.700',
+        _dark: { bg: 'green.950', color: 'green.400' },
       },
       neutral: {
         bg: 'gray.100',
         color: 'gray.700',
+        _dark: { bg: 'gray.800', color: 'gray.300' },
       },
     },
   },

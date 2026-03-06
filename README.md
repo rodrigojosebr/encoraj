@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Encoraj
 
-## Getting Started
+Sistema web de gestão de encomendas para condomínios. Porteiro fotografa a etiqueta, IA lê os dados, morador recebe WhatsApp — tudo rastreado e auditável.
 
-First, run the development server:
+## Stack
+
+Next.js 15 · App Router · MongoDB Atlas · Panda CSS · JWT (jose) · AWS S3 · Gemini Flash · Z-API · TypeScript strict
+
+## Requisitos
+
+- Node.js 20+
+- Yarn 1.x
+- MongoDB Atlas (cluster gratuito funciona)
+- Conta AWS S3 (para fotos e QR codes)
+- API Key do Google Gemini
+- Instância Z-API (WhatsApp)
+
+## Setup
 
 ```bash
-npm run dev
-# or
+# 1. Clonar e instalar dependências
+git clone <repo>
+cd encoraj
+yarn install
+
+# 2. Configurar variáveis de ambiente
+cp apps/encoraj/.env.local.example apps/encoraj/.env.local
+# editar .env.local com suas credenciais
+
+# 3. Criar usuário admin inicial
+cd apps/encoraj
+yarn seed
+
+# 4. Gerar o styled-system do Panda CSS
+yarn panda
+
+# 5. Rodar em desenvolvimento (da raiz)
+cd ../..
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse: http://localhost:3000
+Login padrão: `admin@encoraj.com` / `admin123`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variáveis de ambiente
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# MongoDB
+MONGODB_URI=mongodb+srv://.../<banco>?retryWrites=true&w=majority
 
-## Learn More
+# JWT
+JWT_SECRET=<string-aleatoria-longa>
 
-To learn more about Next.js, take a look at the following resources:
+# AWS S3
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Google Gemini
+GEMINI_API_KEY=
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Z-API (WhatsApp)
+ZAPI_INSTANCE_ID=
+ZAPI_TOKEN=
+ZAPI_CLIENT_TOKEN=
+```
 
-## Deploy on Vercel
+## Comandos
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+# Da raiz (Turborepo)
+yarn dev          # sobe todos os apps
+yarn build        # build completo
+yarn typecheck    # tsc --noEmit em todos os pacotes
+yarn lint         # eslint em todos os pacotes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# De apps/encoraj/
+yarn dev          # next dev
+yarn seed         # cria condomínio demo + admin inicial
+yarn panda        # regenera styled-system/ após mudar tokens/receitas
+```
+
+## Estrutura do monorepo
+
+```
+apps/
+  encoraj/          ← Next.js 15 app
+packages/
+  ui/               ← @encoraj/ui (componentes React)
+  panda-config/     ← @encoraj/panda-config (tokens + receitas Panda CSS)
+  tsconfig/         ← @encoraj/tsconfig (configs TypeScript compartilhadas)
+```
+
+## Documentação
+
+| Arquivo | Conteúdo |
+|---|---|
+| `PROJECT.md` | Problema, personas, fluxos, modelos de dados, integrações |
+| `ROADMAP.md` | Fases de desenvolvimento e status atual |
+| `CLAUDE.md` | Convenções de código, stack, estrutura (para o agente Claude) |
+| `STYLES.md` | Design system: tokens, componentes, convenções Panda CSS |
+
+## Roles
+
+| Role | Acesso |
+|---|---|
+| `admin` | Tudo: moradores, usuários, encomendas, relatórios |
+| `zelador` | CRUD de moradores |
+| `porteiro` | Registrar chegadas e confirmar retiradas |
+| `sindico` | Relatórios e listagens (somente leitura) |
