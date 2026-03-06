@@ -2,16 +2,10 @@ import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
-import { getStatusName, getStatusId } from '@/lib/db/status-map'
+import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge } from '@encoraj/ui'
 import DeliverButton from './_components/DeliverButton'
-
-const STATUS_LABEL: Record<string, string> = {
-  arrived:   'Chegou',
-  notified:  'Notificado',
-  delivered: 'Retirado',
-}
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -32,24 +26,27 @@ export default async function PackageDetailPage({ params }: RouteContext) {
   const resCol = await residents()
   const resident = await resCol.findOne({ _id: pkg.resident_id })
 
-  const statusName = await getStatusName(pkg.status_id)
-  const deliveredStatusId = await getStatusId('delivered')
-  const isDelivered = pkg.status_id.equals(deliveredStatusId)
+  const [pkgStatus, delivered] = await Promise.all([
+    getStatusById(pkg.status_id),
+    getStatus('delivered'),
+  ])
+  const { name: statusName, label: statusLabel } = pkgStatus
+  const isDelivered = pkg.status_id.equals(delivered._id)
 
   const rowCss = css({ display: 'flex', flexDir: 'column', gap: '0.5' })
-  const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide' })
-  const valueCss = css({ fontSize: 'sm', color: 'gray.900' })
+  const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', _dark: { color: 'gray.400' } })
+  const valueCss = css({ fontSize: 'sm', color: 'gray.900', _dark: { color: 'gray.100' } })
 
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6', maxW: '640px' })}>
       <div className={css({ display: 'flex', alignItems: 'center', gap: '3' })}>
-        <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900' })}>
+        <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
           Encomenda
         </h1>
-        <span className={css({ fontFamily: 'mono', fontSize: 'xl', fontWeight: 'bold', color: 'blue.600' })}>
+        <span className={css({ fontFamily: 'mono', fontSize: 'xl', fontWeight: 'bold', color: 'blue.600', _dark: { color: 'blue.400' } })}>
           {pkg.code}
         </span>
-        <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>{STATUS_LABEL[statusName] ?? statusName}</Badge>
+        <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>{statusLabel}</Badge>
       </div>
 
       {/* Dados */}
@@ -59,10 +56,11 @@ export default async function PackageDetailPage({ params }: RouteContext) {
           border: '1px solid',
           borderColor: 'gray.200',
           borderRadius: 'lg',
-          p: '6',
+          p: { base: '4', md: '6' },
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: { base: '1fr', md: '1fr 1fr' },
           gap: '6',
+          _dark: { bg: 'gray.900', borderColor: 'gray.700' },
         })}
       >
         <div className={rowCss}>

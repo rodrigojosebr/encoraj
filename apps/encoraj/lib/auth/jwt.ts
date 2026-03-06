@@ -11,6 +11,9 @@ export interface JwtPayload {
   name: string
   role: string
   condo_id: string
+  condo_name: string
+  photo_url?: string       // user profile photo (S3 URL)
+  condo_photo_url?: string // condo photo (S3 URL)
 }
 
 export async function signToken(payload: JwtPayload): Promise<string> {

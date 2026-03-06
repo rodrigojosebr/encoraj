@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { headers } from 'next/headers'
 import { packages } from '@/lib/db/collections'
-import { getStatusId } from '@/lib/db/status-map'
+import { getStatus } from '@/lib/db/status-map'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -35,7 +35,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Encomenda não encontrada' }, { status: 404 })
     }
 
-    const deliveredStatusId = await getStatusId('delivered')
+    const { _id: deliveredStatusId } = await getStatus('delivered')
     if (doc.status_id.equals(deliveredStatusId)) {
       return NextResponse.json({ error: 'Encomenda já foi entregue' }, { status: 409 })
     }

@@ -1,89 +1,107 @@
 import type { ObjectId } from 'mongodb'
 import { statuses, roles } from './collections'
 
-// ── Cache (module-level, hot-reload safe via global) ────────────────────────
+// ── Return types ─────────────────────────────────────────────────────────────
+
+export interface StatusInfo {
+  _id: ObjectId
+  name: string
+  label: string
+}
+
+export interface RoleInfo {
+  _id: ObjectId
+  name: string
+  label: string
+}
+
+// ── Cache (module-level, hot-reload safe via global) ─────────────────────────
 
 declare global {
   // eslint-disable-next-line no-var
-  var __statusCache: Map<string, ObjectId> | undefined
+  var __statusByName: Map<string, StatusInfo> | undefined
   // eslint-disable-next-line no-var
-  var __statusNameCache: Map<string, string> | undefined
+  var __statusById: Map<string, StatusInfo> | undefined
   // eslint-disable-next-line no-var
-  var __roleCache: Map<string, ObjectId> | undefined
+  var __roleByName: Map<string, RoleInfo> | undefined
   // eslint-disable-next-line no-var
-  var __roleNameCache: Map<string, string> | undefined
+  var __roleById: Map<string, RoleInfo> | undefined
 }
 
-function getStatusCache() {
-  if (!global.__statusCache) global.__statusCache = new Map()
-  return global.__statusCache
+function statusByName(): Map<string, StatusInfo> {
+  return (global.__statusByName ??= new Map())
+}
+function statusById(): Map<string, StatusInfo> {
+  return (global.__statusById ??= new Map())
+}
+function roleByName(): Map<string, RoleInfo> {
+  return (global.__roleByName ??= new Map())
+}
+function roleById(): Map<string, RoleInfo> {
+  return (global.__roleById ??= new Map())
 }
 
-function getStatusNameCache() {
-  if (!global.__statusNameCache) global.__statusNameCache = new Map()
-  return global.__statusNameCache
+// ── Prime both caches on first fetch ─────────────────────────────────────────
+
+function primeStatus(info: StatusInfo): StatusInfo {
+  statusByName().set(info.name, info)
+  statusById().set(info._id.toString(), info)
+  return info
 }
 
-function getRoleCache() {
-  if (!global.__roleCache) global.__roleCache = new Map()
-  return global.__roleCache
+function primeRole(info: RoleInfo): RoleInfo {
+  roleByName().set(info.name, info)
+  roleById().set(info._id.toString(), info)
+  return info
 }
 
-function getRoleNameCache() {
-  if (!global.__roleNameCache) global.__roleNameCache = new Map()
-  return global.__roleNameCache
-}
+// ── Status ───────────────────────────────────────────────────────────────────
 
-// ── Status helpers ───────────────────────────────────────────────────────────
-
-export async function getStatusId(name: string): Promise<ObjectId> {
-  const cache = getStatusCache()
-  if (cache.has(name)) return cache.get(name)!
+export async function getStatus(name: string): Promise<StatusInfo> {
+  const cached = statusByName().get(name)
+  if (cached) return cached
 
   const col = await statuses()
   const doc = await col.findOne({ name })
   if (!doc?._id) throw new Error(`Status not found: ${name}`)
 
-  cache.set(name, doc._id)
-  return doc._id
+  return primeStatus({ _id: doc._id, name: doc.name, label: doc.label })
 }
 
-export async function getStatusName(id: ObjectId): Promise<string> {
+export async function getStatusById(id: ObjectId): Promise<StatusInfo> {
   const key = id.toString()
-  const cache = getStatusNameCache()
-  if (cache.has(key)) return cache.get(key)!
+  const cached = statusById().get(key)
+  if (cached) return cached
 
   const col = await statuses()
   const doc = await col.findOne({ _id: id })
-  if (!doc) throw new Error(`Status not found for id: ${key}`)
+  if (!doc?._id) throw new Error(`Status not found for id: ${key}`)
 
-  cache.set(key, doc.name)
-  return doc.name
+  return primeStatus({ _id: doc._id, name: doc.name, label: doc.label })
 }
 
-// ── Role helpers ─────────────────────────────────────────────────────────────
+// ── Role ─────────────────────────────────────────────────────────────────────
 
-export async function getRoleId(name: string): Promise<ObjectId> {
-  const cache = getRoleCache()
-  if (cache.has(name)) return cache.get(name)!
+export async function getRole(name: string): Promise<RoleInfo> {
+  const cached = roleByName().get(name)
+  if (cached) return cached
 
   const col = await roles()
   const doc = await col.findOne({ name })
   if (!doc?._id) throw new Error(`Role not found: ${name}`)
 
-  cache.set(name, doc._id)
-  return doc._id
+  return primeRole({ _id: doc._id, name: doc.name, label: doc.label })
 }
 
-export async function getRoleName(id: ObjectId): Promise<string> {
+export async function getRoleById(id: ObjectId): Promise<RoleInfo> {
   const key = id.toString()
-  const cache = getRoleNameCache()
-  if (cache.has(key)) return cache.get(key)!
+  const cached = roleById().get(key)
+  if (cached) return cached
 
   const col = await roles()
   const doc = await col.findOne({ _id: id })
-  if (!doc) throw new Error(`Role not found for id: ${key}`)
+  if (!doc?._id) throw new Error(`Role not found for id: ${key}`)
 
-  cache.set(key, doc.name)
-  return doc.name
+  return primeRole({ _id: doc._id, name: doc.name, label: doc.label })
 }
+

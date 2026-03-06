@@ -2,22 +2,9 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
-import { getStatusId, getStatusName } from '@/lib/db/status-map'
+import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
-
-const STATUS_LABEL: Record<string, string> = {
-  arrived:   'Chegou',
-  notified:  'Notificado',
-  delivered: 'Retirado',
-}
-
-const FILTERS: Array<{ label: string; value: string }> = [
-  { label: 'Todos',      value: '' },
-  { label: 'Chegou',     value: 'arrived' },
-  { label: 'Notificado', value: 'notified' },
-  { label: 'Retirado',   value: 'delivered' },
-]
 
 export default async function PackagesPage({
   searchParams,
@@ -28,14 +15,27 @@ export default async function PackagesPage({
   const headersList = await headers()
   const condoId = headersList.get('x-condo-id')!
 
+  const [arrived, notified, delivered] = await Promise.all([
+    getStatus('arrived'),
+    getStatus('notified'),
+    getStatus('delivered'),
+  ])
+
+  const FILTERS = [
+    { label: 'Todos',            value: '' },
+    { label: arrived.label,      value: 'arrived' },
+    { label: notified.label,     value: 'notified' },
+    { label: delivered.label,    value: 'delivered' },
+  ]
+
   const filter: Record<string, unknown> = { condo_id: new ObjectId(condoId) }
-  if (status) filter.status_id = await getStatusId(status)
+  if (status) filter.status_id = (await getStatus(status))._id
 
   const col = await packages()
   const docs = await col.find(filter).sort({ arrived_at: -1 }).toArray()
 
-  // Resolve status names for all packages
-  const statusNames = await Promise.all(docs.map((d) => getStatusName(d.status_id)))
+  // Resolve status info (name for Badge, label for display) per package — single call each
+  const statusInfos = await Promise.all(docs.map((d) => getStatusById(d.status_id)))
 
   // Busca nomes dos moradores em lote
   const residentIds = [...new Set(docs.map((d) => d.resident_id.toString()))]
@@ -48,8 +48,8 @@ export default async function PackagesPage({
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6' })}>
       {/* Header */}
-      <div className={css({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
-        <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900' })}>
+      <div className={css({ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '3' })}>
+        <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
           Encomendas
         </h1>
         <Link href="/packages/new">
@@ -58,7 +58,7 @@ export default async function PackagesPage({
       </div>
 
       {/* Filtros de status */}
-      <div className={css({ display: 'flex', gap: '2' })}>
+      <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '2' })}>
         {FILTERS.map((f) => (
           <Link key={f.value} href={f.value ? `/packages?status=${f.value}` : '/packages'}>
             <button
@@ -74,6 +74,11 @@ export default async function PackagesPage({
                 color: status === f.value || (!status && !f.value) ? 'white' : 'gray.600',
                 borderColor: status === f.value || (!status && !f.value) ? 'blue.600' : 'gray.300',
                 _hover: { borderColor: 'blue.400' },
+                _dark: {
+                  bg: status === f.value || (!status && !f.value) ? 'blue.600' : 'gray.900',
+                  color: status === f.value || (!status && !f.value) ? 'white' : 'gray.400',
+                  borderColor: status === f.value || (!status && !f.value) ? 'blue.600' : 'gray.700',
+                },
               })}
             >
               {f.label}
@@ -90,16 +95,18 @@ export default async function PackagesPage({
           borderColor: 'gray.200',
           borderRadius: 'lg',
           overflow: 'hidden',
+          _dark: { bg: 'gray.900', borderColor: 'gray.700' },
         })}
       >
         {docs.length === 0 ? (
-          <p className={css({ p: '8', textAlign: 'center', color: 'gray.500', fontSize: 'sm' })}>
+          <p className={css({ p: '8', textAlign: 'center', color: 'gray.500', fontSize: 'sm', _dark: { color: 'gray.400' } })}>
             Nenhuma encomenda encontrada.
           </p>
         ) : (
-          <table className={css({ w: 'full', borderCollapse: 'collapse' })}>
+          <div className={css({ overflowX: 'auto' })}>
+          <table className={css({ w: 'full', minW: '600px', borderCollapse: 'collapse' })}>
             <thead>
-              <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200' })}>
+              <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
                 {['Código', 'Morador', 'Apartamento', 'Chegada', 'Status', ''].map((h) => (
                   <th
                     key={h}
@@ -112,6 +119,7 @@ export default async function PackagesPage({
                       color: 'gray.500',
                       textTransform: 'uppercase',
                       letterSpacing: 'wide',
+                      _dark: { color: 'gray.400' },
                     })}
                   >
                     {h}
@@ -122,26 +130,26 @@ export default async function PackagesPage({
             <tbody>
               {docs.map((pkg, i) => {
                 const resident = residentMap[pkg.resident_id.toString()]
-                const statusName = statusNames[i]
+                const { name: statusName, label: statusLabel } = statusInfos[i]
                 return (
                   <tr
                     key={pkg._id!.toString()}
-                    className={css({ borderBottom: '1px solid', borderColor: 'gray.100', _hover: { bg: 'gray.50' } })}
+                    className={css({ borderBottom: '1px solid', borderColor: 'gray.100', _hover: { bg: 'gray.50' }, _dark: { borderColor: 'gray.800', _hover: { bg: 'gray.800' } } })}
                   >
-                    <td className={css({ px: '4', py: '3', fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', fontFamily: 'mono' })}>
+                    <td className={css({ px: '4', py: '3', fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', fontFamily: 'mono', _dark: { color: 'gray.100' } })}>
                       {pkg.code}
                     </td>
-                    <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.900' })}>
+                    <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.900', _dark: { color: 'gray.100' } })}>
                       {resident?.name ?? '—'}
                     </td>
-                    <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600' })}>
+                    <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
                       {resident?.apartment ?? '—'}
                     </td>
-                    <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600' })}>
+                    <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
                       {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className={css({ px: '4', py: '3' })}>
-                      <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>{STATUS_LABEL[statusName] ?? statusName}</Badge>
+                      <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>{statusLabel}</Badge>
                     </td>
                     <td className={css({ px: '4', py: '3' })}>
                       <Link href={`/packages/${pkg._id!.toString()}`}>
@@ -153,6 +161,7 @@ export default async function PackagesPage({
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

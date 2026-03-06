@@ -3,12 +3,13 @@ import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { headers } from 'next/headers'
 import { residents } from '@/lib/db/collections'
-import { getStatusId } from '@/lib/db/status-map'
+import { getStatus } from '@/lib/db/status-map'
 import { logAction } from '@/lib/audit/log'
 
 const UpdateResidentSchema = z.object({
   name: z.string().min(2).optional(),
   apartment: z.string().min(1).optional(),
+  bloco: z.string().optional(),
   whatsapp: z.string().min(1).optional(),
 })
 
@@ -45,7 +46,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
     }
 
     const col = await residents()
-    const activeStatusId = await getStatusId('active')
+    const { _id: activeStatusId } = await getStatus('active')
     const before = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: activeStatusId })
 
     if (!before) {
@@ -79,6 +80,65 @@ export async function PUT(request: Request, { params }: RouteContext) {
   }
 }
 
+export async function PATCH(_request: Request, { params }: RouteContext) {
+  try {
+    const { id } = await params
+    const headersList = await headers()
+    const role = headersList.get('x-user-role')
+    const actorId = headersList.get('x-user-id')
+    const actorName = headersList.get('x-user-name')
+    const condoId = headersList.get('x-condo-id')
+
+    if (!role || !actorId || !actorName || !condoId) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    }
+
+    if (role !== 'admin' && role !== 'zelador') {
+      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    }
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+    }
+
+    const col = await residents()
+    const [{ _id: deletedStatusId }, { _id: activeStatusId }] = await Promise.all([
+      getStatus('deleted'),
+      getStatus('active'),
+    ])
+    const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: deletedStatusId })
+
+    if (!doc) {
+      return NextResponse.json({ error: 'Morador não encontrado nos excluídos' }, { status: 404 })
+    }
+    const now = new Date()
+
+    await col.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: { status_id: activeStatusId, updated_at: now, updated_by: new ObjectId(actorId) },
+        $unset: { deleted_at: '', deleted_by: '' },
+      },
+    )
+
+    await logAction({
+      condo_id: new ObjectId(condoId),
+      entity: 'residents',
+      entity_id: new ObjectId(id),
+      action: 'updated',
+      actor_id: new ObjectId(actorId),
+      actor_name: actorName,
+      before: doc as unknown as Record<string, unknown>,
+      after: { status_id: activeStatusId, updated_at: now },
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[PATCH /api/residents/[id]]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
+}
+
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
@@ -101,7 +161,10 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     }
 
     const col = await residents()
-    const activeStatusId = await getStatusId('active')
+    const [{ _id: activeStatusId }, { _id: deletedStatusId }] = await Promise.all([
+      getStatus('active'),
+      getStatus('deleted'),
+    ])
     const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: activeStatusId })
 
     if (!doc) {
@@ -111,7 +174,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     const now = new Date()
     await col.updateOne(
       { _id: new ObjectId(id) },
-      { $set: { status_id: await getStatusId('deleted'), deleted_at: now, deleted_by: new ObjectId(actorId) } },
+      { $set: { status_id: deletedStatusId, deleted_at: now, deleted_by: new ObjectId(actorId) } },
     )
 
     await logAction({

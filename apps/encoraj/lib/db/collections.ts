@@ -22,6 +22,7 @@ export interface CondominiumDoc {
   _id?: ObjectId
   name: string
   slug: string
+  photo_url?: string
   status_id: ObjectId
   created_at: Date
 }
@@ -34,6 +35,7 @@ export interface UserDoc {
   password_hash: string
   role_id: ObjectId
   status_id: ObjectId
+  photo_url?: string
   created_at: Date
 }
 
@@ -42,6 +44,7 @@ export interface ResidentDoc {
   condo_id: ObjectId
   name: string
   apartment: string
+  bloco?: string
   whatsapp: string
   status_id: ObjectId
   created_at: Date

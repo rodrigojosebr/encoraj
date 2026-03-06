@@ -3,12 +3,13 @@ import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { headers } from 'next/headers'
 import { residents } from '@/lib/db/collections'
-import { getStatusId } from '@/lib/db/status-map'
+import { getStatus } from '@/lib/db/status-map'
 import { logAction } from '@/lib/audit/log'
 
 const CreateResidentSchema = z.object({
   name: z.string().min(2),
   apartment: z.string().min(1),
+  bloco: z.string().optional(),
   whatsapp: z.string().min(1),
 })
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 
     const col = await residents()
     const filter: Record<string, unknown> = {
-      status_id: await getStatusId('active'),
+      status_id: (await getStatus('active'))._id,
       condo_id: new ObjectId(condoId),
     }
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     const doc = {
       ...parsed.data,
       condo_id: new ObjectId(condoId),
-      status_id: await getStatusId('active'),
+      status_id: (await getStatus('active'))._id,
       created_at: now,
       created_by: new ObjectId(actorId),
     }

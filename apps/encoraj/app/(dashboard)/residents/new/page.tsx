@@ -23,7 +23,7 @@ export default function NewResidentPage() {
           border: '1px solid',
           borderColor: 'gray.200',
           borderRadius: 'lg',
-          p: '6',
+          p: { base: '4', md: '6' },
         })}
       >
         <ResidentForm />

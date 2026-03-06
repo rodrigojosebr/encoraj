@@ -58,7 +58,7 @@ AWS_REGION=us-east-1
 AWS_S3_BUCKET=
 
 # Google Gemini
-GOOGLE_AI_API_KEY=
+GEMINI_API_KEY=
 
 # Z-API (WhatsApp)
 ZAPI_INSTANCE_ID=

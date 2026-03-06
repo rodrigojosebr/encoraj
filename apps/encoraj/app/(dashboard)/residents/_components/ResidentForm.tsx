@@ -8,7 +8,7 @@ import { WhatsAppField } from './WhatsAppField'
 
 interface ResidentFormProps {
   id?: string
-  defaultValues?: { name: string; apartment: string; whatsapp: string }
+  defaultValues?: { name: string; apartment: string; bloco?: string; whatsapp: string }
 }
 
 export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
@@ -31,9 +31,11 @@ export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
       return
     }
 
+    const bloco = (form.get('bloco') as string).trim() || undefined
     const body = {
       name: form.get('name') as string,
       apartment: form.get('apartment') as string,
+      bloco,
       whatsapp,
     }
 
@@ -71,13 +73,21 @@ export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
         placeholder="Nome completo"
       />
 
-      <FormField
-        label="Apartamento"
-        name="apartment"
-        required
-        defaultValue={defaultValues?.apartment}
-        placeholder="Ex: 101, Bloco A"
-      />
+      <div className={css({ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '3' })}>
+        <FormField
+          label="Bloco"
+          name="bloco"
+          defaultValue={defaultValues?.bloco ?? ''}
+          placeholder="Ex: A, 3"
+        />
+        <FormField
+          label="Apartamento"
+          name="apartment"
+          required
+          defaultValue={defaultValues?.apartment}
+          placeholder="Ex: 101"
+        />
+      </div>
 
       <WhatsAppField defaultValue={defaultValues?.whatsapp} />
 

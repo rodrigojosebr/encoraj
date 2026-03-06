@@ -5,8 +5,9 @@ import { AUTH_COOKIE } from '@/lib/auth/cookies'
 
 // Rotas que exigem role mínima
 const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
-  { prefix: '/users', roles: ['admin'] },
-  { prefix: '/reports', roles: ['admin', 'sindico'] },
+  { prefix: '/users',    roles: ['admin'] },
+  { prefix: '/settings', roles: ['admin'] },
+  { prefix: '/reports',  roles: ['admin', 'sindico'] },
   { prefix: '/residents', roles: ['admin', 'zelador'] },
   { prefix: '/packages', roles: ['admin', 'porteiro'] },
 ]
@@ -15,7 +16,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Rotas públicas — deixa passar
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
+  if (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/register')
+  ) {
     return NextResponse.next()
   }
 
@@ -57,6 +63,9 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set('x-user-name', payload.name)
   requestHeaders.set('x-user-role', payload.role)
   requestHeaders.set('x-condo-id', payload.condo_id)
+  requestHeaders.set('x-condo-name', payload.condo_name ?? '')
+  requestHeaders.set('x-user-photo', payload.photo_url ?? '')
+  requestHeaders.set('x-condo-photo', payload.condo_photo_url ?? '')
 
   return NextResponse.next({ request: { headers: requestHeaders } })
 }

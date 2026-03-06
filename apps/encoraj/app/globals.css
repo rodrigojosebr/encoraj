@@ -1,1 +1,16 @@
 @layer reset, base, tokens, recipes, utilities;
+
+html.dark {
+  background: #111827;
+  color: #f9fafb;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0)    scale(1); }
+  to   { opacity: 0; transform: translateY(10px) scale(0.96); }
+}
