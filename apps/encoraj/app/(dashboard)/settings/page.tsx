@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { css } from '@/styled-system/css'
-import { Button, FormField, Alert } from '@encoraj/ui'
+import { Button, FormField, Alert, useToast } from '@encoraj/ui'
 
 export default function SettingsPage() {
+  const { toast } = useToast()
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -22,7 +22,6 @@ export default function SettingsPage() {
     e.preventDefault()
     setSaving(true)
     setError(null)
-    setSuccess(false)
 
     const res = await fetch('/api/condo', {
       method: 'PUT',
@@ -32,9 +31,9 @@ export default function SettingsPage() {
 
     setSaving(false)
     if (res.ok) {
-      setSuccess(true)
+      toast({ variant: 'success', message: 'Nome atualizado! Recarregando…' })
       // Reload para o layout pegar o novo JWT com condo_name atualizado
-      setTimeout(() => window.location.reload(), 800)
+      setTimeout(() => window.location.reload(), 1200)
     } else {
       const data = await res.json()
       setError(data.error ?? 'Erro ao salvar')
@@ -91,7 +90,6 @@ export default function SettingsPage() {
           {/* Nome */}
           <form onSubmit={handleSubmit} className={css({ display: 'flex', flexDir: 'column', gap: '4', maxW: '480px' })}>
             {error && <Alert variant="error">{error}</Alert>}
-            {success && <Alert variant="success">Nome atualizado! Recarregando…</Alert>}
 
             <FormField
               label="Nome do condomínio"

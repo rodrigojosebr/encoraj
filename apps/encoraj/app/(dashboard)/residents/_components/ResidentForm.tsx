@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, FormField, Alert } from '@encoraj/ui'
+import { Button, FormField, Alert, useToast } from '@encoraj/ui'
 import { css } from '@/styled-system/css'
 import { WhatsAppField } from './WhatsAppField'
 
@@ -13,6 +13,7 @@ interface ResidentFormProps {
 
 export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -47,7 +48,8 @@ export default function ResidentForm({ id, defaultValues }: ResidentFormProps) {
       })
 
       if (res.ok) {
-        window.location.href = '/residents'
+        toast({ variant: 'success', message: id ? 'Morador atualizado!' : 'Morador cadastrado!' })
+        router.push('/residents')
       } else {
         const data = await res.json()
         setError(data.error ?? 'Erro ao salvar morador')
