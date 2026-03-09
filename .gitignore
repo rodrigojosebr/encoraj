@@ -45,3 +45,11 @@ apps/*/styled-system/
 
 # Turbo
 .turbo/
+
+# PWA (gerado pelo next-pwa no build)
+apps/encoraj/public/sw.js
+apps/encoraj/public/workbox-*.js
+apps/encoraj/public/worker-*.js
+apps/encoraj/public/fallback-*.js
+apps/encoraj/public/sw.js.map
+apps/encoraj/public/workbox-*.js.map
