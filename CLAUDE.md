@@ -46,7 +46,8 @@ yarn panda        # panda codegen → regenerate styled-system/
 - Role-based access: validate role in every protected API route and page
 - Soft-delete pattern: `status_id = deleted` + `deleted_at` + `deleted_by`; listagens filtram `{ status_id: (await getStatus('active'))._id }`
 - Audit log: toda escrita (create/update/delete) gera documento em `audit_logs` via `lib/audit/log.ts`
-- Auth redirect após login: `window.location.href = '/'` (não `router.push`)
+- Auth redirect após login: `window.location.href = '/'` (não `router.push`) — força reload do JWT
+- Redirects pós-ação dentro do app (salvar form, confirmar entrega): usar `router.push(...)` — permite toast aparecer antes da navegação client-side
 - API auth pattern: ler `x-user-role`, `x-user-id`, `x-user-name`, `x-condo-id`, `x-condo-name` dos headers
 - **Sem hardcode de labels ou opções de negócio**: nenhum mapa de tradução nem array de opções fixo no código — a fonte da verdade é o banco:
   - Labels de status/role: `getStatus(name)`, `getStatusById(id)`, `getRole(name)`, `getRoleById(id)` de `lib/db/status-map.ts` — retornam `{ _id, name, label }`; use o que precisar de cada chamada

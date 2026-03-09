@@ -1,5 +1,6 @@
 'use client'
 
+import { useToast } from '@encoraj/ui'
 import { css } from '@/styled-system/css'
 
 interface Row {
@@ -13,6 +14,8 @@ interface Row {
 }
 
 export default function ExportCSV({ rows }: { rows: Row[] }) {
+  const { toast } = useToast()
+
   function handleExport() {
     const cols = ['Código', 'Morador', 'Apartamento', 'Status', 'Chegada', 'Notificado', 'Retirado']
     const lines = [
@@ -31,6 +34,7 @@ export default function ExportCSV({ rows }: { rows: Row[] }) {
     a.download = `encomendas-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
+    toast({ variant: 'info', message: `${rows.length} encomendas exportadas.` })
   }
 
   return (

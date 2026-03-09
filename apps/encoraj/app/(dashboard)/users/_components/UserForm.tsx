@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, FormField, Alert } from '@encoraj/ui'
+import { Button, FormField, Alert, useToast } from '@encoraj/ui'
 import { css } from '@/styled-system/css'
 
 interface RoleOption {
@@ -18,6 +18,7 @@ interface UserFormProps {
 
 export default function UserForm({ id, defaultValues, roleOptions }: UserFormProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -43,7 +44,8 @@ export default function UserForm({ id, defaultValues, roleOptions }: UserFormPro
       })
 
       if (res.ok) {
-        window.location.href = '/users'
+        toast({ variant: 'success', message: id ? 'Usuário atualizado!' : 'Usuário cadastrado!' })
+        router.push('/users')
       } else {
         const data = await res.json()
         setError(data.error ?? 'Erro ao salvar usuário')
