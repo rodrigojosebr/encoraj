@@ -136,6 +136,15 @@ export default function LoginPage() {
           <Button type="submit" loading={loading} style={{ width: '100%' }}>
             Entrar
           </Button>
+
+          {/* TODO: habilitar quando SMTP estiver configurado
+          <Link
+            href="/forgot-password"
+            className={css({ fontSize: 'sm', color: 'gray.500', textAlign: 'center', textDecoration: 'none', _hover: { color: 'blue.600' }, _dark: { color: 'gray.400', _hover: { color: 'blue.400' } } })}
+          >
+            Esqueci minha senha
+          </Link>
+          */}
         </form>
 
         <p className={css({ fontSize: 'sm', color: 'gray.500', textAlign: 'center', _dark: { color: 'gray.400' } })}>

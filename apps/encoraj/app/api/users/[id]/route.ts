@@ -51,15 +51,16 @@ export async function PUT(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
     }
 
-    // Check email uniqueness if changing email
+    // Check email uniqueness globally among active users
     if (parsed.data.email && parsed.data.email !== before.email) {
+      const { _id: activeStatusId } = await getStatus('active')
       const conflict = await col.findOne({
         email: parsed.data.email,
-        condo_id: new ObjectId(condoId),
+        status_id: activeStatusId,
         _id: { $ne: new ObjectId(id) },
       })
       if (conflict) {
-        return NextResponse.json({ error: 'E-mail já cadastrado neste condomínio' }, { status: 409 })
+        return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
       }
     }
 

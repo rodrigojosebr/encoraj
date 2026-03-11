@@ -8,7 +8,6 @@ if (!uri) {
 
 // Em dev, reutiliza a conexão entre hot-reloads
 declare global {
-  // eslint-disable-next-line no-var
   var _mongoClient: MongoClient | undefined
 }
 

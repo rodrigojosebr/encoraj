@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { users, roles, condominiums } from '@/lib/db/collections'
+import { users, condominiums } from '@/lib/db/collections'
 import { getStatus, getRole } from '@/lib/db/status-map'
 import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
@@ -38,11 +38,11 @@ export async function POST(request: Request) {
       getRole('admin'),
     ])
 
-    // Verifica email único
+    // Verifica email único globalmente entre usuários ativos
     const usersCol = await users()
-    const existingUser = await usersCol.findOne({ email })
+    const existingUser = await usersCol.findOne({ email, status_id: activeStatusId })
     if (existingUser) {
-      return NextResponse.json({ error: 'Este email já está em uso' }, { status: 409 })
+      return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
     }
 
     // Gera slug único (adiciona sufixo numérico se já existir)

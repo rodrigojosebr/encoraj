@@ -60,15 +60,15 @@ export async function POST(request: Request) {
     }
 
     const col = await users()
-    const existing = await col.findOne({ email: parsed.data.email, condo_id: new ObjectId(condoId) })
-    if (existing) {
-      return NextResponse.json({ error: 'E-mail já cadastrado neste condomínio' }, { status: 409 })
-    }
-
     const [{ _id: activeStatusId }, { _id: roleId }] = await Promise.all([
       getStatus('active'),
       getRole(parsed.data.role),
     ])
+
+    const existing = await col.findOne({ email: parsed.data.email, status_id: activeStatusId })
+    if (existing) {
+      return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
+    }
 
     const password_hash = await bcrypt.hash(parsed.data.password, 10)
     const now = new Date()

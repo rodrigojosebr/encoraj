@@ -1,5 +1,4 @@
 import { css } from '@/styled-system/css'
-import { SkeletonHeader } from '../../_components/PageSkeleton'
 
 const pulse = css({
   animation: 'skeleton-pulse 1.6s ease-in-out infinite',

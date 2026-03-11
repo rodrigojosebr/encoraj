@@ -10,12 +10,13 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/',           label: 'Dashboard',    roles: ['admin', 'porteiro', 'sindico'] },
+  { href: '/',           label: 'Dashboard',    roles: ['admin', 'porteiro', 'sindico', 'zelador'] },
   { href: '/packages',  label: 'Encomendas',    roles: ['admin', 'porteiro'] },
   { href: '/residents', label: 'Moradores',     roles: ['admin', 'zelador'] },
   { href: '/users',     label: 'Usuários',      roles: ['admin'] },
   { href: '/reports',   label: 'Relatórios',    roles: ['admin', 'sindico'] },
   { href: '/settings',  label: 'Configurações', roles: ['admin'] },
+  { href: '/profile',   label: 'Meu perfil',    roles: ['admin', 'porteiro', 'sindico', 'zelador'] },
 ]
 
 export default async function DashboardLayout({

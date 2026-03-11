@@ -18,13 +18,9 @@ export interface RoleInfo {
 // ── Cache (module-level, hot-reload safe via global) ─────────────────────────
 
 declare global {
-  // eslint-disable-next-line no-var
   var __statusByName: Map<string, StatusInfo> | undefined
-  // eslint-disable-next-line no-var
   var __statusById: Map<string, StatusInfo> | undefined
-  // eslint-disable-next-line no-var
   var __roleByName: Map<string, RoleInfo> | undefined
-  // eslint-disable-next-line no-var
   var __roleById: Map<string, RoleInfo> | undefined
 }
 

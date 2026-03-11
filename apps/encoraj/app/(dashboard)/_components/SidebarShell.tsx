@@ -10,6 +10,7 @@ import {
   UserCog,
   BarChart2,
   Settings,
+  UserCircle,
   ChevronLeft,
   ChevronRight,
   X,
@@ -18,6 +19,7 @@ import { css } from '@/styled-system/css'
 import ThemeToggle from './ThemeToggle'
 import LogoutButton from './LogoutButton'
 import Avatar from './Avatar'
+import InstallButton from './InstallButton'
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
   '/':          LayoutDashboard,
@@ -26,6 +28,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?
   '/users':     UserCog,
   '/reports':   BarChart2,
   '/settings':  Settings,
+  '/profile':   UserCircle,
 }
 
 interface NavItem {
@@ -273,10 +276,11 @@ export default function SidebarShell({
         </div>
 
         {/* Actions */}
-        <div className={css({ display: 'flex', gap: '2', alignItems: 'center' })}>
+        <div className={css({ display: 'flex', gap: '2', alignItems: 'center', flexWrap: 'wrap' })}>
           <ThemeToggle />
           {!collapsed && <LogoutButton />}
         </div>
+        <InstallButton collapsed={collapsed} />
       </div>
     </aside>
   )

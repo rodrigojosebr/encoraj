@@ -105,7 +105,7 @@ async function seed() {
 
   // ── Admin ───────────────────────────────────────────────────────────────
   const col = db.collection('users')
-  await col.createIndex({ email: 1 }, { unique: true })
+  await col.createIndex({ email: 1 })
 
   const existing = await col.findOne({ email: ADMIN.email })
 

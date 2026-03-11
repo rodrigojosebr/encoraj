@@ -55,6 +55,14 @@ export interface ResidentDoc {
   deleted_by?: ObjectId
 }
 
+export interface PasswordResetTokenDoc {
+  _id?: ObjectId
+  user_id: ObjectId
+  token_hash: string
+  expires_at: Date
+  used_at?: Date
+}
+
 export interface AuditLogDoc {
   _id?: ObjectId
   condo_id: ObjectId
@@ -120,4 +128,26 @@ export async function packages(): Promise<Collection<PackageDoc>> {
 export async function auditLogs(): Promise<Collection<AuditLogDoc>> {
   const db = await getDb()
   return db.collection<AuditLogDoc>('audit_logs')
+}
+
+export interface RateLimitDoc {
+  _id?: ObjectId
+  key: string
+  attempts: number
+  reset_at: Date
+}
+
+export async function passwordResetTokens(): Promise<Collection<PasswordResetTokenDoc>> {
+  const db = await getDb()
+  const col = db.collection<PasswordResetTokenDoc>('password_reset_tokens')
+  await col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
+  return col
+}
+
+export async function rateLimits(): Promise<Collection<RateLimitDoc>> {
+  const db = await getDb()
+  const col = db.collection<RateLimitDoc>('rate_limits')
+  await col.createIndex({ key: 1 }, { unique: true, background: true })
+  await col.createIndex({ reset_at: 1 }, { expireAfterSeconds: 0, background: true })
+  return col
 }

@@ -1,18 +1,29 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { users, roles, condominiums } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { checkRateLimit } from '@/lib/auth/rateLimit'
 
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 })
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 tentativas por IP a cada 15 min
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    const rl = await checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000)
+    if (rl.blocked) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
+        { status: 429 },
+      )
+    }
+
     const body = await request.json()
     const parsed = LoginSchema.safeParse(body)
 

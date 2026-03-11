@@ -9,9 +9,9 @@ import { Badge, Button } from '@encoraj/ui'
 export default async function PackagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; q?: string }>
 }) {
-  const { status } = await searchParams
+  const { status, q } = await searchParams
   const headersList = await headers()
   const condoId = headersList.get('x-condo-id')!
 
@@ -28,8 +28,25 @@ export default async function PackagesPage({
     { label: delivered.label,    value: 'delivered' },
   ]
 
-  const filter: Record<string, unknown> = { condo_id: new ObjectId(condoId) }
+  const condoOid = new ObjectId(condoId)
+  const filter: Record<string, unknown> = { condo_id: condoOid }
   if (status) filter.status_id = (await getStatus(status))._id
+
+  const resCol = await residents()
+
+  // Busca por texto: filtra por código OU por moradores cujo nome bate
+  if (q?.trim()) {
+    const regex = { $regex: q.trim(), $options: 'i' }
+    const matchingResidents = await resCol
+      .find({ condo_id: condoOid, name: regex })
+      .project({ _id: 1 })
+      .toArray()
+    const residentOids = matchingResidents.map((r) => r._id!)
+    filter.$or = [
+      { code: regex },
+      ...(residentOids.length > 0 ? [{ resident_id: { $in: residentOids } }] : []),
+    ]
+  }
 
   const col = await packages()
   const docs = await col.find(filter).sort({ arrived_at: -1 }).toArray()
@@ -39,7 +56,6 @@ export default async function PackagesPage({
 
   // Busca nomes dos moradores em lote
   const residentIds = [...new Set(docs.map((d) => d.resident_id.toString()))]
-  const resCol = await residents()
   const residentDocs = await resCol
     .find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) } })
     .toArray()
@@ -57,10 +73,52 @@ export default async function PackagesPage({
         </Link>
       </div>
 
+      {/* Busca */}
+      <form method="GET" className={css({ display: 'flex', gap: '2', flexWrap: 'wrap' })}>
+        {status && <input type="hidden" name="status" value={status} />}
+        <input
+          name="q"
+          defaultValue={q ?? ''}
+          placeholder="Buscar por morador ou código…"
+          className={css({
+            flex: '1',
+            minW: '220px',
+            px: '3',
+            py: '2',
+            fontSize: 'sm',
+            borderRadius: 'md',
+            border: '1px solid',
+            borderColor: 'gray.300',
+            bg: 'white',
+            color: 'gray.900',
+            outline: 'none',
+            _focus: { borderColor: 'blue.500', ring: '2px', ringColor: 'blue.200' },
+            _dark: { bg: 'gray.900', borderColor: 'gray.600', color: 'gray.100', _focus: { borderColor: 'blue.400', ringColor: 'blue.800' } },
+          })}
+        />
+        <button
+          type="submit"
+          className={css({ px: '3', py: '2', fontSize: 'sm', fontWeight: 'medium', bg: 'blue.600', color: 'white', borderRadius: 'md', border: 'none', cursor: 'pointer', _hover: { bg: 'blue.700' } })}
+        >
+          Buscar
+        </button>
+        {q && (
+          <a
+            href={status ? `/packages?status=${status}` : '/packages'}
+            className={css({ px: '3', py: '2', fontSize: 'sm', fontWeight: 'medium', bg: 'gray.100', color: 'gray.600', borderRadius: 'md', textDecoration: 'none', _hover: { bg: 'gray.200' }, _dark: { bg: 'gray.800', color: 'gray.300', _hover: { bg: 'gray.700' } } })}
+          >
+            Limpar
+          </a>
+        )}
+      </form>
+
       {/* Filtros de status */}
       <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '2' })}>
-        {FILTERS.map((f) => (
-          <Link key={f.value} href={f.value ? `/packages?status=${f.value}` : '/packages'}>
+        {FILTERS.map((f) => {
+          const qParam = q ? `&q=${encodeURIComponent(q)}` : ''
+          const href = f.value ? `/packages?status=${f.value}${qParam}` : `/packages${q ? `?q=${encodeURIComponent(q)}` : ''}`
+          return (
+          <Link key={f.value} href={href}>
             <button
               className={css({
                 px: '3',
@@ -84,7 +142,8 @@ export default async function PackagesPage({
               {f.label}
             </button>
           </Link>
-        ))}
+          )
+        })}
       </div>
 
       {/* Tabela */}

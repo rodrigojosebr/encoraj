@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
+import Image from 'next/image'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
@@ -100,6 +101,39 @@ export default async function PackageDetailPage({ params }: RouteContext) {
           </div>
         )}
       </div>
+
+      {/* Fotos */}
+      {(pkg.photo_url || pkg.qrcode_url) && (
+        <div className={css({ display: 'grid', gridTemplateColumns: { base: '1fr', md: '1fr 1fr' }, gap: '4' })}>
+          {pkg.photo_url && (
+            <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
+              <span className={labelCss}>Foto da etiqueta</span>
+              <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700' } })}>
+                <Image
+                  src={pkg.photo_url}
+                  alt="Foto da etiqueta"
+                  width={400}
+                  height={300}
+                  className={css({ w: 'full', h: 'auto', objectFit: 'cover' })}
+                />
+              </div>
+            </div>
+          )}
+          {pkg.qrcode_url && (
+            <div className={css({ display: 'flex', flexDir: 'column', gap: '2', alignItems: { base: 'flex-start', md: 'center' } })}>
+              <span className={labelCss}>QR Code</span>
+              <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700', filter: 'invert(1)' } })}>
+                <Image
+                  src={pkg.qrcode_url}
+                  alt="QR Code da encomenda"
+                  width={200}
+                  height={200}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ação de entrega */}
       {!isDelivered && (

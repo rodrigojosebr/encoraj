@@ -48,7 +48,7 @@
 - [x] `GET /api/packages` — listagem com filtro por status + `condo_id`
 - [x] `GET /api/packages/[id]` — detalhe
 - [x] `POST /api/packages/[id]/deliver` — confirmar retirada
-- [x] Página `/packages` — listagem com badge de status e filtros
+- [x] Página `/packages` — listagem com badge de status, filtros e busca por nome/código
 - [x] Página `/packages/[id]` — detalhe + botão "Confirmar Entrega"
 
 ---
@@ -58,7 +58,8 @@
 - [x] `GET/POST /api/users` + `PUT/DELETE /api/users/[id]`
 - [x] Páginas `/users`, `/users/new`, `/users/[id]/edit`
 - [x] Listagem: cards mobile, tabela desktop; seções Ativos / Desativados
-- [x] Proteção: admin não pode desativar a própria conta; email único por condo
+- [x] Proteção: admin não pode desativar a própria conta
+- [x] Email único globalmente entre usuários ativos (soft-delete libera o slot)
 
 ---
 
@@ -79,6 +80,7 @@
 - [x] Dark mode: `ThemeToggle` + `_dark` variants em todas as páginas
 - [x] `Avatar` com iniciais + cor gerada pelo nome (pronto para `photo_url`)
 - [x] Sidebar: avatar do condo (xl, centralizado) + avatar do usuário no rodapé
+- [x] Toast system: `success | error | warning | info`, top-right, tamanho grande
 
 ---
 
@@ -105,18 +107,61 @@
 
 ---
 
-## Fase 3b — Registro de Encomendas completo ← requer S3 + Gemini
+## Fase 5 — Auth Avançada ✅
 
-- [ ] `lib/s3/` — upload de arquivo, URL pública
-- [ ] `lib/gemini/` — OCR: enviar imagem, extrair `{ name, apartment }`
-- [ ] `lib/qrcode/` — gerar PNG + upload para S3
-- [ ] `POST /api/upload` — recebe imagem → S3 → URL
-- [ ] `POST /api/ocr` — URL de imagem → Gemini → JSON
-- [ ] `POST /api/packages` — criar encomenda com foto + QR code
-- [ ] Página `/packages/new` — câmera/upload → OCR → confirmar → salvar
-- [ ] **Bonus**: foto do condo e foto de perfil do usuário (`PUT /api/condo`, `PUT /api/me`)
+**Objetivo**: Usuário consegue recuperar e alterar senha de forma autônoma.
 
-**Milestone**: Porteiro fotografa etiqueta, sistema identifica destinatário, QR code gerado.
+- [x] `lib/email/mailer.ts` — Nodemailer SMTP configurável por env vars
+- [x] `lib/email/templates.ts` — template HTML do email de reset
+- [x] Collection `password_reset_tokens` — token (hash SHA-256), user_id, expires_at (TTL 1h), used_at
+- [x] Collection `rate_limits` — key, attempts, reset_at (TTL) — MongoDB-based para Vercel serverless
+- [x] `POST /api/auth/forgot` — busca usuário por email (todos os condos), gera token, envia email; sempre retorna 200
+- [x] `POST /api/auth/reset` — valida hash + expiração + used_at; atualiza senha; marca used_at
+- [x] `PUT /api/users/me/password` — altera senha estando logado (valida senha atual)
+- [x] Rate limiting: login (5 tentativas/15min por IP), forgot (3/email/1h — silencioso)
+- [x] Página pública `/forgot-password` — formulário de email
+- [x] Página pública `/reset-password?token=...` — formulário de nova senha com eye toggle
+- [x] Página `/profile` — exibe dados do usuário; botão de alterar senha; admin vê link "Editar"
+- [x] "Meu perfil" na sidebar (todos os roles) com ícone UserCircle
+- [x] Link "Esqueci minha senha" no login — **comentado; descomentar quando SMTP configurado**
+- [x] Busca de encomendas: nome do morador ou código no `/packages`
+
+**Milestone**: Porteiro esqueceu a senha → recebe email → redefine → acessa. Usuário logado altera a própria senha sem depender do admin.
+
+---
+
+## Fase 9 — Polimento e Produção ✅
+
+- [x] Tratamento de erros padronizado em todas as rotas
+- [x] Loading skeletons em todas as páginas do dashboard
+- [x] Error boundary (`error.tsx`) + página 404 (`not-found.tsx`)
+- [x] PWA: `manifest.ts` + ícones estáticos + `@ducanh2912/next-pwa` (Service Worker)
+- [x] Botão "Instalar app" na sidebar (Android nativo + iOS com instrução)
+- [ ] Deploy na Vercel + variáveis de ambiente de produção
+- [ ] Descomentar link "Esqueci minha senha" após configurar SMTP
+
+---
+
+## Fase 3b — Registro de Encomendas completo ← S3 parcialmente implementado
+
+- [x] `lib/s3/client.ts` + `lib/s3/upload.ts` — upload, URL pública
+- [x] `lib/qrcode/generate.ts` — gerar PNG + upload para S3
+- [x] `POST /api/upload` — recebe imagem → S3 → URL
+- [x] `POST /api/packages` — criar encomenda com foto + QR code + audit log
+- [x] Página `/packages/new` — câmera/upload → form manual → salvar
+- [x] Página `/packages/[id]` — exibe foto da etiqueta + QR code
+- [x] Estrutura S3: `condos/{condo_id}/packages/photos/` + `condos/{condo_id}/packages/qrcodes/`
+- [x] QR code contém URL `APP_URL/packages/{id}` — escanear abre direto a encomenda
+- [x] `APP_URL` em env vars — troca para URL real em produção (Vercel)
+- [ ] `lib/gemini/ocr.ts` — OCR: enviar imagem, extrair `{ name, apartment }` ← Fase 3c
+- [ ] `POST /api/ocr` — URL de imagem → Gemini → JSON ← Fase 3c
+- [ ] OCR integrado ao `/packages/new` — preenche morador automaticamente ← Fase 3c
+- [ ] **Bonus S3**: foto do condo (`PUT /api/condo`) + foto de perfil (`PUT /api/users/me`)
+- [ ] **Bonus JWT**: re-assinar com `photo_url` e `condo_photo_url` após upload
+
+**Fluxo QR code**: porteiro registra → sistema gera QR code → WhatsApp envia ao morador → morador apresenta QR (ou código) na retirada → porteiro escaneia → confirma entrega.
+
+**Milestone**: Porteiro fotografa etiqueta, seleciona destinatário, QR code gerado e pronto para envio via WhatsApp.
 
 ---
 
@@ -130,15 +175,6 @@
 
 ---
 
-## Fase 9 — Polimento e Produção
-
-- [ ] Tratamento de erros padronizado em todas as rotas
-- [ ] Loading states e feedback visual nas ações críticas
-- [ ] Deploy na Vercel + variáveis de ambiente de produção
-- [ ] **PWA**: `manifest.json` + ícones + `next-pwa` (Service Worker)
-
----
-
 ## Variáveis de Ambiente
 
 ```bash
@@ -147,6 +183,13 @@ MONGODB_URI=
 
 # JWT
 JWT_SECRET=
+
+# Email (SMTP — Nodemailer)
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
 
 # AWS S3
 AWS_ACCESS_KEY_ID=

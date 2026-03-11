@@ -84,8 +84,9 @@ yarn panda        # panda codegen → regenerate styled-system/
             LogoutButton.tsx
           packages/
             page.tsx
-            new/page.tsx        ← pendente (S3 + Gemini)
-            [id]/page.tsx
+            new/page.tsx        ← câmera/upload → form → S3 + QR code
+            new/_components/NewPackageForm.tsx
+            [id]/page.tsx       ← exibe foto + QR code
           residents/
             page.tsx
             new/page.tsx
@@ -100,26 +101,30 @@ yarn panda        # panda codegen → regenerate styled-system/
           reports/page.tsx      ← pendente
         api/
           auth/route.ts         ← POST login, DELETE logout
+          auth/forgot/route.ts  ← POST envia email de reset
+          auth/reset/route.ts   ← POST valida token + redefine senha
           register/route.ts     ← POST cria condo + admin
           condo/route.ts        ← GET/PUT condo info
           residents/route.ts    ← GET, POST
           residents/[id]/route.ts ← PUT, DELETE (soft), PATCH (restore)
           users/route.ts        ← GET, POST
           users/[id]/route.ts   ← PUT, DELETE (soft)
-          packages/route.ts     ← GET
+          users/me/password/route.ts ← PUT altera senha do usuário logado
+          packages/route.ts     ← GET (com busca por morador/código)
           packages/[id]/route.ts ← GET
           packages/[id]/deliver/route.ts ← POST
-          upload/route.ts       ← pendente (S3)
+          upload/route.ts       ← POST recebe imagem → S3 → URL
           ocr/route.ts          ← pendente (Gemini)
           whatsapp/route.ts     ← pendente (Z-API)
       lib/
         db/         ← MongoDB client (client.ts), collections (collections.ts), status-map.ts
         auth/       ← jwt.ts (sign/verify), cookies.ts
         audit/      ← log.ts → logAction()
-        s3/         ← pendente
-        gemini/     ← pendente
-        zapi/       ← pendente
-        qrcode/     ← pendente
+        email/      ← mailer.ts (Nodemailer SMTP), templates.ts (HTML emails)
+        s3/         ← client.ts (S3Client), upload.ts (uploadToS3 → URL pública)
+        qrcode/     ← generate.ts (gera PNG + sobe para S3 → URL)
+        gemini/     ← pendente (OCR)
+        zapi/       ← pendente (WhatsApp)
       scripts/
         seed.ts     ← cria condo demo + admin inicial
       styled-system/  ← gerado por panda codegen (gitignored)
@@ -156,6 +161,9 @@ yarn panda        # panda codegen → regenerate styled-system/
 // audit_logs
 { _id, condo_id, entity, entity_id, action: 'created'|'updated'|'deleted',
   actor_id, actor_name, before?, after?, timestamp }
+
+// password_reset_tokens
+{ _id, user_id: ObjectId, token_hash: string, expires_at: Date, used_at?: Date }
 ```
 
 ### Status/Role helpers (`lib/db/status-map.ts`)
@@ -200,11 +208,25 @@ MONGODB_URI=
 # JWT
 JWT_SECRET=
 
+# Email (SMTP — Nodemailer)
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+
+# App URL (usado no QR code — troca para URL real em produção)
+APP_URL=https://seudominio.com
+
 # AWS S3
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_REGION=
 AWS_S3_BUCKET=
+# Estrutura S3: condos/{condo_id}/packages/photos/{uuid}.jpg
+#               condos/{condo_id}/packages/qrcodes/{package_id}.png
+#               condos/{condo_id}/users/{user_id}/avatar.jpg  ← futuro
+#               condos/{condo_id}/logo.jpg                    ← futuro
 
 # Google Gemini
 GEMINI_API_KEY=
