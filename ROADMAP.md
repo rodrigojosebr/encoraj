@@ -156,8 +156,8 @@
 - [ ] `lib/gemini/ocr.ts` — OCR: enviar imagem, extrair `{ name, apartment }` ← Fase 3c
 - [ ] `POST /api/ocr` — URL de imagem → Gemini → JSON ← Fase 3c
 - [ ] OCR integrado ao `/packages/new` — preenche morador automaticamente ← Fase 3c
-- [ ] **Bonus S3**: foto do condo (`PUT /api/condo`) + foto de perfil (`PUT /api/users/me`)
-- [ ] **Bonus JWT**: re-assinar com `photo_url` e `condo_photo_url` após upload
+- [x] **Bonus S3**: foto do condo (`POST /api/condo/photo`) + foto de perfil (`POST /api/users/me/photo`)
+- [x] **Bonus JWT**: re-assina com `photo_url` e `condo_photo_url` após upload — sidebar atualiza sem reload
 
 **Fluxo QR code**: porteiro registra → sistema gera QR code → WhatsApp envia ao morador → morador apresenta QR (ou código) na retirada → porteiro escaneia → confirma entrega.
 
@@ -165,13 +165,32 @@
 
 ---
 
-## Fase 4 — Notificação WhatsApp ← requer Z-API
+## Fase 4a — Notificação WhatsApp via link (wa.me) ✅
 
-- [ ] `lib/zapi/` — enviar mensagem de texto e imagem
+- [x] Botão "Notificar via WhatsApp" na página `/packages/[id]`
+- [x] Abre `wa.me/{numero}?text=...` com mensagem pronta (nome, código, link público)
+- [x] `POST /api/packages/[id]/notify` — marca `notified_at` + status `notified`
+- [x] Página pública `/p/[id]` — sem login, mostra foto, código, QR code, dados do destinatário
+- [x] Status `delivered` → banner verde "✅ Retirada em [data]" + todos os dados visíveis; código e QR somem
+- [x] Acesso por ObjectId (24 hex chars = token implícito, impossível de adivinhar)
+- [x] Middleware libera `/p/` como rota pública
+- [x] `/packages/[id]` — banner verde quando entregue, deixa status claro
+- [x] `NotifyButton` — diferencia 1ª notificação ("Notificar via WhatsApp") de reenvio ("Notificado em [data] · Reenviar")
+
+**Milestone**: Porteiro clica → WhatsApp abre com mensagem pronta → morador abre link → vê foto + código + QR → apresenta na portaria.
+
+---
+
+## Fase 4b — Notificação WhatsApp automática ← requer Z-API ou Evolution API
+
+- [ ] `lib/zapi/` — enviar mensagem de texto e imagem via API
 - [ ] `POST /api/whatsapp` — template de mensagem para o morador
-- [ ] Integrar ao fluxo de criação de encomenda → atualizar `notified_at`
+- [ ] Integrar ao fluxo de criação de encomenda → atualizar `notified_at` automaticamente
+- [ ] Substituir botão da Fase 4a por envio automático
 
-**Milestone**: Morador recebe WhatsApp com foto, código e QR Code.
+**Obs**: Z-API (~R$50-150/mês) ou Evolution API (gratuita, self-hosted). Implementar após deploy em produção com uso real.
+
+**Milestone**: Morador recebe WhatsApp automaticamente com foto, código e QR Code.
 
 ---
 

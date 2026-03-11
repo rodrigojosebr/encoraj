@@ -69,6 +69,8 @@ yarn panda        # panda codegen → regenerate styled-system/
   apps/
     encoraj/                ← Next.js app
       app/
+        p/
+          [id]/page.tsx     ← pública (sem login): foto, código, QR code; delivered → "retirada"
         (auth)/
           login/page.tsx
           register/page.tsx ← self-service onboarding
@@ -112,9 +114,12 @@ yarn panda        # panda codegen → regenerate styled-system/
           users/me/password/route.ts ← PUT altera senha do usuário logado
           packages/route.ts     ← GET (com busca por morador/código)
           packages/[id]/route.ts ← GET
-          packages/[id]/deliver/route.ts ← POST
+          packages/[id]/deliver/route.ts ← POST confirmar entrega
+          packages/[id]/notify/route.ts  ← POST marca notified_at + status notified
           upload/route.ts       ← POST recebe imagem → S3 → URL
           ocr/route.ts          ← pendente (Gemini)
+          condo/photo/route.ts  ← POST foto do condo → S3 + DB + re-sign JWT
+          users/me/photo/route.ts ← POST foto de perfil → S3 + DB + re-sign JWT
           whatsapp/route.ts     ← pendente (Z-API)
       lib/
         db/         ← MongoDB client (client.ts), collections (collections.ts), status-map.ts
@@ -124,7 +129,7 @@ yarn panda        # panda codegen → regenerate styled-system/
         s3/         ← client.ts (S3Client), upload.ts (uploadToS3 → URL pública)
         qrcode/     ← generate.ts (gera PNG + sobe para S3 → URL)
         gemini/     ← pendente (OCR)
-        zapi/       ← pendente (WhatsApp)
+        zapi/       ← pendente (Fase 4b — Z-API automático)
       scripts/
         seed.ts     ← cria condo demo + admin inicial
       styled-system/  ← gerado por panda codegen (gitignored)

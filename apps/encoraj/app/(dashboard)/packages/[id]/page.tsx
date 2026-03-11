@@ -7,6 +7,7 @@ import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge } from '@encoraj/ui'
 import DeliverButton from './_components/DeliverButton'
+import NotifyButton from './_components/NotifyButton'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -27,12 +28,17 @@ export default async function PackageDetailPage({ params }: RouteContext) {
   const resCol = await residents()
   const resident = await resCol.findOne({ _id: pkg.resident_id })
 
-  const [pkgStatus, delivered] = await Promise.all([
+  const [pkgStatus, arrived, notified, delivered] = await Promise.all([
     getStatusById(pkg.status_id),
+    getStatus('arrived'),
+    getStatus('notified'),
     getStatus('delivered'),
   ])
   const { name: statusName, label: statusLabel } = pkgStatus
   const isDelivered = pkg.status_id.equals(delivered._id)
+  const isArrived = pkg.status_id.equals(arrived._id)
+  const isNotified = pkg.status_id.equals(notified._id)
+  const condoName = headersList.get('x-condo-name') ?? ''
 
   const rowCss = css({ display: 'flex', flexDir: 'column', gap: '0.5' })
   const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', _dark: { color: 'gray.400' } })
@@ -135,9 +141,44 @@ export default async function PackageDetailPage({ params }: RouteContext) {
         </div>
       )}
 
-      {/* Ação de entrega */}
+      {/* Banner de entregue */}
+      {isDelivered && (
+        <div className={css({
+          bg: 'green.50', border: '1px solid', borderColor: 'green.200',
+          borderRadius: 'lg', p: '4',
+          display: 'flex', alignItems: 'center', gap: '3',
+          _dark: { bg: 'green.950', borderColor: 'green.800' },
+        })}>
+          <span className={css({ fontSize: '2xl' })}>✅</span>
+          <div>
+            <p className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'green.800', _dark: { color: 'green.300' } })}>
+              Encomenda retirada
+            </p>
+            {pkg.delivered_at && (
+              <p className={css({ fontSize: 'xs', color: 'green.700', mt: '0.5', _dark: { color: 'green.400' } })}>
+                em {new Date(pkg.delivered_at).toLocaleString('pt-BR')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Ações */}
       {!isDelivered && (
-        <DeliverButton id={pkg._id!.toString()} />
+        <div className={css({ display: 'flex', gap: '3', flexWrap: 'wrap' })}>
+          {(isArrived || isNotified) && resident?.whatsapp && (
+            <NotifyButton
+              id={pkg._id!.toString()}
+              whatsapp={resident.whatsapp}
+              residentName={resident.name}
+              code={pkg.code}
+              condoName={condoName}
+              alreadyNotified={isNotified}
+              notifiedAt={pkg.notified_at ?? null}
+            />
+          )}
+          <DeliverButton id={pkg._id!.toString()} />
+        </div>
       )}
     </div>
   )
