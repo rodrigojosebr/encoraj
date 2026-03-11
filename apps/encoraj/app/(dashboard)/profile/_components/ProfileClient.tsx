@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { Camera } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import { Button, Alert, useToast } from '@encoraj/ui'
+import Avatar from '@/app/(dashboard)/_components/Avatar'
 
 const eyeOpen = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -77,6 +79,7 @@ interface ProfileClientProps {
   condoName: string
   isAdmin: boolean
   userId: string
+  photoUrl: string | null
 }
 
 const rowCss = css({ display: 'flex', flexDir: 'column', gap: '0.5' })
@@ -90,13 +93,36 @@ export default function ProfileClient({
   condoName,
   isAdmin,
   userId,
+  photoUrl: initialPhotoUrl,
 }: ProfileClientProps) {
   const { toast } = useToast()
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const [photoUrl, setPhotoUrl] = useState(initialPhotoUrl)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPhoto(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/users/me/photo', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast({ variant: 'error', message: data.error ?? 'Erro ao enviar foto.' }); return }
+      setPhotoUrl(data.photo_url)
+      toast({ variant: 'success', message: 'Foto atualizada!' })
+    } catch {
+      toast({ variant: 'error', message: 'Erro de conexão. Tente novamente.' })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -148,6 +174,41 @@ export default function ProfileClient({
         p: { base: '4', md: '6' }, display: 'flex', flexDir: 'column', gap: '4',
         _dark: { bg: 'gray.900', borderColor: 'gray.700' },
       })}>
+
+        {/* Avatar clicável */}
+        <div className={css({ display: 'flex', alignItems: 'center', gap: '4' })}>
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={uploadingPhoto}
+            title="Trocar foto"
+            className={css({ position: 'relative', borderRadius: 'full', cursor: 'pointer', border: 'none', p: '0', bg: 'transparent', flexShrink: 0 })}
+          >
+            <Avatar name={name} photoUrl={photoUrl} size="xl" />
+            <span className={css({
+              position: 'absolute', inset: '0', borderRadius: 'full',
+              bg: 'blackAlpha.500', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: uploadingPhoto ? '1' : '0', transition: 'opacity 0.2s',
+              _hover: { opacity: '1' },
+            })}>
+              <Camera size={20} color="white" />
+            </span>
+          </button>
+          <div>
+            <p className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.700', _dark: { color: 'gray.300' } })}>
+              {uploadingPhoto ? 'Enviando…' : 'Clique na foto para trocar'}
+            </p>
+            <p className={css({ fontSize: 'xs', color: 'gray.400', mt: '0.5' })}>JPEG, PNG ou WebP</p>
+          </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className={css({ display: 'none' })}
+            onChange={handlePhotoChange}
+          />
+        </div>
+
         <div className={css({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
           <h2 className={css({ fontSize: 'md', fontWeight: 'semibold', color: 'gray.900', _dark: { color: 'gray.100' } })}>
             Dados da conta

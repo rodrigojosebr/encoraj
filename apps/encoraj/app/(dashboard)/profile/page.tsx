@@ -24,6 +24,7 @@ export default async function ProfilePage() {
       condoName={condoName}
       isAdmin={userRole === 'admin'}
       userId={userId}
+      photoUrl={user?.photo_url ?? null}
     />
   )
 }
