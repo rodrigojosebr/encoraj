@@ -26,8 +26,8 @@ export default async function DashboardLayout({
 }) {
   const headersList = await headers()
   const role = headersList.get('x-user-role')
-  const name = headersList.get('x-user-name') ?? ''
-  const condoName = headersList.get('x-condo-name') ?? ''
+  const name = decodeURIComponent(headersList.get('x-user-name') ?? '')
+  const condoName = decodeURIComponent(headersList.get('x-condo-name') ?? '')
   const userPhoto = headersList.get('x-user-photo') || null
   const condoPhoto = headersList.get('x-condo-photo') || null
 
