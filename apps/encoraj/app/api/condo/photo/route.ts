@@ -7,6 +7,54 @@ import { signToken, verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { logAction } from '@/lib/audit/log'
 
+export async function DELETE() {
+  try {
+    const headersList = await headers()
+    const role = headersList.get('x-user-role')
+    const userId = headersList.get('x-user-id')
+    const userName = headersList.get('x-user-name')
+    const condoId = headersList.get('x-condo-id')
+
+    if (!userId || !userName || !condoId) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    }
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    }
+
+    const col = await condominiums()
+    await col.updateOne({ _id: new ObjectId(condoId) }, { $unset: { photo_url: '' } })
+
+    await logAction({
+      condo_id: new ObjectId(condoId),
+      entity: 'condominiums',
+      entity_id: new ObjectId(condoId),
+      action: 'updated',
+      actor_id: new ObjectId(userId),
+      actor_name: userName,
+      after: { photo_url: null },
+    })
+
+    const cookieStore = await cookies()
+    const currentToken = cookieStore.get(AUTH_COOKIE)?.value
+    const response = NextResponse.json({ photo_url: null })
+
+    if (currentToken) {
+      try {
+        const payload = await verifyToken(currentToken)
+        const { condo_photo_url: _, ...rest } = payload
+        const newToken = await signToken(rest)
+        response.cookies.set(AUTH_COOKIE, newToken, COOKIE_OPTIONS)
+      } catch { /* token inválido */ }
+    }
+
+    return response
+  } catch (err) {
+    console.error('[DELETE /api/condo/photo]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const headersList = await headers()

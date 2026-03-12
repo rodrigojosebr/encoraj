@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera } from 'lucide-react'
+import { Camera, Trash2 } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import { Button, FormField, Alert, useToast } from '@encoraj/ui'
 
@@ -34,6 +34,7 @@ export default function SettingsPage() {
       const data = await res.json()
       if (!res.ok) { toast({ variant: 'error', message: data.error ?? 'Erro ao enviar foto.' }); return }
       setPhotoUrl(data.photo_url)
+      window.dispatchEvent(new CustomEvent('condo-photo-updated', { detail: data.photo_url }))
       toast({ variant: 'success', message: 'Foto atualizada!' })
     } catch {
       toast({ variant: 'error', message: 'Erro de conexão. Tente novamente.' })
@@ -113,13 +114,34 @@ export default function SettingsPage() {
                 <Camera size={20} color="white" />
               </span>
             </button>
-            <div>
+            <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
               <p className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.700', _dark: { color: 'gray.300' } })}>
                 {uploadingPhoto ? 'Enviando…' : 'Foto do condomínio'}
               </p>
-              <p className={css({ fontSize: 'xs', color: 'gray.400', mt: '0.5' })}>
+              <p className={css({ fontSize: 'xs', color: 'gray.400' })}>
                 Clique para trocar · JPEG, PNG ou WebP
               </p>
+              {photoUrl && !uploadingPhoto && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const res = await fetch('/api/condo/photo', { method: 'DELETE' })
+                    if (res.ok) {
+                      setPhotoUrl(null)
+                      window.dispatchEvent(new CustomEvent('condo-photo-updated', { detail: null }))
+                      toast({ variant: 'success', message: 'Foto removida.' })
+                    }
+                  }}
+                  className={css({
+                    display: 'inline-flex', alignItems: 'center', gap: '1',
+                    fontSize: 'xs', color: 'red.500', bg: 'none', border: 'none',
+                    cursor: 'pointer', p: '0', w: 'fit-content',
+                    _hover: { color: 'red.700' },
+                  })}
+                >
+                  <Trash2 size={12} /> Remover foto
+                </button>
+              )}
             </div>
             <input
               ref={photoInputRef}

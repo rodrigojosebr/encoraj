@@ -52,14 +52,27 @@ export default function SidebarShell({
   name,
   roleLabel,
   condoName,
-  userPhoto,
-  condoPhoto,
+  userPhoto: initialUserPhoto,
+  condoPhoto: initialCondoPhoto,
   visibleItems,
   mobileOpen,
   onMobileClose,
 }: SidebarShellProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [userPhoto, setUserPhoto] = useState(initialUserPhoto)
+  const [condoPhoto, setCondoPhoto] = useState(initialCondoPhoto)
+
+  useEffect(() => {
+    function onUserPhoto(e: Event) { setUserPhoto((e as CustomEvent<string>).detail) }
+    function onCondoPhoto(e: Event) { setCondoPhoto((e as CustomEvent<string>).detail) }
+    window.addEventListener('user-photo-updated', onUserPhoto)
+    window.addEventListener('condo-photo-updated', onCondoPhoto)
+    return () => {
+      window.removeEventListener('user-photo-updated', onUserPhoto)
+      window.removeEventListener('condo-photo-updated', onCondoPhoto)
+    }
+  }, [])
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed')
