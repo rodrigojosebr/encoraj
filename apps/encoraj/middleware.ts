@@ -3,11 +3,13 @@ import type { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
 
+// up
+
 // Rotas que exigem role mínima
 const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
-  { prefix: '/users',    roles: ['admin'] },
+  { prefix: '/users', roles: ['admin'] },
   { prefix: '/settings', roles: ['admin'] },
-  { prefix: '/reports',  roles: ['admin', 'sindico'] },
+  { prefix: '/reports', roles: ['admin', 'sindico'] },
   { prefix: '/residents', roles: ['admin', 'zelador'] },
   { prefix: '/packages', roles: ['admin', 'porteiro'] },
 ]
