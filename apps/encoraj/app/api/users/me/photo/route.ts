@@ -38,7 +38,8 @@ export async function DELETE() {
     if (currentToken) {
       try {
         const payload = await verifyToken(currentToken)
-        const { photo_url: _, ...rest } = payload
+        const { photo_url: _removed, ...rest } = payload
+        void _removed
         const newToken = await signToken(rest)
         response.cookies.set(AUTH_COOKIE, newToken, COOKIE_OPTIONS)
       } catch { /* token inválido */ }

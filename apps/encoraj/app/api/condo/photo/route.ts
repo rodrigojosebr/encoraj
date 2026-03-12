@@ -27,7 +27,7 @@ export async function DELETE() {
 
     await logAction({
       condo_id: new ObjectId(condoId),
-      entity: 'condominiums',
+      entity: 'users',
       entity_id: new ObjectId(condoId),
       action: 'updated',
       actor_id: new ObjectId(userId),
@@ -42,7 +42,8 @@ export async function DELETE() {
     if (currentToken) {
       try {
         const payload = await verifyToken(currentToken)
-        const { condo_photo_url: _, ...rest } = payload
+        const { condo_photo_url: _removed, ...rest } = payload
+        void _removed
         const newToken = await signToken(rest)
         response.cookies.set(AUTH_COOKIE, newToken, COOKIE_OPTIONS)
       } catch { /* token inválido */ }
