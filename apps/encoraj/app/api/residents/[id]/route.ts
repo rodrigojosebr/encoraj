@@ -53,12 +53,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Morador não encontrado' }, { status: 404 })
     }
 
-    const now = new Date()
-    const updateFields = {
-      ...parsed.data,
-      updated_at: now,
-      updated_by: new ObjectId(actorId),
-    }
+    const updateFields = { ...parsed.data }
 
     await col.updateOne({ _id: new ObjectId(id) }, { $set: updateFields })
 
@@ -111,12 +106,10 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
     if (!doc) {
       return NextResponse.json({ error: 'Morador não encontrado nos excluídos' }, { status: 404 })
     }
-    const now = new Date()
-
     await col.updateOne(
       { _id: new ObjectId(id) },
       {
-        $set: { status_id: activeStatusId, updated_at: now, updated_by: new ObjectId(actorId) },
+        $set: { status_id: activeStatusId },
         $unset: { deleted_at: '', deleted_by: '' },
       },
     )
@@ -129,7 +122,7 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
       actor_id: new ObjectId(actorId),
       actor_name: actorName,
       before: doc as unknown as Record<string, unknown>,
-      after: { status_id: activeStatusId, updated_at: now },
+      after: { status_id: activeStatusId },
     })
 
     return NextResponse.json({ ok: true })
