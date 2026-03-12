@@ -2,15 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, useToast } from '@encoraj/ui'
+import { Button, ConfirmDialog, useToast } from '@encoraj/ui'
 
 export default function DeliverButton({ id }: { id: string }) {
   const router = useRouter()
   const { toast } = useToast()
+  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  async function handleDeliver() {
-    if (!confirm('Confirmar retirada desta encomenda?')) return
+  async function handleConfirm() {
     setLoading(true)
 
     const res = await fetch(`/api/packages/${id}/deliver`, { method: 'POST' })
@@ -22,12 +22,27 @@ export default function DeliverButton({ id }: { id: string }) {
       const data = await res.json()
       toast({ variant: 'error', message: data.error ?? 'Erro ao confirmar retirada' })
       setLoading(false)
+      setOpen(false)
     }
   }
 
   return (
-    <Button intent="primary" loading={loading} onClick={handleDeliver}>
-      Confirmar retirada
-    </Button>
+    <>
+      <Button intent="primary" onClick={() => setOpen(true)}>
+        Confirmar retirada
+      </Button>
+
+      <ConfirmDialog
+        open={open}
+        variant="warning"
+        title="Confirmar retirada"
+        message="O morador está retirando esta encomenda agora?"
+        confirmLabel="Sim, confirmar"
+        cancelLabel="Cancelar"
+        loading={loading}
+        onConfirm={handleConfirm}
+        onCancel={() => setOpen(false)}
+      />
+    </>
   )
 }

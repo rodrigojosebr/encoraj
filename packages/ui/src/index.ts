@@ -26,3 +26,6 @@ export type { AlertProps } from './molecules/Alert'
 
 export { ToastProvider, useToast } from './molecules/Toast'
 export type { ToastOptions, ToastVariant } from './molecules/Toast'
+
+export { ConfirmDialog } from './molecules/ConfirmDialog'
+export type { ConfirmDialogProps } from './molecules/ConfirmDialog'
