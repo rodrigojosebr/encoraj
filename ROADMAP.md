@@ -78,19 +78,26 @@
 - [x] Mobile: `MobileTopBar` fixa + overlay com backdrop
 - [x] Estado `collapsed` persistido em `localStorage`
 - [x] Dark mode: `ThemeToggle` + `_dark` variants em todas as páginas
-- [x] `Avatar` com iniciais + cor gerada pelo nome (pronto para `photo_url`)
+- [x] `Avatar` com iniciais + cor gerada pelo nome + suporte a `photo_url`
 - [x] Sidebar: avatar do condo (xl, centralizado) + avatar do usuário no rodapé
 - [x] Toast system: `success | error | warning | info`, top-right, tamanho grande
+- [x] `ConfirmDialog` em `@encoraj/ui` — substitui `window.confirm()` em todo o app
+- [x] Badge redesign: pill colorido por status (azul/âmbar/verde/cinza), sem ponto, compacto
+- [x] Ícones nos botões de ação: Eye (ver), Pencil (editar), Trash2 (excluir), RotateCcw (restaurar)
+- [x] Cards mobile em `/packages` e dashboard home (base: cards, md+: tabela)
+- [x] `?next=` no redirect de login — porteiro escaneia QR → login → vai direto à encomenda
+- [x] Fotos de sidebar atualizadas em tempo real via custom DOM events (sem reload)
+- [x] Nome do condomínio decodificado no header (decodeURIComponent)
 
 ---
 
-## Configurações do Condomínio ✅ (foto pendente de S3)
+## Configurações do Condomínio ✅
 
 - [x] `GET/PUT /api/condo` — lê e atualiza nome; re-assina JWT na hora
-- [x] `CondominiumDoc.photo_url?` + `UserDoc.photo_url?` no modelo
-- [x] `JwtPayload`: `photo_url?` + `condo_photo_url?` prontos para S3
-- [x] Página `/settings` com formulário de nome + placeholder de foto
-- [ ] **Pendente (S3)**: upload de foto do condomínio + foto de perfil do usuário
+- [x] Página `/settings` com formulário de nome + upload de foto do condo
+- [x] `POST /api/condo/photo` — foto do condo → S3 + DB + re-sign JWT (`condo_photo_url`)
+- [x] `DELETE /api/condo/photo` — remove foto do condo + re-sign JWT sem `condo_photo_url`
+- [x] Sidebar e MobileTopBar atualizam foto do condo via `condo-photo-updated` event
 
 ---
 
@@ -121,7 +128,9 @@
 - [x] Rate limiting: login (5 tentativas/15min por IP), forgot (3/email/1h — silencioso)
 - [x] Página pública `/forgot-password` — formulário de email
 - [x] Página pública `/reset-password?token=...` — formulário de nova senha com eye toggle
-- [x] Página `/profile` — exibe dados do usuário; botão de alterar senha; admin vê link "Editar"
+- [x] Página `/profile` — exibe dados do usuário; upload de foto de perfil; botão de alterar senha; admin vê link "Editar"
+- [x] `POST /api/users/me/photo` — foto de perfil → S3 + DB + re-sign JWT (`photo_url`)
+- [x] `DELETE /api/users/me/photo` — remove foto de perfil + re-sign JWT sem `photo_url`
 - [x] "Meu perfil" na sidebar (todos os roles) com ícone UserCircle
 - [x] Link "Esqueci minha senha" no login — **comentado; descomentar quando SMTP configurado**
 - [x] Busca de encomendas: nome do morador ou código no `/packages`
@@ -137,12 +146,14 @@
 - [x] Error boundary (`error.tsx`) + página 404 (`not-found.tsx`)
 - [x] PWA: `manifest.ts` + ícones estáticos + `@ducanh2912/next-pwa` (Service Worker)
 - [x] Botão "Instalar app" na sidebar (Android nativo + iOS com instrução)
+- [x] `prebuild` script: `panda codegen` roda antes do `next build` na Vercel
+- [x] Next.js 15.5.12 (backport com fix do CVE-2025-66478)
 - [ ] Deploy na Vercel + variáveis de ambiente de produção
 - [ ] Descomentar link "Esqueci minha senha" após configurar SMTP
 
 ---
 
-## Fase 3b — Registro de Encomendas completo ← S3 parcialmente implementado
+## Fase 3b — Registro de Encomendas completo ✅
 
 - [x] `lib/s3/client.ts` + `lib/s3/upload.ts` — upload, URL pública
 - [x] `lib/qrcode/generate.ts` — gerar PNG + upload para S3
@@ -153,13 +164,8 @@
 - [x] Estrutura S3: `condos/{condo_id}/packages/photos/` + `condos/{condo_id}/packages/qrcodes/`
 - [x] QR code contém URL `APP_URL/packages/{id}` — escanear abre direto a encomenda
 - [x] `APP_URL` em env vars — troca para URL real em produção (Vercel)
-- [ ] `lib/gemini/ocr.ts` — OCR: enviar imagem, extrair `{ name, apartment }` ← Fase 3c
-- [ ] `POST /api/ocr` — URL de imagem → Gemini → JSON ← Fase 3c
-- [ ] OCR integrado ao `/packages/new` — preenche morador automaticamente ← Fase 3c
-- [x] **Bonus S3**: foto do condo (`POST /api/condo/photo`) + foto de perfil (`POST /api/users/me/photo`)
-- [x] **Bonus JWT**: re-assina com `photo_url` e `condo_photo_url` após upload — sidebar atualiza sem reload
 
-**Fluxo QR code**: porteiro registra → sistema gera QR code → WhatsApp envia ao morador → morador apresenta QR (ou código) na retirada → porteiro escaneia → confirma entrega.
+**Fluxo QR code**: porteiro registra → sistema gera QR code → WhatsApp envia ao morador → morador apresenta QR na retirada → porteiro escaneia → confirma entrega.
 
 **Milestone**: Porteiro fotografa etiqueta, seleciona destinatário, QR code gerado e pronto para envio via WhatsApp.
 
@@ -181,16 +187,40 @@
 
 ---
 
-## Fase 4b — Notificação WhatsApp automática ← requer Z-API ou Evolution API
+## Fase 3c — OCR com Gemini Flash 🔜
 
-- [ ] `lib/zapi/` — enviar mensagem de texto e imagem via API
+- [ ] `lib/gemini/ocr.ts` — envia imagem para Gemini Flash, extrai `{ name, apartment, bloco? }`
+- [ ] `POST /api/ocr` — recebe URL de imagem → Gemini → retorna JSON com dados extraídos
+- [ ] Integrar ao `/packages/new` — após foto ser enviada ao S3, OCR auto-preenche o campo de morador
+- [ ] Fallback: se OCR falhar ou morador não encontrado, porteiro preenche manualmente
+
+**Milestone**: Porteiro fotografa etiqueta → sistema sugere destinatário automaticamente → porteiro confirma ou corrige.
+
+---
+
+## Fase 4b — Notificação WhatsApp automática 🔜
+
+- [ ] `lib/zapi/` — enviar mensagem de texto e imagem via Z-API
 - [ ] `POST /api/whatsapp` — template de mensagem para o morador
 - [ ] Integrar ao fluxo de criação de encomenda → atualizar `notified_at` automaticamente
-- [ ] Substituir botão da Fase 4a por envio automático
+- [ ] Substituir botão da Fase 4a por envio automático (botão vira "Reenviar")
 
-**Obs**: Z-API (~R$50-150/mês) ou Evolution API (gratuita, self-hosted). Implementar após deploy em produção com uso real.
+**Obs**: Z-API (~R$50-150/mês) ou Evolution API (gratuita, self-hosted). Implementar após deploy em produção.
 
-**Milestone**: Morador recebe WhatsApp automaticamente com foto, código e QR Code.
+**Modelo de negócio**: Z-API automático é a feature do plano pago. Plano gratuito usa o botão manual (wa.me) — porteiro clica, WhatsApp abre com mensagem pronta.
+
+**Milestone**: Morador recebe WhatsApp automaticamente com foto, código e QR Code ao registrar encomenda.
+
+---
+
+## Deploy em Produção 🔜
+
+- [ ] Criar projeto na Vercel + conectar repositório
+- [ ] Configurar variáveis de ambiente de produção (MongoDB, JWT, S3, Gemini, SMTP)
+- [ ] Definir `APP_URL` com URL real da Vercel
+- [ ] Descomentar link "Esqueci minha senha" no login
+- [ ] Testar fluxo completo em produção (registro → notificação → retirada)
+- [ ] Configurar domínio customizado (opcional)
 
 ---
 
@@ -202,6 +232,9 @@ MONGODB_URI=
 
 # JWT
 JWT_SECRET=
+
+# App URL (QR code aponta para esta URL)
+APP_URL=https://seudominio.com
 
 # Email (SMTP — Nodemailer)
 SMTP_HOST=

@@ -4,14 +4,9 @@ import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
-import { Badge } from '@encoraj/ui'
+import { Badge, Button } from '@encoraj/ui'
+import { Eye, Package, Bell, CheckCircle2 } from 'lucide-react'
 import ExportCSV from './_components/ExportCSV'
-
-// Pre-computed static classes for runtime-conditional dot colors
-const dotGreen = css({ color: 'green.500', _dark: { color: 'green.400' } })
-const dotBlue  = css({ color: 'blue.500',  _dark: { color: 'blue.400' } })
-const dotGray  = css({ color: 'gray.300',  _dark: { color: 'gray.600' } })
-const dash     = css({ color: 'gray.300',  fontSize: 'xs', _dark: { color: 'gray.600' } })
 
 const inputCss = css({
   px: '3', py: '1.5', fontSize: 'sm', borderRadius: 'md',
@@ -235,100 +230,176 @@ export default async function ReportsPage({
             Nenhuma encomenda encontrada.
           </p>
         ) : (
-          <div className={css({ overflowX: 'auto' })}>
-            <table className={css({ w: 'full', minW: '720px', borderCollapse: 'collapse' })}>
-              <thead>
-                <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
-                  {['Código', 'Morador', 'Apartamento', 'Chegada', 'Timeline', 'Status', ''].map((h) => (
-                    <th
-                      key={h}
-                      className={css({
-                        px: '4', py: '3', textAlign: 'left', fontSize: 'xs',
-                        fontWeight: 'semibold', color: 'gray.500',
-                        textTransform: 'uppercase', letterSpacing: 'wide',
-                        _dark: { color: 'gray.400' },
-                      })}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {docs.map((pkg, i) => {
-                  const resident = residentMap[pkg.resident_id.toString()]
-                  const { name: statusName, label: statusLabel } = statusInfos[i]
-                  const apt = resident
-                    ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}`
-                    : '—'
-                  return (
-                    <tr
-                      key={pkg._id!.toString()}
-                      className={css({
-                        borderBottom: '1px solid', borderColor: 'gray.100',
-                        _hover: { bg: 'gray.50' },
-                        _dark: { borderColor: 'gray.800', _hover: { bg: 'gray.800' } },
-                      })}
-                    >
-                      <td className={css({ px: '4', py: '3', fontSize: 'sm', fontWeight: 'medium', fontFamily: 'mono', color: 'gray.900', _dark: { color: 'gray.100' } })}>
+          <>
+            {/* Mobile: cards */}
+            <div className={css({ display: { base: 'flex', md: 'none' }, flexDir: 'column', gap: '3', p: '3' })}>
+              {docs.map((pkg, i) => {
+                const resident = residentMap[pkg.resident_id.toString()]
+                const { name: statusName, label: statusLabel } = statusInfos[i]
+                const apt = resident
+                  ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}`
+                  : '—'
+                return (
+                  <div
+                    key={pkg._id!.toString()}
+                    className={css({
+                      bg: 'gray.50', border: '1px solid', borderColor: 'gray.200',
+                      borderRadius: 'lg', p: '4', display: 'flex', flexDir: 'column', gap: '3',
+                      _dark: { bg: 'gray.800', borderColor: 'gray.700' },
+                    })}
+                  >
+                    {/* Header: código + badge */}
+                    <div className={css({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
+                      <span className={css({ fontSize: 'sm', fontWeight: 'bold', fontFamily: 'mono', color: 'gray.900', _dark: { color: 'gray.100' } })}>
                         {pkg.code}
-                      </td>
-                      <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.900', _dark: { color: 'gray.100' } })}>
+                      </span>
+                      <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>
+                        {statusLabel}
+                      </Badge>
+                    </div>
+
+                    {/* Morador + apto */}
+                    <div>
+                      <p className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', _dark: { color: 'gray.100' } })}>
                         {resident?.name ?? '—'}
-                      </td>
-                      <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
+                      </p>
+                      <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
                         {apt}
-                      </td>
-                      <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                        {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className={css({ px: '4', py: '3' })}>
-                        {/* Timeline: chegada → notificado → retirado */}
-                        <div className={css({ display: 'flex', alignItems: 'center', gap: '1', fontSize: 'xs' })}>
-                          <span className={dotGreen} title="Chegou">●</span>
-                          <span className={dash}>─</span>
-                          <span
-                            className={pkg.notified_at ? dotBlue : dotGray}
-                            title={pkg.notified_at
-                              ? `Notificado em ${new Date(pkg.notified_at).toLocaleDateString('pt-BR')}`
-                              : 'Não notificado'}
-                          >
-                            ●
-                          </span>
-                          <span className={dash}>─</span>
-                          <span
-                            className={pkg.delivered_at ? dotGreen : dotGray}
-                            title={pkg.delivered_at
-                              ? `Retirado em ${new Date(pkg.delivered_at).toLocaleDateString('pt-BR')}`
-                              : 'Não retirado'}
-                          >
-                            ●
-                          </span>
-                        </div>
-                      </td>
-                      <td className={css({ px: '4', py: '3' })}>
-                        <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>
-                          {statusLabel}
-                        </Badge>
-                      </td>
-                      <td className={css({ px: '4', py: '3' })}>
-                        <Link
-                          href={`/packages/${pkg._id!.toString()}`}
-                          className={css({
-                            fontSize: 'sm', color: 'blue.600', textDecoration: 'none',
-                            _hover: { textDecoration: 'underline' },
-                            _dark: { color: 'blue.400' },
-                          })}
-                        >
-                          Ver
-                        </Link>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </p>
+                    </div>
+
+                    {/* Timeline */}
+                    <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
+                      <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', flex: '1' })}>
+                        <Package size={14} className={css({ color: 'green.500', _dark: { color: 'green.400' } })} />
+                        <span className={css({ fontSize: '10px', fontWeight: 'medium', color: 'green.600', _dark: { color: 'green.400' } })}>Chegada</span>
+                        <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                          {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
+                      <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', flex: '1' })}>
+                        <Bell size={14} className={css({ color: pkg.notified_at ? 'blue.500' : 'gray.300', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })} />
+                        <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.notified_at ? 'blue.600' : 'gray.400', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })}>Notif.</span>
+                        <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                          {pkg.notified_at ? new Date(pkg.notified_at).toLocaleDateString('pt-BR') : '—'}
+                        </span>
+                      </div>
+                      <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
+                      <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', flex: '1' })}>
+                        <CheckCircle2 size={14} className={css({ color: pkg.delivered_at ? 'green.500' : 'gray.300', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })} />
+                        <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.delivered_at ? 'green.600' : 'gray.400', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })}>Retirada</span>
+                        <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                          {pkg.delivered_at ? new Date(pkg.delivered_at).toLocaleDateString('pt-BR') : '—'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Ação */}
+                    <Link href={`/packages/${pkg._id!.toString()}`}>
+                      <Button variant="outline" intent="primary" size="sm" leftIcon={<Eye size={14} />} style={{ width: '100%' }}>
+                        Ver encomenda
+                      </Button>
+                    </Link>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop: tabela */}
+            <div className={css({ display: { base: 'none', md: 'block' }, overflowX: 'auto' })}>
+              <table className={css({ w: 'full', minW: '720px', borderCollapse: 'collapse' })}>
+                <thead>
+                  <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
+                    {['Código', 'Morador', 'Apartamento', 'Chegada', 'Timeline', 'Status', ''].map((h) => (
+                      <th
+                        key={h}
+                        className={css({
+                          px: '4', py: '3', textAlign: 'left', fontSize: 'xs',
+                          fontWeight: 'semibold', color: 'gray.500',
+                          textTransform: 'uppercase', letterSpacing: 'wide',
+                          _dark: { color: 'gray.400' },
+                        })}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {docs.map((pkg, i) => {
+                    const resident = residentMap[pkg.resident_id.toString()]
+                    const { name: statusName, label: statusLabel } = statusInfos[i]
+                    const apt = resident
+                      ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}`
+                      : '—'
+                    return (
+                      <tr
+                        key={pkg._id!.toString()}
+                        className={css({
+                          borderBottom: '1px solid', borderColor: 'gray.100',
+                          _hover: { bg: 'gray.50' },
+                          _dark: { borderColor: 'gray.800', _hover: { bg: 'gray.800' } },
+                        })}
+                      >
+                        <td className={css({ px: '4', py: '3', fontSize: 'sm', fontWeight: 'medium', fontFamily: 'mono', color: 'gray.900', _dark: { color: 'gray.100' } })}>
+                          {pkg.code}
+                        </td>
+                        <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.900', _dark: { color: 'gray.100' } })}>
+                          {resident?.name ?? '—'}
+                        </td>
+                        <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
+                          {apt}
+                        </td>
+                        <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
+                          {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className={css({ px: '4', py: '3' })}>
+                          <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
+                            <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', minW: '48px' })}>
+                              <Package size={14} className={css({ color: 'green.500', _dark: { color: 'green.400' } })} />
+                              <span className={css({ fontSize: '10px', fontWeight: 'medium', color: 'green.600', _dark: { color: 'green.400' } })}>Chegada</span>
+                              <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                                {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                            <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
+                            <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', minW: '48px' })}>
+                              <Bell size={14} className={css({ color: pkg.notified_at ? 'blue.500' : 'gray.300', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })} />
+                              <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.notified_at ? 'blue.600' : 'gray.400', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })}>Notif.</span>
+                              <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                                {pkg.notified_at ? new Date(pkg.notified_at).toLocaleDateString('pt-BR') : '—'}
+                              </span>
+                            </div>
+                            <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
+                            <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', minW: '48px' })}>
+                              <CheckCircle2 size={14} className={css({ color: pkg.delivered_at ? 'green.500' : 'gray.300', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })} />
+                              <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.delivered_at ? 'green.600' : 'gray.400', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })}>Retirada</span>
+                              <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                                {pkg.delivered_at ? new Date(pkg.delivered_at).toLocaleDateString('pt-BR') : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className={css({ px: '4', py: '3' })}>
+                          <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>
+                            {statusLabel}
+                          </Badge>
+                        </td>
+                        <td className={css({ px: '4', py: '3' })}>
+                          <Link href={`/packages/${pkg._id!.toString()}`}>
+                            <Button variant="ghost" intent="primary" size="sm" leftIcon={<Eye size={14} />}>
+                              Ver
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

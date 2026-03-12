@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Pencil } from 'lucide-react'
+import { Pencil, UserPlus } from 'lucide-react'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
 import { users, roles } from '@/lib/db/collections'
@@ -114,7 +114,7 @@ export default async function UsersPage() {
           Usuários
         </h1>
         <Link href="/users/new">
-          <Button size="sm">Novo usuário</Button>
+          <Button leftIcon={<UserPlus size={18} />}>Novo usuário</Button>
         </Link>
       </div>
 

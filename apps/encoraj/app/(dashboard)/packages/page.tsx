@@ -4,7 +4,7 @@ import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
-import { Eye } from 'lucide-react'
+import { Eye, PackagePlus } from 'lucide-react'
 import { Badge, Button } from '@encoraj/ui'
 
 export default async function PackagesPage({
@@ -70,7 +70,7 @@ export default async function PackagesPage({
           Encomendas
         </h1>
         <Link href="/packages/new">
-          <Button size="sm">Registrar chegada</Button>
+          <Button leftIcon={<PackagePlus size={18} />}>Registrar chegada</Button>
         </Link>
       </div>
 

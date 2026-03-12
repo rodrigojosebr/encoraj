@@ -42,7 +42,9 @@ export default function NotifyButton({ id, whatsapp, residentName, code, condoNa
       // Abre WhatsApp com mensagem pronta
       const publicUrl = `${window.location.origin}/p/${id}`
       const msg = [
-        `Olá, ${residentName}! 📦`,
+        `📦 *Encomenda chegou!*`,
+        ``,
+        `Olá, ${residentName}!`,
         `Chegou uma encomenda para você em *${condoName}*.`,
         ``,
         `Código de retirada: *${code}*`,

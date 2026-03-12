@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: 'Encoraj',
   description: 'Sistema de gestão de encomendas para condomínios',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [{ url: '/icon', type: 'image/png', sizes: '32x32' }],
+    apple: [{ url: '/apple-icon', type: 'image/png', sizes: '180x180' }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

@@ -38,7 +38,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
   const isDelivered = pkg.status_id.equals(delivered._id)
   const isArrived = pkg.status_id.equals(arrived._id)
   const isNotified = pkg.status_id.equals(notified._id)
-  const condoName = headersList.get('x-condo-name') ?? ''
+  const condoName = decodeURIComponent(headersList.get('x-condo-name') ?? '')
 
   const rowCss = css({ display: 'flex', flexDir: 'column', gap: '0.5' })
   const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', _dark: { color: 'gray.400' } })

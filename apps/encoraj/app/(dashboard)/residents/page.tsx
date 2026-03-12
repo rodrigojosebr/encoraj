@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Pencil } from 'lucide-react'
+import { Pencil, UserPlus } from 'lucide-react'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
@@ -38,7 +38,7 @@ export default async function ResidentsPage({
           Moradores
         </h1>
         <Link href="/residents/new">
-          <Button size="sm">Novo morador</Button>
+          <Button leftIcon={<UserPlus size={18} />}>Novo morador</Button>
         </Link>
       </div>
 
