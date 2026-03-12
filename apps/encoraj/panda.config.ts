@@ -10,4 +10,9 @@ export default defineConfig({
   ],
   exclude: [],
   outdir: 'styled-system',
+  staticCss: {
+    recipes: {
+      badge: [{ status: ['*'] }],
+    },
+  },
 })

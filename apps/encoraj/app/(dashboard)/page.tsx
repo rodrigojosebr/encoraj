@@ -4,6 +4,7 @@ import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById, getRole } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
+import { Eye } from 'lucide-react'
 import { Badge } from '@encoraj/ui'
 
 export default async function DashboardPage() {
@@ -207,15 +208,14 @@ export default async function DashboardPage() {
                           </Badge>
                         </td>
                         <td className={css({ px: '4', py: '3' })}>
-                          <Link
-                            href={`/packages/${pkg._id!.toString()}`}
-                            className={css({
-                              fontSize: 'sm', color: 'blue.600', textDecoration: 'none',
-                              _hover: { textDecoration: 'underline' },
-                              _dark: { color: 'blue.400' },
-                            })}
-                          >
-                            Ver
+                          <Link href={`/packages/${pkg._id!.toString()}`} className={css({
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            w: '8', h: '8', borderRadius: 'md', color: 'gray.400',
+                            transition: 'all 0.15s',
+                            _hover: { color: 'blue.600', bg: 'blue.50' },
+                            _dark: { color: 'gray.500', _hover: { color: 'blue.400', bg: 'blue.950' } },
+                          })}>
+                            <Eye size={16} />
                           </Link>
                         </td>
                       </tr>

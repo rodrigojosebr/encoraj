@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Pencil } from 'lucide-react'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
@@ -114,8 +115,13 @@ export default async function ResidentsPage({
                 <RestoreButton id={r._id!.toString()} name={r.name} />
               ) : (
                 <>
-                  <Link href={`/residents/${r._id!.toString()}/edit`}>
-                    <Button variant="ghost" intent="secondary" size="sm">Editar</Button>
+                  <Link href={`/residents/${r._id!.toString()}/edit`} title="Editar morador" className={css({
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    w: '8', h: '8', borderRadius: 'md', color: 'gray.400', transition: 'all 0.15s',
+                    _hover: { color: 'blue.600', bg: 'blue.50' },
+                    _dark: { color: 'gray.500', _hover: { color: 'blue.400', bg: 'blue.950' } },
+                  })}>
+                    <Pencil size={16} />
                   </Link>
                   <DeleteButton id={r._id!.toString()} name={r.name} />
                 </>

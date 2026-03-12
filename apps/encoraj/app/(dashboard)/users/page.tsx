@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Pencil } from 'lucide-react'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
 import { users, roles } from '@/lib/db/collections'
@@ -56,8 +57,13 @@ export default async function UsersPage() {
         <td className={css({ px: '4', py: '3', display: 'flex', gap: '2' })}>
           {!isDeleted && (
             <>
-              <Link href={`/users/${u._id!.toString()}/edit`}>
-                <Button variant="ghost" intent="secondary" size="sm">Editar</Button>
+              <Link href={`/users/${u._id!.toString()}/edit`} title="Editar usuário" className={css({
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                w: '8', h: '8', borderRadius: 'md', color: 'gray.400', transition: 'all 0.15s',
+                _hover: { color: 'blue.600', bg: 'blue.50' },
+                _dark: { color: 'gray.500', _hover: { color: 'blue.400', bg: 'blue.950' } },
+              })}>
+                <Pencil size={16} />
               </Link>
               {!isSelf && <DeleteUserButton id={u._id!.toString()} name={u.name} />}
             </>
