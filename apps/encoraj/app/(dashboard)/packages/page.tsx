@@ -146,9 +146,48 @@ export default async function PackagesPage({
         })}
       </div>
 
-      {/* Tabela */}
+      {/* Cards mobile */}
+      <div className={css({ display: { base: 'flex', md: 'none' }, flexDir: 'column', gap: '3' })}>
+        {docs.length === 0 ? (
+          <p className={css({ textAlign: 'center', color: 'gray.500', fontSize: 'sm', py: '8', _dark: { color: 'gray.400' } })}>
+            Nenhuma encomenda encontrada.
+          </p>
+        ) : docs.map((pkg, i) => {
+          const resident = residentMap[pkg.resident_id.toString()]
+          const { name: statusName, label: statusLabel } = statusInfos[i]
+          return (
+            <Link key={pkg._id!.toString()} href={`/packages/${pkg._id!.toString()}`} className={css({ textDecoration: 'none' })}>
+              <div className={css({
+                bg: 'white', border: '1px solid', borderColor: 'gray.200',
+                borderRadius: 'xl', p: '4', display: 'flex', flexDir: 'column', gap: '3',
+                _hover: { borderColor: 'blue.300', bg: 'blue.50' },
+                _dark: { bg: 'gray.900', borderColor: 'gray.700', _hover: { bg: 'gray.800', borderColor: 'blue.700' } },
+              })}>
+                <div className={css({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
+                  <span className={css({ fontFamily: 'mono', fontSize: 'sm', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.100' } })}>
+                    {pkg.code}
+                  </span>
+                  <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>{statusLabel}</Badge>
+                </div>
+                <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
+                  <p className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', _dark: { color: 'gray.100' } })}>
+                    {resident?.name ?? '—'}
+                  </p>
+                  <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+                    {resident?.apartment ? `Apto ${resident.apartment}` : '—'}{resident?.bloco ? ` · ${resident.bloco}` : ''}
+                    {' · '}chegou em {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Tabela desktop */}
       <div
         className={css({
+          display: { base: 'none', md: 'block' },
           bg: 'white',
           border: '1px solid',
           borderColor: 'gray.200',
