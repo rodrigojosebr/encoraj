@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { css } from '@/styled-system/css'
 import { Button, FormField } from '@encoraj/ui'
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -30,7 +32,8 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = '/'
+      const next = searchParams.get('next')
+      window.location.href = next && next.startsWith('/') ? next : '/'
     } catch {
       setError('Erro de conexão. Tente novamente.')
     } finally {
