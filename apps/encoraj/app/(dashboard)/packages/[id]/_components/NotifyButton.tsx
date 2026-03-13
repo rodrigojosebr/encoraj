@@ -30,6 +30,23 @@ export default function NotifyButton({ id, whatsapp, residentName, code, condoNa
 
   async function handleNotify() {
     setLoading(true)
+
+    // Monta e abre o WhatsApp ANTES do await — mobile bloqueia window.open após async
+    const publicUrl = `${window.location.origin}/p/${id}`
+    const msg = [
+      `📦 *Encomenda chegou!*`,
+      ``,
+      `Olá, ${residentName}!`,
+      `Chegou uma encomenda para você em *${condoName}*.`,
+      ``,
+      `Código de retirada: *${code}*`,
+      `Ver encomenda: ${publicUrl}`,
+      ``,
+      `Retire na portaria apresentando o código ou QR Code.`,
+    ].join('\n')
+    const waUrl = `https://wa.me/${formatWhatsApp(whatsapp)}?text=${encodeURIComponent(msg)}`
+    window.open(waUrl, '_blank')
+
     try {
       const res = await fetch(`/api/packages/${id}/notify`, { method: 'POST' })
       const data = await res.json()
@@ -38,23 +55,6 @@ export default function NotifyButton({ id, whatsapp, residentName, code, condoNa
         setLoading(false)
         return
       }
-
-      // Abre WhatsApp com mensagem pronta
-      const publicUrl = `${window.location.origin}/p/${id}`
-      const msg = [
-        `📦 *Encomenda chegou!*`,
-        ``,
-        `Olá, ${residentName}!`,
-        `Chegou uma encomenda para você em *${condoName}*.`,
-        ``,
-        `Código de retirada: *${code}*`,
-        `Ver encomenda: ${publicUrl}`,
-        ``,
-        `Retire na portaria apresentando o código ou QR Code.`,
-      ].join('\n')
-
-      const url = `https://wa.me/${formatWhatsApp(whatsapp)}?text=${encodeURIComponent(msg)}`
-      window.open(url, '_blank')
 
       toast({ variant: 'success', message: 'Notificação registrada!' })
       router.refresh()
