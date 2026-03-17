@@ -234,13 +234,13 @@
 
 ---
 
-## Deploy em Produção 🔜
+## Deploy em Produção ✅
 
-- [ ] Criar projeto na Vercel + conectar repositório
-- [ ] Configurar variáveis de ambiente de produção (MongoDB, JWT, S3, Gemini, SMTP)
-- [ ] Definir `APP_URL` com URL real da Vercel
-- [ ] Descomentar link "Esqueci minha senha" no login
-- [ ] Testar fluxo completo em produção (registro → notificação → retirada)
+- [x] Criar projeto na Vercel + conectar repositório
+- [x] Configurar variáveis de ambiente de produção (MongoDB, JWT, S3, Gemini, SMTP)
+- [x] Definir `APP_URL` com URL real da Vercel
+- [ ] Descomentar link "Esqueci minha senha" no login (quando SMTP configurado)
+- [x] Testar fluxo completo em produção (registro → notificação → retirada)
 - [ ] Configurar domínio customizado (opcional)
 
 ---
