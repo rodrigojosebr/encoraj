@@ -7,15 +7,9 @@ import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
 import { Eye, Package, Bell, CheckCircle2 } from 'lucide-react'
 import ExportCSV from './_components/ExportCSV'
+import ReportsFilterBar from './_components/ReportsFilterBar'
 import SearchInput from '../_components/SearchInput'
 import { getTodayRange, parseDateAsTZ, fmtDate, fmtDateTime } from '@/lib/date/tz'
-
-const inputCss = css({
-  px: '3', py: '1.5', fontSize: 'sm', borderRadius: 'md',
-  border: '1px solid', borderColor: 'gray.300',
-  bg: 'white', color: 'gray.700',
-  _dark: { bg: 'gray.800', borderColor: 'gray.600', color: 'gray.200' },
-})
 
 const labelCss = css({
   fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500',
@@ -121,8 +115,6 @@ export default async function ReportsPage({
     { label: 'Total geral',     value: totalCount,    href: '/reports' },
   ]
 
-  const hasFilter = !!(status || from || to || q)
-
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6' })}>
       {/* Header */}
@@ -160,64 +152,20 @@ export default async function ReportsPage({
         ))}
       </div>
 
-      {/* Filter form */}
-      <form
-        method="get"
-        action="/reports"
-        className={css({ display: 'flex', flexWrap: 'wrap', gap: '4', alignItems: 'flex-end' })}
-      >
-        <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
-          <label className={labelCss}>Status</label>
-          <select name="status" defaultValue={status ?? ''} className={inputCss}>
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
+      {/* Busca por morador — independente, auto-search */}
+      <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
+        <span className={labelCss}>Morador</span>
+        <SearchInput placeholder="Buscar por nome…" defaultValue={q ?? ''} />
+      </div>
 
-        <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
-          <label className={labelCss}>De</label>
-          <input type="date" name="from" defaultValue={from ?? ''} className={inputCss} />
-        </div>
-
-        <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
-          <label className={labelCss}>Até</label>
-          <input type="date" name="to" defaultValue={to ?? ''} className={inputCss} />
-        </div>
-
-        <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
-          <label className={labelCss}>Morador</label>
-          <SearchInput placeholder="Buscar por nome…" defaultValue={q ?? ''} />
-        </div>
-
-        <div className={css({ display: 'flex', gap: '2', alignItems: 'flex-end' })}>
-          <button
-            type="submit"
-            className={css({
-              px: '4', py: '1.5', fontSize: 'sm', fontWeight: 'medium',
-              borderRadius: 'md', bg: 'blue.600', color: 'white',
-              border: 'none', cursor: 'pointer',
-              _hover: { bg: 'blue.700' },
-            })}
-          >
-            Filtrar
-          </button>
-          {hasFilter && (
-            <Link
-              href="/reports"
-              className={css({
-                px: '4', py: '1.5', fontSize: 'sm', fontWeight: 'medium',
-                borderRadius: 'md', bg: 'gray.100', color: 'gray.600',
-                textDecoration: 'none',
-                _hover: { bg: 'gray.200' },
-                _dark: { bg: 'gray.800', color: 'gray.300', _hover: { bg: 'gray.700' } },
-              })}
-            >
-              Limpar
-            </Link>
-          )}
-        </div>
-      </form>
+      {/* Filtros — status + datas, auto-aplicados */}
+      <ReportsFilterBar
+        statusOptions={STATUS_OPTIONS}
+        status={status}
+        from={from}
+        to={to}
+        q={q}
+      />
 
       {/* Table */}
       <div

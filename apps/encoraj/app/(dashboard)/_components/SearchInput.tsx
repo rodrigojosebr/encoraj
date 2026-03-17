@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { css } from '@/styled-system/css'
 
@@ -15,45 +15,44 @@ export default function SearchInput({ placeholder, defaultValue }: SearchInputPr
   const searchParams = useSearchParams()
   const [value, setValue] = useState(defaultValue ?? '')
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isFirstRender = useRef(true)
+  const lastPushed = useRef(defaultValue ?? '')
 
-  // Sincroniza quando q muda na URL por fora (ex: clicar num filtro de status)
+  // Sincroniza só quando a mudança veio de fora (ex: clicar num card de filtro)
+  // Se defaultValue === lastPushed, foi a nossa própria navegação — ignora
   useEffect(() => {
-    const urlQ = searchParams.get('q') ?? ''
-    setValue(urlQ)
-  }, [searchParams])
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
+    const next = defaultValue ?? ''
+    if (next !== lastPushed.current) {
+      setValue(next)
+      lastPushed.current = next
     }
+  }, [defaultValue])
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value
+    setValue(next)
 
     if (timer.current) clearTimeout(timer.current)
 
-    // Dispara se >= 3 chars ou se limpou o campo
-    if (value.length >= 3 || value.length === 0) {
+    if (next.length >= 3 || next.length === 0) {
       timer.current = setTimeout(() => {
+        if (next === lastPushed.current) return
+        lastPushed.current = next
+
         const params = new URLSearchParams(searchParams.toString())
-        if (value) {
-          params.set('q', value)
+        if (next) {
+          params.set('q', next)
         } else {
           params.delete('q')
         }
         router.push(`${pathname}?${params.toString()}`)
       }, 300)
     }
-
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+  }
 
   return (
     <input
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={handleChange}
       placeholder={placeholder ?? 'Buscar…'}
       className={css({
         flex: '1',
