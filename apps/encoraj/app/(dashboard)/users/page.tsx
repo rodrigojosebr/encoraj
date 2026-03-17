@@ -7,6 +7,7 @@ import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
 import DeleteUserButton from './_components/DeleteUserButton'
+import { fmtDate } from '@/lib/date/tz'
 
 export default async function UsersPage() {
   const headersList = await headers()
@@ -50,7 +51,7 @@ export default async function UsersPage() {
         <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
           {isDeleted
             ? (u as unknown as { deleted_at?: Date }).deleted_at
-              ? new Date((u as unknown as { deleted_at: Date }).deleted_at).toLocaleDateString('pt-BR')
+              ? fmtDate((u as unknown as { deleted_at: Date }).deleted_at)
               : '—'
             : <Badge status="arrived">Ativo</Badge>}
         </td>
@@ -97,7 +98,7 @@ export default async function UsersPage() {
         )}
         {isDeleted && (u as unknown as { deleted_at?: Date }).deleted_at && (
           <p className={css({ fontSize: 'xs', color: 'gray.400', _dark: { color: 'gray.500' } })}>
-            Desativado em {new Date((u as unknown as { deleted_at: Date }).deleted_at).toLocaleDateString('pt-BR')}
+            Desativado em {fmtDate((u as unknown as { deleted_at: Date }).deleted_at)}
           </p>
         )}
       </div>

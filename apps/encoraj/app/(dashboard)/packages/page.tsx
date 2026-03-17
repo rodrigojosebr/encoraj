@@ -6,13 +6,15 @@ import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Eye, PackagePlus } from 'lucide-react'
 import { Badge, Button } from '@encoraj/ui'
+import SearchInput from '../_components/SearchInput'
+import { getTodayRange, fmtDate } from '@/lib/date/tz'
 
 export default async function PackagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>
+  searchParams: Promise<{ status?: string; q?: string; period?: string }>
 }) {
-  const { status, q } = await searchParams
+  const { status, q, period } = await searchParams
   const headersList = await headers()
   const condoId = headersList.get('x-condo-id')!
 
@@ -24,6 +26,7 @@ export default async function PackagesPage({
 
   const FILTERS = [
     { label: 'Todos',            value: '' },
+    { label: 'Em aberto',        value: 'open' },
     { label: arrived.label,      value: 'arrived' },
     { label: notified.label,     value: 'notified' },
     { label: delivered.label,    value: 'delivered' },
@@ -31,7 +34,21 @@ export default async function PackagesPage({
 
   const condoOid = new ObjectId(condoId)
   const filter: Record<string, unknown> = { condo_id: condoOid }
-  if (status) filter.status_id = (await getStatus(status))._id
+
+  if (status === 'open') {
+    filter.status_id = { $in: [arrived._id, notified._id] }
+  } else if (status) {
+    filter.status_id = (await getStatus(status))._id
+  }
+
+  if (period === 'today') {
+    const { today, tomorrow } = getTodayRange()
+    if (status === 'delivered') {
+      filter.delivered_at = { $gte: today, $lt: tomorrow }
+    } else {
+      filter.arrived_at = { $gte: today, $lt: tomorrow }
+    }
+  }
 
   const resCol = await residents()
 
@@ -75,49 +92,14 @@ export default async function PackagesPage({
       </div>
 
       {/* Busca */}
-      <form method="GET" className={css({ display: 'flex', gap: '2', flexWrap: 'wrap' })}>
-        {status && <input type="hidden" name="status" value={status} />}
-        <input
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="Buscar por morador ou código…"
-          className={css({
-            flex: '1',
-            minW: '220px',
-            px: '3',
-            py: '2',
-            fontSize: 'sm',
-            borderRadius: 'md',
-            border: '1px solid',
-            borderColor: 'gray.300',
-            bg: 'white',
-            color: 'gray.900',
-            outline: 'none',
-            _focus: { borderColor: 'blue.500', ring: '2px', ringColor: 'blue.200' },
-            _dark: { bg: 'gray.900', borderColor: 'gray.600', color: 'gray.100', _focus: { borderColor: 'blue.400', ringColor: 'blue.800' } },
-          })}
-        />
-        <button
-          type="submit"
-          className={css({ px: '3', py: '2', fontSize: 'sm', fontWeight: 'medium', bg: 'blue.600', color: 'white', borderRadius: 'md', border: 'none', cursor: 'pointer', _hover: { bg: 'blue.700' } })}
-        >
-          Buscar
-        </button>
-        {q && (
-          <a
-            href={status ? `/packages?status=${status}` : '/packages'}
-            className={css({ px: '3', py: '2', fontSize: 'sm', fontWeight: 'medium', bg: 'gray.100', color: 'gray.600', borderRadius: 'md', textDecoration: 'none', _hover: { bg: 'gray.200' }, _dark: { bg: 'gray.800', color: 'gray.300', _hover: { bg: 'gray.700' } } })}
-          >
-            Limpar
-          </a>
-        )}
-      </form>
+      <SearchInput placeholder="Buscar por morador ou código…" defaultValue={q ?? ''} />
 
       {/* Filtros de status */}
       <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '2' })}>
         {FILTERS.map((f) => {
           const qParam = q ? `&q=${encodeURIComponent(q)}` : ''
           const href = f.value ? `/packages?status=${f.value}${qParam}` : `/packages${q ? `?q=${encodeURIComponent(q)}` : ''}`
+          const isActive = status === f.value || (!status && !f.value)
           return (
           <Link key={f.value} href={href}>
             <button
@@ -129,14 +111,14 @@ export default async function PackagesPage({
                 fontWeight: 'medium',
                 border: '1px solid',
                 cursor: 'pointer',
-                bg: status === f.value || (!status && !f.value) ? 'blue.600' : 'white',
-                color: status === f.value || (!status && !f.value) ? 'white' : 'gray.600',
-                borderColor: status === f.value || (!status && !f.value) ? 'blue.600' : 'gray.300',
+                bg: isActive ? 'blue.600' : 'white',
+                color: isActive ? 'white' : 'gray.600',
+                borderColor: isActive ? 'blue.600' : 'gray.300',
                 _hover: { borderColor: 'blue.400' },
                 _dark: {
-                  bg: status === f.value || (!status && !f.value) ? 'blue.600' : 'gray.900',
-                  color: status === f.value || (!status && !f.value) ? 'white' : 'gray.400',
-                  borderColor: status === f.value || (!status && !f.value) ? 'blue.600' : 'gray.700',
+                  bg: isActive ? 'blue.600' : 'gray.900',
+                  color: isActive ? 'white' : 'gray.400',
+                  borderColor: isActive ? 'blue.600' : 'gray.700',
                 },
               })}
             >
@@ -176,7 +158,7 @@ export default async function PackagesPage({
                   </p>
                   <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
                     {resident?.apartment ? `Apto ${resident.apartment}` : '—'}{resident?.bloco ? ` · ${resident.bloco}` : ''}
-                    {' · '}chegou em {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                    {' · '}chegou em {fmtDate(pkg.arrived_at)}
                   </p>
                 </div>
               </div>
@@ -245,20 +227,16 @@ export default async function PackagesPage({
                       {resident?.apartment ?? '—'}
                     </td>
                     <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                      {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                      {fmtDate(pkg.arrived_at)}
                     </td>
                     <td className={css({ px: '4', py: '3' })}>
                       <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>{statusLabel}</Badge>
                     </td>
                     <td className={css({ px: '4', py: '3' })}>
-                      <Link href={`/packages/${pkg._id!.toString()}`} className={css({
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        w: '8', h: '8', borderRadius: 'md', color: 'gray.400',
-                        transition: 'all 0.15s',
-                        _hover: { color: 'blue.600', bg: 'blue.50' },
-                        _dark: { color: 'gray.500', _hover: { color: 'blue.400', bg: 'blue.950' } },
-                      })}>
-                        <Eye size={16} />
+                      <Link href={`/packages/${pkg._id!.toString()}`}>
+                        <Button variant="ghost" intent="primary" size="sm" leftIcon={<Eye size={14} />}>
+                          Ver
+                        </Button>
                       </Link>
                     </td>
                   </tr>

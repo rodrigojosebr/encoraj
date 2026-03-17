@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents, condominiums } from '@/lib/db/collections'
 import { getStatusById, getStatus } from '@/lib/db/status-map'
+import { fmtDateTime, fmtDate } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
 
 interface RouteContext {
@@ -90,13 +91,13 @@ export default async function PublicPackagePage({ params }: RouteContext) {
 
           {/* Foto da etiqueta */}
           {pkg.photo_url && (
-            <div className={css({ w: 'full', maxH: '240px', overflow: 'hidden' })}>
+            <div className={css({ w: 'full', bg: 'gray.100', _dark: { bg: 'gray.800' } })}>
               <Image
                 src={pkg.photo_url}
                 alt="Foto da encomenda"
                 width={440}
-                height={240}
-                className={css({ w: 'full', h: 'full', objectFit: 'cover' })}
+                height={440}
+                className={css({ w: 'full', h: 'auto', display: 'block', objectFit: 'contain' })}
               />
             </div>
           )}
@@ -128,7 +129,7 @@ export default async function PublicPackagePage({ params }: RouteContext) {
                   </p>
                   {pkg.delivered_at && (
                     <p className={css({ fontSize: 'xs', color: 'green.700', mt: '0.5', _dark: { color: 'green.400' } })}>
-                      em {new Date(pkg.delivered_at).toLocaleString('pt-BR')}
+                      em {fmtDateTime(pkg.delivered_at)}
                     </p>
                   )}
                 </div>
@@ -138,11 +139,11 @@ export default async function PublicPackagePage({ params }: RouteContext) {
             {/* Dados sempre visíveis */}
             <div className={css({ display: 'flex', flexDir: 'column', gap: '3' })}>
               <Row label="Destinatário" value={resident?.name ?? '—'} />
-              <Row label="Chegou em" value={new Date(pkg.arrived_at).toLocaleString('pt-BR')} />
+              <Row label="Chegou em" value={fmtDateTime(pkg.arrived_at)} />
               {pkg.notes && <Row label="Observações" value={pkg.notes} />}
             </div>
 
-            {/* Código — só se não entregue */}
+            {/* Código de retirada — só se não entregue */}
             {!isDelivered && (
               <div className={css({
                 bg: 'blue.50', border: '1px solid', borderColor: 'blue.200',
@@ -153,7 +154,7 @@ export default async function PublicPackagePage({ params }: RouteContext) {
                   Código de retirada
                 </p>
                 <p className={css({ fontFamily: 'mono', fontSize: '2xl', fontWeight: 'bold', color: 'blue.700', letterSpacing: 'widest', _dark: { color: 'blue.300' } })}>
-                  {pkg.code}
+                  {pkg.delivery_pin ?? pkg.code}
                 </p>
               </div>
             )}

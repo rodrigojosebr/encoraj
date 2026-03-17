@@ -4,6 +4,7 @@ import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
+import { fmtDateTime } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
 import { Badge } from '@encoraj/ui'
 import DeliverButton from './_components/DeliverButton'
@@ -81,14 +82,14 @@ export default async function PackageDetailPage({ params }: RouteContext) {
         <div className={rowCss}>
           <span className={labelCss}>Chegada</span>
           <span className={valueCss}>
-            {new Date(pkg.arrived_at).toLocaleString('pt-BR')}
+            {fmtDateTime(pkg.arrived_at)}
           </span>
         </div>
         {pkg.notified_at && (
           <div className={rowCss}>
             <span className={labelCss}>Notificado em</span>
             <span className={valueCss}>
-              {new Date(pkg.notified_at).toLocaleString('pt-BR')}
+              {fmtDateTime(pkg.notified_at)}
             </span>
           </div>
         )}
@@ -96,7 +97,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
           <div className={rowCss}>
             <span className={labelCss}>Retirado em</span>
             <span className={valueCss}>
-              {new Date(pkg.delivered_at).toLocaleString('pt-BR')}
+              {fmtDateTime(pkg.delivered_at)}
             </span>
           </div>
         )}
@@ -156,7 +157,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
             </p>
             {pkg.delivered_at && (
               <p className={css({ fontSize: 'xs', color: 'green.700', mt: '0.5', _dark: { color: 'green.400' } })}>
-                em {new Date(pkg.delivered_at).toLocaleString('pt-BR')}
+                em {fmtDateTime(pkg.delivered_at)}
               </p>
             )}
           </div>
@@ -171,13 +172,13 @@ export default async function PackageDetailPage({ params }: RouteContext) {
               id={pkg._id!.toString()}
               whatsapp={resident.whatsapp}
               residentName={resident.name}
-              code={pkg.code}
+              deliveryPin={pkg.delivery_pin ?? pkg.code}
               condoName={condoName}
               alreadyNotified={isNotified}
               notifiedAt={pkg.notified_at ?? null}
             />
           )}
-          <DeliverButton id={pkg._id!.toString()} />
+          <DeliverButton id={pkg._id!.toString()} hasPin={!!pkg.delivery_pin} />
         </div>
       )}
     </div>

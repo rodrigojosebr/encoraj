@@ -81,6 +81,7 @@ export interface PackageDoc {
   condo_id: ObjectId
   resident_id: ObjectId
   code: string
+  delivery_pin?: string
   qrcode_url: string
   photo_url: string
   status_id: ObjectId

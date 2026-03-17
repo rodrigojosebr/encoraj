@@ -5,7 +5,8 @@ import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById, getRole } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Eye } from 'lucide-react'
-import { Badge } from '@encoraj/ui'
+import { Badge, Button } from '@encoraj/ui'
+import { getTodayRange, fmtDate } from '@/lib/date/tz'
 
 export default async function DashboardPage() {
   const headersList = await headers()
@@ -18,10 +19,7 @@ export default async function DashboardPage() {
   const col = await packages()
   const condoOid = new ObjectId(condoId)
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate() + 1)
+  const { today, tomorrow } = getTodayRange()
 
   const [arrivedId, notifiedId, deliveredId] = await Promise.all([
     getStatus('arrived').then(s => s._id),
@@ -53,10 +51,10 @@ export default async function DashboardPage() {
   const recentStatusInfos = await Promise.all(recentDocs.map((d) => getStatusById(d.status_id)))
 
   const statCards = [
-    { label: 'Chegadas hoje',  value: arrivedToday },
-    { label: 'Em aberto',      value: openCount },
-    { label: 'Retiradas hoje', value: deliveredToday },
-    { label: 'Total geral',    value: totalCount },
+    { label: 'Chegadas hoje',  value: arrivedToday,   href: '/packages?status=arrived&period=today' },
+    { label: 'Em aberto',      value: openCount,      href: '/packages?status=open' },
+    { label: 'Retiradas hoje', value: deliveredToday, href: '/packages?status=delivered&period=today' },
+    { label: 'Total geral',    value: totalCount,     href: '/packages' },
   ]
 
   return (
@@ -74,21 +72,31 @@ export default async function DashboardPage() {
       {/* Stat cards */}
       <div className={css({ display: 'grid', gridTemplateColumns: { base: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '4' })}>
         {statCards.map((card) => (
-          <div
+          <Link
             key={card.label}
-            className={css({
-              bg: 'white', border: '1px solid', borderColor: 'gray.200',
-              borderRadius: 'lg', p: { base: '4', md: '5' },
-              _dark: { bg: 'gray.900', borderColor: 'gray.700' },
-            })}
+            href={card.href}
+            className={css({ textDecoration: 'none' })}
           >
-            <p className={css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', mb: '1', _dark: { color: 'gray.400' } })}>
-              {card.label}
-            </p>
-            <p className={css({ fontSize: '3xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
-              {card.value}
-            </p>
-          </div>
+            <div
+              className={css({
+                bg: 'white', border: '1px solid', borderColor: 'gray.200',
+                borderRadius: 'lg', p: { base: '4', md: '5' },
+                cursor: 'pointer', transition: 'all 0.15s ease',
+                _hover: { borderColor: 'blue.300', bg: 'blue.50', transform: 'translateY(-1px)', boxShadow: 'sm' },
+                _dark: {
+                  bg: 'gray.900', borderColor: 'gray.700',
+                  _hover: { borderColor: 'blue.700', bg: 'gray.800' },
+                },
+              })}
+            >
+              <p className={css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', mb: '1', _dark: { color: 'gray.400' } })}>
+                {card.label}
+              </p>
+              <p className={css({ fontSize: '3xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
+                {card.value}
+              </p>
+            </div>
+          </Link>
         ))}
       </div>
 
@@ -135,7 +143,7 @@ export default async function DashboardPage() {
                     </p>
                     <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
                       {resident ? `${resident.bloco ? resident.bloco + ' · ' : ''}Apto ${resident.apartment}` : '—'}
-                      {' · '}chegou em {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                      {' · '}chegou em {fmtDate(pkg.arrived_at)}
                     </p>
                   </div>
                 </div>
@@ -200,7 +208,7 @@ export default async function DashboardPage() {
                           {resident ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}` : '—'}
                         </td>
                         <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                          {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                          {fmtDate(pkg.arrived_at)}
                         </td>
                         <td className={css({ px: '4', py: '3' })}>
                           <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>
@@ -208,14 +216,10 @@ export default async function DashboardPage() {
                           </Badge>
                         </td>
                         <td className={css({ px: '4', py: '3' })}>
-                          <Link href={`/packages/${pkg._id!.toString()}`} className={css({
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            w: '8', h: '8', borderRadius: 'md', color: 'gray.400',
-                            transition: 'all 0.15s',
-                            _hover: { color: 'blue.600', bg: 'blue.50' },
-                            _dark: { color: 'gray.500', _hover: { color: 'blue.400', bg: 'blue.950' } },
-                          })}>
-                            <Eye size={16} />
+                          <Link href={`/packages/${pkg._id!.toString()}`}>
+                            <Button variant="ghost" intent="primary" size="sm" leftIcon={<Eye size={14} />}>
+                              Ver
+                            </Button>
                           </Link>
                         </td>
                       </tr>

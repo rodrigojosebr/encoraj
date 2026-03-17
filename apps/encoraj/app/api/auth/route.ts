@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
       role: roleDoc.name,
       condo_id: user.condo_id.toString(),
       condo_name: condo.name,
+      ...(user.photo_url ? { photo_url: user.photo_url } : {}),
+      ...(condo.photo_url ? { condo_photo_url: condo.photo_url } : {}),
     })
 
     const response = NextResponse.json({ ok: true })

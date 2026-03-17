@@ -273,27 +273,38 @@ export default function SidebarShell({
           _dark: { borderColor: 'gray.800' },
         })}
       >
-        {/* User identity */}
-        <div className={css({ display: 'flex', alignItems: 'center', gap: '2.5', minW: '0' })}>
-          <Avatar name={name || '?'} photoUrl={userPhoto} size="sm" />
-          {!collapsed && (
-            <div style={{ overflow: 'hidden', flex: 1 }}>
-              <p className={css({ fontSize: 'sm', color: 'gray.700', fontWeight: 'medium', truncate: true, _dark: { color: 'gray.300' } })}>
-                {name}
-              </p>
-              <p className={css({ fontSize: 'xs', color: 'gray.400', _dark: { color: 'gray.500' } })}>
-                {roleLabel}
-              </p>
+        {collapsed ? (
+          /* Collapsed: tudo empilhado e centralizado */
+          <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '2' })}>
+            <Avatar name={name || '?'} photoUrl={userPhoto} size="sm" />
+            <ThemeToggle />
+            <LogoutButton iconOnly />
+            <InstallButton collapsed={collapsed} />
+          </div>
+        ) : (
+          /* Expandido */
+          <>
+            {/* User identity + ThemeToggle na mesma linha */}
+            <div className={css({ display: 'flex', alignItems: 'center', gap: '2.5', minW: '0' })}>
+              <Avatar name={name || '?'} photoUrl={userPhoto} size="sm" />
+              <div style={{ overflow: 'hidden', flex: 1 }}>
+                <p className={css({ fontSize: 'sm', color: 'gray.700', fontWeight: 'medium', truncate: true, _dark: { color: 'gray.300' } })}>
+                  {name}
+                </p>
+                <p className={css({ fontSize: 'xs', color: 'gray.400', _dark: { color: 'gray.500' } })}>
+                  {roleLabel}
+                </p>
+              </div>
+              <ThemeToggle />
             </div>
-          )}
-        </div>
 
-        {/* Actions */}
-        <div className={css({ display: 'flex', gap: '2', alignItems: 'center', flexWrap: 'wrap' })}>
-          <ThemeToggle />
-          {!collapsed && <LogoutButton />}
-        </div>
-        <InstallButton collapsed={collapsed} />
+            {/* Logout — linha separada, alinhado à esquerda */}
+            <div className={css({ alignSelf: 'flex-start' })}>
+              <LogoutButton />
+            </div>
+            <InstallButton collapsed={collapsed} />
+          </>
+        )}
       </div>
     </aside>
   )

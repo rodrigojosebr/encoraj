@@ -17,6 +17,8 @@ export const buttonRecipe = defineSlotRecipe({
       transition: 'all 0.15s ease',
       textDecoration: 'none',
       whiteSpace: 'nowrap',
+      paddingX: '4',
+      paddingY: '2',
       _disabled: {
         opacity: '0.5',
         cursor: 'not-allowed',
@@ -158,6 +160,12 @@ export const buttonRecipe = defineSlotRecipe({
           _hover: { bg: 'gray.50' },
           _active: { bg: 'gray.100' },
           _focusVisible: { outlineColor: 'gray.400' },
+          _dark: {
+            borderColor: 'gray.600',
+            color: 'gray.300',
+            _hover: { bg: 'gray.800' },
+            _active: { bg: 'gray.700' },
+          },
         },
       },
     },

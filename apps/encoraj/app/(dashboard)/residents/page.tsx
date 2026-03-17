@@ -7,6 +7,7 @@ import { Button } from '@encoraj/ui'
 import DeleteButton from './_components/DeleteButton'
 import RestoreButton from './_components/RestoreButton'
 import DeletedToggle from './_components/DeletedToggle'
+import { fmtDate } from '@/lib/date/tz'
 
 export default async function ResidentsPage({
   searchParams,
@@ -106,7 +107,7 @@ export default async function ResidentsPage({
               </div>
               {showDeleted && r.deleted_at && (
                 <span className={css({ fontSize: 'xs', color: 'gray.400', _dark: { color: 'gray.500' } })}>
-                  {new Date(r.deleted_at).toLocaleDateString('pt-BR')}
+                  {fmtDate(r.deleted_at)}
                 </span>
               )}
             </div>
@@ -195,7 +196,7 @@ export default async function ResidentsPage({
                     {showDeleted ? (
                       <>
                         <span className={css({ fontSize: 'sm', color: 'gray.500', alignSelf: 'center', _dark: { color: 'gray.400' } })}>
-                          {r.deleted_at ? new Date(r.deleted_at).toLocaleDateString('pt-BR') : '—'}
+                          {r.deleted_at ? fmtDate(r.deleted_at) : '—'}
                         </span>
                         <RestoreButton id={r._id!.toString()} name={r.name} />
                       </>

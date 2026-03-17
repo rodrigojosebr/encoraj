@@ -73,8 +73,9 @@ export async function POST(request: Request) {
     const arrivedStatus = await getStatus('arrived')
     const packageId = new ObjectId()
 
-    // Gera código único e QR code
+    // Gera código único, PIN de retirada e QR code
     const code = `PKG-${packageId.toString().slice(-6).toUpperCase()}`
+    const delivery_pin = String(Math.floor(100000 + Math.random() * 900000))
     const qrcode_url = await generateAndUploadQRCode(packageId.toString(), condoId)
 
     const now = new Date()
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       condo_id: new ObjectId(condoId),
       resident_id: new ObjectId(resident_id),
       code,
+      delivery_pin,
       qrcode_url,
       photo_url,
       status_id: arrivedStatus._id,

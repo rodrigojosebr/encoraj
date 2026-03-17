@@ -187,14 +187,20 @@
 
 ---
 
-## Fase 3c — OCR com Gemini Flash 🔜
+## Fase 3c — OCR com Gemini Flash ✅
 
-- [ ] `lib/gemini/ocr.ts` — envia imagem para Gemini Flash, extrai `{ name, apartment, bloco? }`
-- [ ] `POST /api/ocr` — recebe URL de imagem → Gemini → retorna JSON com dados extraídos
-- [ ] Integrar ao `/packages/new` — após foto ser enviada ao S3, OCR auto-preenche o campo de morador
-- [ ] Fallback: se OCR falhar ou morador não encontrado, porteiro preenche manualmente
+- [x] `lib/gemini/ocr.ts` — envia imagem para Gemini Flash com lista de moradores do condo; retorna `{ resident_id, confidence, extracted_text }`
+- [x] `POST /api/ocr` — recebe imagem (multipart), busca moradores do condo no DB, chama Gemini, valida que o `resident_id` retornado pertence ao condo
+- [x] Integrar ao `/packages/new` — OCR dispara automaticamente ao selecionar a foto; spinner overlay durante análise
+- [x] Confirmação obrigatória: alta/média confiança → card azul "Confirmar / Não é este"; baixa confiança → select manual direto
+- [x] Fallback silencioso: timeout 15s ou erro → select manual; nunca bloqueia o fluxo
+- [x] PIN de retirada (`delivery_pin`, 6 dígitos numéricos) gerado ao criar encomenda
+- [x] `POST /api/packages/[id]/deliver` — valida PIN antes de confirmar entrega; pacotes legados (sem PIN) continuam funcionando
+- [x] `DeliverButton` — dialog com input numérico grande; porteiro digita o código que o morador apresenta
+- [x] Mensagem WhatsApp inclui `delivery_pin`; página pública `/p/[id]` exibe o PIN ao morador
+- [x] Foto da etiqueta exibida com `object-fit: contain` (etiqueta inteira visível, sem corte)
 
-**Milestone**: Porteiro fotografa etiqueta → sistema sugere destinatário automaticamente → porteiro confirma ou corrige.
+**Milestone**: Porteiro fotografa etiqueta → sistema identifica destinatário → porteiro confirma → morador recebe PIN via WhatsApp → apresenta na retirada → porteiro valida.
 
 ---
 
@@ -210,6 +216,21 @@
 **Modelo de negócio**: Z-API automático é a feature do plano pago. Plano gratuito usa o botão manual (wa.me) — porteiro clica, WhatsApp abre com mensagem pronta.
 
 **Milestone**: Morador recebe WhatsApp automaticamente com foto, código e QR Code ao registrar encomenda.
+
+---
+
+## Foto do Pacote (opcional, futuro) 💡
+
+**Contexto**: Além da foto da etiqueta (obrigatória, usada para OCR), o porteiro poderia tirar uma segunda foto do pacote/caixa para o morador ver o estado e tamanho antes de descer.
+
+**Decisão atual**: não implementar — aumenta o atrito no fluxo do porteiro e o ganho é marginal para o caso de uso principal.
+
+**Impacto estimado quando revisitar**:
+- `PackageDoc` → `package_photo_url?: string`
+- `POST /api/packages` → aceita campo opcional
+- `/packages/new` → segunda seção opcional pós-etiqueta (mesma lógica de câmera/upload)
+- `/packages/[id]` e `/p/[id]` → exibem segunda foto se existir
+- S3 → mesma estrutura, segundo arquivo na mesma pasta
 
 ---
 

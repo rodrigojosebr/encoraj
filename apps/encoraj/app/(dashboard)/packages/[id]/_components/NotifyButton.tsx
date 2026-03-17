@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import { Button, useToast } from '@encoraj/ui'
+import { fmtDateTime } from '@/lib/date/tz'
 
 // vercel
 
@@ -12,7 +13,7 @@ interface NotifyButtonProps {
   id: string
   whatsapp: string
   residentName: string
-  code: string
+  deliveryPin: string
   condoName: string
   alreadyNotified: boolean
   notifiedAt?: Date | null
@@ -25,7 +26,7 @@ function formatWhatsApp(raw: string): string {
   return digits.startsWith('55') ? digits : `55${digits}`
 }
 
-export default function NotifyButton({ id, whatsapp, residentName, code, condoName, alreadyNotified, notifiedAt }: NotifyButtonProps) {
+export default function NotifyButton({ id, whatsapp, residentName, deliveryPin, condoName, alreadyNotified, notifiedAt }: NotifyButtonProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -41,7 +42,7 @@ export default function NotifyButton({ id, whatsapp, residentName, code, condoNa
       `Olá, ${residentName}!`,
       `Chegou uma encomenda para você em *${condoName}*.`,
       ``,
-      `Código de retirada: *${code}*`,
+      `Código de retirada: *${deliveryPin}*`,
       `Ver encomenda: ${publicUrl}`,
       ``,
       `Retire na portaria apresentando o código ou QR Code.`,
@@ -72,10 +73,10 @@ export default function NotifyButton({ id, whatsapp, residentName, code, condoNa
         <div className={css({ display: 'flex', alignItems: 'center', gap: '1.5', color: 'green.600', _dark: { color: 'green.400' } })}>
           <MessageCircle size={15} />
           <span className={css({ fontSize: 'sm', fontWeight: 'medium' })}>
-            Notificado{notifiedAt ? ` em ${new Date(notifiedAt).toLocaleString('pt-BR')}` : ''}
+            Notificado{notifiedAt ? ` em ${fmtDateTime(notifiedAt)}` : ''}
           </span>
         </div>
-        <Button variant="ghost" intent="secondary" size="sm" loading={loading} onClick={handleNotify}>
+        <Button variant="outline" intent="secondary" size="sm" loading={loading} leftIcon={<MessageCircle size={14} />} onClick={handleNotify}>
           Reenviar
         </Button>
       </div>
@@ -83,8 +84,7 @@ export default function NotifyButton({ id, whatsapp, residentName, code, condoNa
   }
 
   return (
-    <Button intent="secondary" loading={loading} onClick={handleNotify}>
-      <MessageCircle size={16} />
+    <Button intent="primary" loading={loading} leftIcon={<MessageCircle size={16} />} onClick={handleNotify}>
       Notificar via WhatsApp
     </Button>
   )

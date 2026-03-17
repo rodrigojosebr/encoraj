@@ -7,6 +7,8 @@ import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
 import { Eye, Package, Bell, CheckCircle2 } from 'lucide-react'
 import ExportCSV from './_components/ExportCSV'
+import SearchInput from '../_components/SearchInput'
+import { getTodayRange, parseDateAsTZ, fmtDate, fmtDateTime } from '@/lib/date/tz'
 
 const inputCss = css({
   px: '3', py: '1.5', fontSize: 'sm', borderRadius: 'md',
@@ -24,9 +26,9 @@ const labelCss = css({
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string }>
+  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; period?: string }>
 }) {
-  const { status, from, to, q } = await searchParams
+  const { status, from, to, q, period } = await searchParams
   const headersList = await headers()
   const condoId = headersList.get('x-condo-id')!
 
@@ -39,6 +41,7 @@ export default async function ReportsPage({
 
   const STATUS_OPTIONS = [
     { label: 'Todos',            value: '' },
+    { label: 'Em aberto',        value: 'open' },
     { label: arrived.label,      value: 'arrived' },
     { label: notified.label,     value: 'notified' },
     { label: delivered.label,    value: 'delivered' },
@@ -47,10 +50,8 @@ export default async function ReportsPage({
   const col = await packages()
   const condoOid = new ObjectId(condoId)
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate() + 1)
+  const { today, tomorrow } = getTodayRange()
+  const todayStr = today.toISOString().slice(0, 10)
 
   // Stats (parallel)
   const [arrivedToday, openCount, deliveredToday, totalCount] = await Promise.all([
@@ -62,15 +63,22 @@ export default async function ReportsPage({
 
   // Listing filter
   const filter: Record<string, unknown> = { condo_id: condoOid }
-  if (status) filter.status_id = (await getStatus(status))._id
+  if (status === 'open') {
+    filter.status_id = { $in: [arrivedId, notifiedId] }
+  } else if (status) {
+    filter.status_id = (await getStatus(status))._id
+  }
+  if (period === 'today') {
+    if (status === 'delivered') {
+      filter.delivered_at = { $gte: today, $lt: tomorrow }
+    } else {
+      filter.arrived_at = { $gte: today, $lt: tomorrow }
+    }
+  }
   if (from || to) {
     const range: Record<string, Date> = {}
-    if (from) range.$gte = new Date(from)
-    if (to) {
-      const toDate = new Date(to)
-      toDate.setDate(toDate.getDate() + 1)
-      range.$lt = toDate
-    }
+    if (from) range.$gte = parseDateAsTZ(from)
+    if (to) range.$lt = new Date(parseDateAsTZ(to).getTime() + 24 * 60 * 60 * 1000)
     filter.arrived_at = range
   }
 
@@ -100,17 +108,17 @@ export default async function ReportsPage({
       morador:      r?.name ?? '',
       apartamento:  r ? `${r.bloco ? r.bloco + ', ' : ''}Apto ${r.apartment}` : '',
       status:       statusInfos[i].label,
-      chegada:      new Date(pkg.arrived_at).toLocaleString('pt-BR'),
-      notificado:   pkg.notified_at ? new Date(pkg.notified_at).toLocaleString('pt-BR') : '',
-      retirado:     pkg.delivered_at ? new Date(pkg.delivered_at).toLocaleString('pt-BR') : '',
+      chegada:      fmtDateTime(pkg.arrived_at),
+      notificado:   pkg.notified_at ? fmtDateTime(pkg.notified_at) : '',
+      retirado:     pkg.delivered_at ? fmtDateTime(pkg.delivered_at) : '',
     }
   })
 
   const statCards = [
-    { label: 'Chegadas hoje',   value: arrivedToday },
-    { label: 'Em aberto',       value: openCount },
-    { label: 'Retiradas hoje',  value: deliveredToday },
-    { label: 'Total geral',     value: totalCount },
+    { label: 'Chegadas hoje',   value: arrivedToday,  href: `/reports?from=${todayStr}&to=${todayStr}` },
+    { label: 'Em aberto',       value: openCount,     href: '/reports?status=open' },
+    { label: 'Retiradas hoje',  value: deliveredToday, href: `/reports?status=delivered&period=today` },
+    { label: 'Total geral',     value: totalCount,    href: '/reports' },
   ]
 
   const hasFilter = !!(status || from || to || q)
@@ -128,21 +136,27 @@ export default async function ReportsPage({
       {/* Stat cards */}
       <div className={css({ display: 'grid', gridTemplateColumns: { base: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: '4' })}>
         {statCards.map((card) => (
-          <div
-            key={card.label}
-            className={css({
-              bg: 'white', border: '1px solid', borderColor: 'gray.200',
-              borderRadius: 'lg', p: { base: '4', md: '5' },
-              _dark: { bg: 'gray.900', borderColor: 'gray.700' },
-            })}
-          >
-            <p className={css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', mb: '1', _dark: { color: 'gray.400' } })}>
-              {card.label}
-            </p>
-            <p className={css({ fontSize: '3xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
-              {card.value}
-            </p>
-          </div>
+          <Link key={card.label} href={card.href} className={css({ textDecoration: 'none' })}>
+            <div
+              className={css({
+                bg: 'white', border: '1px solid', borderColor: 'gray.200',
+                borderRadius: 'lg', p: { base: '4', md: '5' },
+                cursor: 'pointer', transition: 'all 0.15s ease',
+                _hover: { borderColor: 'blue.300', bg: 'blue.50', transform: 'translateY(-1px)', boxShadow: 'sm' },
+                _dark: {
+                  bg: 'gray.900', borderColor: 'gray.700',
+                  _hover: { borderColor: 'blue.700', bg: 'gray.800' },
+                },
+              })}
+            >
+              <p className={css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', mb: '1', _dark: { color: 'gray.400' } })}>
+                {card.label}
+              </p>
+              <p className={css({ fontSize: '3xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
+                {card.value}
+              </p>
+            </div>
+          </Link>
         ))}
       </div>
 
@@ -173,19 +187,7 @@ export default async function ReportsPage({
 
         <div className={css({ display: 'flex', flexDir: 'column', gap: '1' })}>
           <label className={labelCss}>Morador</label>
-          <input
-            type="text"
-            name="q"
-            defaultValue={q ?? ''}
-            placeholder="Buscar por nome..."
-            className={css({
-              px: '3', py: '1.5', fontSize: 'sm', borderRadius: 'md',
-              border: '1px solid', borderColor: 'gray.300',
-              bg: 'white', color: 'gray.700',
-              _placeholder: { color: 'gray.400' },
-              _dark: { bg: 'gray.800', borderColor: 'gray.600', color: 'gray.200', _placeholder: { color: 'gray.500' } },
-            })}
-          />
+          <SearchInput placeholder="Buscar por nome…" defaultValue={q ?? ''} />
         </div>
 
         <div className={css({ display: 'flex', gap: '2', alignItems: 'flex-end' })}>
@@ -274,7 +276,7 @@ export default async function ReportsPage({
                         <Package size={14} className={css({ color: 'green.500', _dark: { color: 'green.400' } })} />
                         <span className={css({ fontSize: '10px', fontWeight: 'medium', color: 'green.600', _dark: { color: 'green.400' } })}>Chegada</span>
                         <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                          {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                          {fmtDate(pkg.arrived_at)}
                         </span>
                       </div>
                       <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
@@ -282,7 +284,7 @@ export default async function ReportsPage({
                         <Bell size={14} className={css({ color: pkg.notified_at ? 'blue.500' : 'gray.300', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })} />
                         <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.notified_at ? 'blue.600' : 'gray.400', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })}>Notif.</span>
                         <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                          {pkg.notified_at ? new Date(pkg.notified_at).toLocaleDateString('pt-BR') : '—'}
+                          {pkg.notified_at ? fmtDate(pkg.notified_at) : '—'}
                         </span>
                       </div>
                       <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
@@ -290,7 +292,7 @@ export default async function ReportsPage({
                         <CheckCircle2 size={14} className={css({ color: pkg.delivered_at ? 'green.500' : 'gray.300', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })} />
                         <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.delivered_at ? 'green.600' : 'gray.400', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })}>Retirada</span>
                         <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                          {pkg.delivered_at ? new Date(pkg.delivered_at).toLocaleDateString('pt-BR') : '—'}
+                          {pkg.delivered_at ? fmtDate(pkg.delivered_at) : '—'}
                         </span>
                       </div>
                     </div>
@@ -352,7 +354,7 @@ export default async function ReportsPage({
                           {apt}
                         </td>
                         <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                          {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                          {fmtDate(pkg.arrived_at)}
                         </td>
                         <td className={css({ px: '4', py: '3' })}>
                           <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
@@ -360,7 +362,7 @@ export default async function ReportsPage({
                               <Package size={14} className={css({ color: 'green.500', _dark: { color: 'green.400' } })} />
                               <span className={css({ fontSize: '10px', fontWeight: 'medium', color: 'green.600', _dark: { color: 'green.400' } })}>Chegada</span>
                               <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                                {new Date(pkg.arrived_at).toLocaleDateString('pt-BR')}
+                                {fmtDate(pkg.arrived_at)}
                               </span>
                             </div>
                             <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
@@ -368,7 +370,7 @@ export default async function ReportsPage({
                               <Bell size={14} className={css({ color: pkg.notified_at ? 'blue.500' : 'gray.300', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })} />
                               <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.notified_at ? 'blue.600' : 'gray.400', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })}>Notif.</span>
                               <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                                {pkg.notified_at ? new Date(pkg.notified_at).toLocaleDateString('pt-BR') : '—'}
+                                {pkg.notified_at ? fmtDate(pkg.notified_at) : '—'}
                               </span>
                             </div>
                             <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
@@ -376,7 +378,7 @@ export default async function ReportsPage({
                               <CheckCircle2 size={14} className={css({ color: pkg.delivered_at ? 'green.500' : 'gray.300', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })} />
                               <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.delivered_at ? 'green.600' : 'gray.400', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })}>Retirada</span>
                               <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                                {pkg.delivered_at ? new Date(pkg.delivered_at).toLocaleDateString('pt-BR') : '—'}
+                                {pkg.delivered_at ? fmtDate(pkg.delivered_at) : '—'}
                               </span>
                             </div>
                           </div>

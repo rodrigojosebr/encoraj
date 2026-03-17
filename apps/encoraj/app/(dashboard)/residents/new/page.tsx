@@ -8,11 +8,11 @@ export default function NewResidentPage() {
       <div>
         <Link
           href="/residents"
-          className={css({ fontSize: 'sm', color: 'blue.600', textDecoration: 'none', _hover: { textDecoration: 'underline' } })}
+          className={css({ fontSize: 'sm', color: 'blue.600', textDecoration: 'none', _hover: { textDecoration: 'underline' }, _dark: { color: 'blue.400' } })}
         >
           ← Moradores
         </Link>
-        <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', mt: '2' })}>
+        <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', mt: '2', _dark: { color: 'gray.50' } })}>
           Novo morador
         </h1>
       </div>
@@ -24,6 +24,7 @@ export default function NewResidentPage() {
           borderColor: 'gray.200',
           borderRadius: 'lg',
           p: { base: '4', md: '6' },
+          _dark: { bg: 'gray.900', borderColor: 'gray.700' },
         })}
       >
         <ResidentForm />

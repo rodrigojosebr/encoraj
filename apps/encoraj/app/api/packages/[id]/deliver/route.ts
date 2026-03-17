@@ -8,7 +8,7 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
-export async function POST(_request: Request, { params }: RouteContext) {
+export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
     const headersList = await headers()
@@ -28,6 +28,9 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
+    const body = await request.json().catch(() => ({}))
+    const pin: string | undefined = typeof body?.pin === 'string' ? body.pin.trim() : undefined
+
     const col = await packages()
     const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId) })
 
@@ -38,6 +41,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
     const { _id: deliveredStatusId } = await getStatus('delivered')
     if (doc.status_id.equals(deliveredStatusId)) {
       return NextResponse.json({ error: 'Encomenda já foi entregue' }, { status: 409 })
+    }
+
+    // Valida PIN apenas se a encomenda tem delivery_pin cadastrado (pacotes legados não têm)
+    if (doc.delivery_pin) {
+      if (!pin) {
+        return NextResponse.json({ error: 'Código de retirada obrigatório.' }, { status: 400 })
+      }
+      if (pin !== doc.delivery_pin) {
+        return NextResponse.json({ error: 'Código de retirada incorreto.' }, { status: 400 })
+      }
     }
 
     await col.updateOne(
