@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, Share, X } from 'lucide-react'
 import { css } from '@/styled-system/css'
 
-type Platform = 'android' | 'ios' | 'none'
+type Platform = 'android' | 'android-manual' | 'ios' | 'none'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -21,15 +21,23 @@ export default function InstallButton({ collapsed }: { collapsed: boolean }) {
     // Se já está instalado, não mostra nada
     if (window.matchMedia('(display-mode: standalone)').matches) return
 
-    // iOS: mostra o botão imediatamente
     const ua = navigator.userAgent
+
+    // iOS: mostra o botão imediatamente com instrução manual
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream
     if (isIOS) {
       setPlatform('ios')
       return
     }
 
-    // Android: aguarda o evento do browser
+    // Android: detecta pelo userAgent e mostra botão imediatamente.
+    // Se o evento nativo disparar, usa o prompt nativo.
+    // Se não disparar (já dismissado, cooldown, etc.), cai na instrução manual.
+    const isAndroid = /Android/.test(ua)
+    if (isAndroid) {
+      setPlatform('android-manual')
+    }
+
     function handlePrompt(e: Event) {
       e.preventDefault()
       deferredPrompt.current = e as BeforeInstallPromptEvent
@@ -93,6 +101,62 @@ export default function InstallButton({ collapsed }: { collapsed: boolean }) {
         <Download size={16} strokeWidth={2} />
         {!collapsed && <span>Instalar app</span>}
       </button>
+    )
+  }
+
+  if (platform === 'android-manual') {
+    return (
+      <div style={{ position: 'relative' }} ref={hintRef}>
+        <button
+          type="button"
+          onClick={() => setShowIOSHint(v => !v)}
+          title="Instalar app"
+          className={btnCss}
+        >
+          <Download size={16} strokeWidth={2} />
+          {!collapsed && <span>Instalar app</span>}
+        </button>
+
+        {showIOSHint && (
+          <div
+            className={css({
+              position: 'absolute',
+              bottom: '110%',
+              left: '0',
+              bg: 'white',
+              border: '1px solid',
+              borderColor: 'gray.200',
+              borderRadius: 'xl',
+              p: '4',
+              shadow: 'lg',
+              w: '240px',
+              zIndex: '100',
+              _dark: { bg: 'gray.800', borderColor: 'gray.700' },
+            })}
+          >
+            <div className={css({ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: '2' })}>
+              <p className={css({ fontSize: 'sm', fontWeight: 'semibold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
+                Instalar no Android
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowIOSHint(false)}
+                className={css({ color: 'gray.400', bg: 'none', border: 'none', cursor: 'pointer', p: '0', _hover: { color: 'gray.600' } })}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <ol className={css({ display: 'flex', flexDir: 'column', gap: '2', pl: '0', listStyle: 'none' })}>
+              <li className={css({ fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.300' } })}>
+                No Chrome, toque em <strong>⋮</strong> (três pontos)
+              </li>
+              <li className={css({ fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.300' } })}>
+                Depois em <strong>&quot;Adicionar à tela inicial&quot;</strong>
+              </li>
+            </ol>
+          </div>
+        )}
+      </div>
     )
   }
 
