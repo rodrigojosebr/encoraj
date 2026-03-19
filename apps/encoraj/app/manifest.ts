@@ -6,7 +6,11 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Encoraj',
     description: 'Gestão de encomendas para condomínios',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
+    // Abre links do domínio direto no PWA instalado (Android Chrome)
+    // @ts-expect-error — handle_links ainda não está nos tipos do Next.js
+    handle_links: 'preferred',
     background_color: '#111827',
     theme_color: '#2563eb',
     orientation: 'portrait',
