@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
     const condoId = session.condoId
 
-    const image = await readImageUpload(await request.formData())
+    const image = await readImageUpload(request)
     if ('error' in image) {
       return NextResponse.json({ error: image.error }, { status: 400 })
     }

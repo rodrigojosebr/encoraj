@@ -6,6 +6,7 @@ import { Camera, Upload, X, CheckCircle2, AlertCircle, Loader2, UserCheck, Trash
 import { css } from '@/styled-system/css'
 import { Button, FormField } from '@encoraj/ui'
 import { useToast } from '@encoraj/ui'
+import { compressImage } from '../../../_lib/compress-image'
 
 interface ResidentOption {
   value: string
@@ -70,8 +71,10 @@ export default function NewPackageForm({ residents }: { residents: ResidentOptio
     }
   }
 
-  function handleFile(file: File | null) {
-    if (!file) return
+  async function handleFile(original: File | null) {
+    if (!original) return
+    // Reduz antes de tudo: o mesmo arquivo menor vai para o OCR e para o upload
+    const file = await compressImage(original)
     setPhoto(file)
     setPreview(URL.createObjectURL(file))
     setError('')

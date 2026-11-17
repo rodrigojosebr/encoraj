@@ -13,6 +13,8 @@ export interface OcrResult {
   extracted_text: string
 }
 
+const DEFAULT_MODEL = 'gemini-2.0-flash'
+
 const PROMPT_TEMPLATE = (residents: ResidentContext[]) => `
 You are analyzing a package delivery label photo.
 Your task is to identify which resident in the list below is the intended recipient.
@@ -56,7 +58,8 @@ export async function analyzePackageLabel(
     if (residents.length === 0) return null
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    // Modelo trocável por env: quando o Google aposentar um modelo, basta mudar a variável
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || DEFAULT_MODEL })
 
     const result = await model.generateContent([
       { text: PROMPT_TEMPLATE(residents) },

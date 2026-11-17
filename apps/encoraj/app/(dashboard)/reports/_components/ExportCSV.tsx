@@ -1,51 +1,12 @@
-'use client'
-
-import { useToast } from '@encoraj/ui'
+import { Download } from 'lucide-react'
 import { css } from '@/styled-system/css'
 
-interface Row {
-  codigo: string
-  morador: string
-  apartamento: string
-  status: string
-  chegada: string
-  notificado: string
-  retirado: string
-}
-
-// Célula iniciada por = + - @ vira fórmula no Excel: prefixa com apóstrofo
-function csvCell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
-  return `"${safe.replace(/"/g, '""')}"`
-}
-
-export default function ExportCSV({ rows }: { rows: Row[] }) {
-  const { toast } = useToast()
-
-  function handleExport() {
-    const cols = ['Código', 'Morador', 'Apartamento', 'Status', 'Chegada', 'Notificado', 'Retirado']
-    const lines = [
-      cols.join(';'),
-      ...rows.map((r) =>
-        [r.codigo, r.morador, r.apartamento, r.status, r.chegada, r.notificado, r.retirado]
-          .map(csvCell)
-          .join(';')
-      ),
-    ]
-    const csv = '\uFEFF' + lines.join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `encomendas-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast({ variant: 'info', message: `${rows.length} encomendas exportadas.` })
-  }
-
+/** Baixa o CSV de todas as encomendas do filtro atual (não só a página exibida). */
+export default function ExportCSV({ href }: { href: string }) {
   return (
-    <button
-      onClick={handleExport}
+    <a
+      href={href}
+      download
       className={css({
         px: '4',
         py: '2',
@@ -57,6 +18,10 @@ export default function ExportCSV({ rows }: { rows: Row[] }) {
         bg: 'white',
         color: 'gray.700',
         cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '2',
+        textDecoration: 'none',
         _hover: { bg: 'gray.50', borderColor: 'gray.400' },
         _dark: {
           bg: 'gray.800',
@@ -66,7 +31,7 @@ export default function ExportCSV({ rows }: { rows: Row[] }) {
         },
       })}
     >
-      Exportar CSV
-    </button>
+      <Download size={16} /> Exportar CSV
+    </a>
   )
 }

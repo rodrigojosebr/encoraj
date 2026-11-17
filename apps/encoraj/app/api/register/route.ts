@@ -6,6 +6,7 @@ import { getStatus, getRole } from '@/lib/db/status-map'
 import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { toSlug } from '@/lib/text/slug'
 import { emailSchema, passwordSchema, EMAIL_COLLATION } from '@/lib/auth/email'
 
 const RegisterSchema = z.object({
@@ -14,15 +15,6 @@ const RegisterSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
 })
-
-function toSlug(str: string): string {
-  return str
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
 
 export async function POST(request: Request) {
   try {
@@ -96,6 +88,7 @@ export async function POST(request: Request) {
         created_at: now,
       })
       userId = userResult.insertedId
+    /* v8 ignore start -- @preserve: só dispara em corrida entre dois cadastros do mesmo email */
     } catch (err) {
       // Corrida com outro cadastro do mesmo email (índice único) — desfaz o condomínio
       await condosCol.deleteOne({ _id: condoResult.insertedId })
@@ -104,6 +97,7 @@ export async function POST(request: Request) {
       }
       throw err
     }
+    /* v8 ignore stop -- @preserve */
 
     // Login automático
     const token = await signToken({

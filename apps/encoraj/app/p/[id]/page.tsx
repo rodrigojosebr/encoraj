@@ -5,9 +5,10 @@ import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents, condominiums } from '@/lib/db/collections'
 import { getStatusById, getStatus } from '@/lib/db/status-map'
-import { fmtDateTime, fmtDate } from '@/lib/date/tz'
+import { fmtDateTime } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
 import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { signS3Url } from '@/lib/s3/sign'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
 export const dynamic = 'force-dynamic'
@@ -49,6 +50,11 @@ export default async function PublicPackagePage({ params }: RouteContext) {
   ])
 
   const isDelivered = pkg.status_id.equals(delivered._id)
+  const [photoUrl, qrcodeUrl, condoPhotoUrl] = await Promise.all([
+    signS3Url(pkg.photo_url),
+    signS3Url(pkg.qrcode_url),
+    signS3Url(condo?.photo_url),
+  ])
 
   const badgeColor = {
     arrived: { bg: '#dbeafe', text: '#1d4ed8' },
@@ -77,10 +83,10 @@ export default async function PublicPackagePage({ params }: RouteContext) {
 
         {/* Header */}
         <div className={css({ textAlign: 'center', mb: '2' })}>
-          {condo?.photo_url ? (
+          {condoPhotoUrl ? (
             <Image
-              src={condo.photo_url}
-              alt={condo.name}
+              src={condoPhotoUrl}
+              alt={condo?.name ?? 'Condomínio'}
               width={56}
               height={56}
               className={css({ borderRadius: 'xl', mx: 'auto', mb: '2', objectFit: 'cover' })}
@@ -112,10 +118,10 @@ export default async function PublicPackagePage({ params }: RouteContext) {
         })}>
 
           {/* Foto da etiqueta */}
-          {pkg.photo_url && (
+          {photoUrl && (
             <div className={css({ w: 'full', bg: 'gray.100', _dark: { bg: 'gray.800' } })}>
               <Image
-                src={pkg.photo_url}
+                src={photoUrl}
                 alt="Foto da encomenda"
                 width={440}
                 height={440}
@@ -182,13 +188,13 @@ export default async function PublicPackagePage({ params }: RouteContext) {
             )}
 
             {/* QR Code — só se não entregue */}
-            {!isDelivered && pkg.qrcode_url && (
+            {!isDelivered && qrcodeUrl && (
               <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '2' })}>
                 <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
                   ou apresente o QR Code na portaria
                 </p>
                 <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700', filter: 'invert(1)' } })}>
-                  <Image src={pkg.qrcode_url} alt="QR Code" width={180} height={180} />
+                  <Image src={qrcodeUrl} alt="QR Code" width={180} height={180} />
                 </div>
               </div>
             )}

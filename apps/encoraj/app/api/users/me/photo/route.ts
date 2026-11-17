@@ -8,6 +8,7 @@ import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { readImageUpload } from '@/lib/upload/image'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
+import { signS3Url } from '@/lib/s3/sign'
 
 export async function DELETE() {
   try {
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     }
     const { userId, userName, condoId } = session
 
-    const image = await readImageUpload(await request.formData())
+    const image = await readImageUpload(request)
     if ('error' in image) return NextResponse.json({ error: image.error }, { status: 400 })
 
     const key = `condos/${condoId}/users/${userId}/avatar.${image.ext}`
@@ -81,7 +82,8 @@ export async function POST(request: Request) {
     // Re-assina JWT com photo_url atualizado
     const cookieStore = await cookies()
     const currentToken = cookieStore.get(AUTH_COOKIE)?.value
-    const response = NextResponse.json({ photo_url })
+    // No banco e no JWT fica a URL canônica; para o navegador vai o link assinado
+    const response = NextResponse.json({ photo_url: await signS3Url(photo_url) })
 
     if (currentToken) {
       try {

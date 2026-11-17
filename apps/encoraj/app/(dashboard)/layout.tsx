@@ -4,6 +4,7 @@ import { users, condominiums } from '@/lib/db/collections'
 import DashboardShell from './_components/DashboardShell'
 import { getRole } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
+import { signS3Url } from '@/lib/s3/sign'
 
 interface NavItem {
   href: string
@@ -44,8 +45,10 @@ export default async function DashboardLayout({
     (await condominiums()).findOne({ _id: new ObjectId(condoId) }, { projection: { photo_url: 1 } }),
   ])
 
-  const userPhoto = userDoc?.photo_url ?? null
-  const condoPhoto = condoDoc?.photo_url ?? null
+  const [userPhoto, condoPhoto] = await Promise.all([
+    signS3Url(userDoc?.photo_url),
+    signS3Url(condoDoc?.photo_url),
+  ])
 
   return (
     <DashboardShell

@@ -43,6 +43,7 @@ export async function PUT(request: Request) {
     const col = await users()
     const user = await col.findOne({ _id: new ObjectId(session.userId) })
 
+    /* v8 ignore next 3 -- @preserve: getSession() já garantiu que o usuário existe */
     if (!user) {
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 })
     }

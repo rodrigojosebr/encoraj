@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Camera, Trash2 } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import { Button, FormField, Alert, useToast } from '@encoraj/ui'
+import { compressImage } from '../_lib/compress-image'
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -29,7 +30,7 @@ export default function SettingsPage() {
     setUploadingPhoto(true)
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await compressImage(file, 512))
       const res = await fetch('/api/condo/photo', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { toast({ variant: 'error', message: data.error ?? 'Erro ao enviar foto.' }); return }

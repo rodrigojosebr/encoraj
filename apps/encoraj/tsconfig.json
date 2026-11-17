@@ -16,5 +16,5 @@
     "../../packages/ui/src/**/*.ts",
     "../../packages/ui/src/**/*.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "tests", "vitest.config.mts"]
 }

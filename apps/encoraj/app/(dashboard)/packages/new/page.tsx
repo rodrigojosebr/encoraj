@@ -1,13 +1,15 @@
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import NewPackageForm from './_components/NewPackageForm'
 
 export default async function NewPackagePage() {
-  const headersList = await headers()
-  const condoId = headersList.get('x-condo-id')!
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const condoId = session.condoId
 
   const activeStatus = await getStatus('active')
   const col = await residents()

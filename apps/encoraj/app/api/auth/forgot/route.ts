@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes, createHash } from 'crypto'
 import { z } from 'zod'
 import { users, condominiums, passwordResetTokens } from '@/lib/db/collections'
+import { getStatus } from '@/lib/db/status-map'
 import { sendEmail } from '@/lib/email/mailer'
 import { resetPasswordEmail } from '@/lib/email/templates'
-import { checkRateLimit } from '@/lib/auth/rateLimit'
+import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { emailSchema, EMAIL_COLLATION } from '@/lib/auth/email'
 
-const schema = z.object({
-  email: z.string().email(),
-})
+const schema = z.object({ email: emailSchema })
+
+const HOUR_MS = 60 * 60 * 1000
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,19 +22,20 @@ export async function POST(request: NextRequest) {
 
     const { email } = parsed.data
 
-    // Rate limit: 3 tentativas por email a cada 1h
-    const rl = await checkRateLimit(`forgot:${email.toLowerCase()}`, 3, 60 * 60 * 1000)
-    if (rl.blocked) {
-      // Retorna 200 mesmo assim — não revela informação sobre o email
+    // Rate limit: 3 por email e 10 por IP a cada 1h. Estourou → 200 mesmo assim,
+    // para não revelar nada sobre o email.
+    const [byEmail, byIp] = await Promise.all([
+      checkRateLimit(`forgot:${email}`, 3, HOUR_MS),
+      checkRateLimit(`forgot-ip:${clientIp(request.headers)}`, 10, HOUR_MS),
+    ])
+    if (byEmail.blocked || byIp.blocked) {
       return NextResponse.json({ ok: true })
     }
 
-    const baseUrl = new URL(request.url).origin
-
-    // Busca todas as contas com esse email (multi-condo)
+    // Só contas ativas recebem link (conta desativada não volta por aqui)
     const usersCol = await users()
     const matchingUsers = await usersCol
-      .find({ email: email.toLowerCase() })
+      .find({ email, status_id: (await getStatus('active'))._id }, { collation: EMAIL_COLLATION })
       .toArray()
 
     // Responde sempre 200 — não revela se o email existe
@@ -40,35 +43,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    // O link aponta para a URL configurada do app, não para o Host do request
+    const baseUrl = (process.env.APP_URL || new URL(request.url).origin).replace(/\/$/, '')
     const condosCol = await condominiums()
     const tokensCol = await passwordResetTokens()
 
-    // Para cada conta encontrada, gera um token e envia email
     await Promise.all(
       matchingUsers.map(async (user) => {
         const token = randomBytes(32).toString('hex')
         const tokenHash = createHash('sha256').update(token).digest('hex')
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1h
 
+        // Pedido novo invalida os links anteriores ainda não usados
+        await tokensCol.deleteMany({ user_id: user._id, used_at: { $exists: false } })
         await tokensCol.insertOne({
-          user_id: user._id!,
+          user_id: user._id,
           token_hash: tokenHash,
-          expires_at: expiresAt,
+          expires_at: new Date(Date.now() + HOUR_MS),
         })
 
         const condo = await condosCol.findOne({ _id: user.condo_id })
-        const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
-        await sendEmail({
-          to: user.email,
-          subject: 'Redefinir senha — Encoraj',
-          html: resetPasswordEmail({
-            name: user.name,
-            condoName: condo?.name ?? 'Encoraj',
-            resetUrl,
-          }),
-        })
-      })
+        try {
+          await sendEmail({
+            to: user.email,
+            subject: 'Redefinir senha — Encoraj',
+            html: resetPasswordEmail({
+              name: user.name,
+              condoName: condo?.name ?? 'Encoraj',
+              resetUrl: `${baseUrl}/reset-password?token=${token}`,
+            }),
+          })
+        } catch (err) {
+          // Falha de SMTP não pode virar resposta diferente (revelaria que o email existe)
+          console.error('[forgot] envio falhou', err)
+        }
+      }),
     )
 
     return NextResponse.json({ ok: true })

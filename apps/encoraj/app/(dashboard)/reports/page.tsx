@@ -1,6 +1,6 @@
-import { escapeRegex } from '@/lib/db/escape-regex'
 import Link from 'next/link'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
@@ -10,7 +10,10 @@ import { Eye, Package, Bell, CheckCircle2 } from 'lucide-react'
 import ExportCSV from './_components/ExportCSV'
 import ReportsFilterBar from './_components/ReportsFilterBar'
 import SearchInput from '../_components/SearchInput'
-import { getTodayRange, parseDateAsTZ, fmtDate, fmtDateTime } from '@/lib/date/tz'
+import { getTodayRange, fmtDate } from '@/lib/date/tz'
+import { buildPackageFilter } from '@/lib/packages/filter'
+import { pageHref, paginate, parsePage } from '@/lib/pagination'
+import Pagination from '../_components/Pagination'
 
 const labelCss = css({
   fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500',
@@ -21,11 +24,12 @@ const labelCss = css({
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; period?: string }>
+  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; period?: string; page?: string }>
 }) {
-  const { status, from, to, q, period } = await searchParams
-  const headersList = await headers()
-  const condoId = headersList.get('x-condo-id')!
+  const { status, from, to, q, period, page: pageParam } = await searchParams
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const condoId = session.condoId
 
   const [arrived, notified, delivered] = await Promise.all([
     getStatus('arrived'),
@@ -56,36 +60,17 @@ export default async function ReportsPage({
     col.countDocuments({ condo_id: condoOid }),
   ])
 
-  // Listing filter
-  const filter: Record<string, unknown> = { condo_id: condoOid }
-  if (status === 'open') {
-    filter.status_id = { $in: [arrivedId, notifiedId] }
-  } else if (status) {
-    filter.status_id = (await getStatus(status))._id
-  }
-  if (period === 'today') {
-    if (status === 'delivered') {
-      filter.delivered_at = { $gte: today, $lt: tomorrow }
-    } else {
-      filter.arrived_at = { $gte: today, $lt: tomorrow }
-    }
-  }
-  if (from || to) {
-    const range: Record<string, Date> = {}
-    if (from) range.$gte = parseDateAsTZ(from)
-    if (to) range.$lt = new Date(parseDateAsTZ(to).getTime() + 24 * 60 * 60 * 1000)
-    filter.arrived_at = range
-  }
-
+  // Listagem paginada — o export CSV (rota própria) usa os mesmos filtros, sem paginação
+  const listParams = { status, period, from, to, q }
+  const filter = await buildPackageFilter(condoId, listParams, { searchCode: false })
   const resCol = await residents()
-  if (q) {
-    const matched = await resCol
-      .find({ condo_id: condoOid, name: { $regex: escapeRegex(q), $options: 'i' } }, { projection: { _id: 1 } })
-      .toArray()
-    filter.resident_id = { $in: matched.map((r) => r._id!) }
-  }
-
-  const docs = await col.find(filter).sort({ arrived_at: -1 }).toArray()
+  const pagination = paginate(await col.countDocuments(filter), parsePage(pageParam))
+  const docs = await col
+    .find(filter)
+    .sort({ arrived_at: -1 })
+    .skip(pagination.skip)
+    .limit(pagination.pageSize)
+    .toArray()
 
   // Resident map
   const residentIds = [...new Set(docs.map((d) => d.resident_id.toString()))]
@@ -96,18 +81,7 @@ export default async function ReportsPage({
 
   const statusInfos = await Promise.all(docs.map((d) => getStatusById(d.status_id)))
 
-  const exportRows = docs.map((pkg, i) => {
-    const r = residentMap[pkg.resident_id.toString()]
-    return {
-      codigo:       pkg.code,
-      morador:      r?.name ?? '',
-      apartamento:  r ? `${r.bloco ? r.bloco + ', ' : ''}Apto ${r.apartment}` : '',
-      status:       statusInfos[i].label,
-      chegada:      fmtDateTime(pkg.arrived_at),
-      notificado:   pkg.notified_at ? fmtDateTime(pkg.notified_at) : '',
-      retirado:     pkg.delivered_at ? fmtDateTime(pkg.delivered_at) : '',
-    }
-  })
+  const exportHref = pageHref('/api/reports/export', listParams, 1)
 
   const statCards = [
     { label: 'Chegadas hoje',   value: arrivedToday,  href: `/reports?from=${todayStr}&to=${todayStr}` },
@@ -123,7 +97,7 @@ export default async function ReportsPage({
         <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
           Relatórios
         </h1>
-        <ExportCSV rows={exportRows} />
+        <ExportCSV href={exportHref} />
       </div>
 
       {/* Stat cards */}
@@ -353,6 +327,8 @@ export default async function ReportsPage({
           </>
         )}
       </div>
+
+      <Pagination pathname="/reports" params={listParams} pagination={pagination} />
     </div>
   )
 }

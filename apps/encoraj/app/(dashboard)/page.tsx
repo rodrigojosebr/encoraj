@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById, getRole } from '@/lib/db/status-map'
@@ -9,10 +10,11 @@ import { Badge, Button } from '@encoraj/ui'
 import { getTodayRange, fmtDate } from '@/lib/date/tz'
 
 export default async function DashboardPage() {
-  const headersList = await headers()
-  const name = decodeURIComponent(headersList.get('x-user-name') ?? '')
-  const role = headersList.get('x-user-role') ?? ''
-  const condoId = headersList.get('x-condo-id')!
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const name = session.userName
+  const role = session.role
+  const condoId = session.condoId
 
   const roleLabel = await getRole(role).then(r => r.label).catch(() => role)
 

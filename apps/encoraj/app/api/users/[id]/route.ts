@@ -80,12 +80,14 @@ export async function PUT(request: Request, { params }: RouteContext) {
     if (Object.keys(updateFields).length > 0) {
       try {
         await col.updateOne({ _id: new ObjectId(id), condo_id: condoOid }, { $set: updateFields })
+      /* v8 ignore start -- @preserve: só dispara em corrida entre dois cadastros do mesmo email */
       } catch (err) {
         if ((err as { code?: number }).code === 11000) {
           return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
         }
         throw err
       }
+      /* v8 ignore stop -- @preserve */
     }
 
     await logAction({

@@ -7,6 +7,7 @@ import { signToken, verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
+import { signS3Url } from '@/lib/s3/sign'
 
 const UpdateCondoSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -22,7 +23,7 @@ export async function GET() {
     const condo = await col.findOne({ _id: new ObjectId(condoId) })
     if (!condo) return NextResponse.json({ error: 'Condomínio não encontrado' }, { status: 404 })
 
-    return NextResponse.json({ name: condo.name, slug: condo.slug, photo_url: condo.photo_url ?? null })
+    return NextResponse.json({ name: condo.name, slug: condo.slug, photo_url: await signS3Url(condo.photo_url) })
   } catch (err) {
     console.error('[GET /api/condo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

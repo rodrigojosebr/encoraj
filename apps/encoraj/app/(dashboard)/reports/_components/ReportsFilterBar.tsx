@@ -60,6 +60,7 @@ export default function ReportsFilterBar({ statusOptions, status, from, to, q }:
 
   function navigate(updates: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString())
+    params.delete('page') // filtro novo começa na primeira página
     for (const [key, val] of Object.entries(updates)) {
       if (val) { params.set(key, val) } else { params.delete(key) }
     }

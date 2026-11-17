@@ -22,12 +22,24 @@ function sniff(buffer: Buffer): Pick<ImageUpload, 'contentType' | 'ext'> | null 
 }
 
 /**
- * Lê o campo `file` de um multipart e valida tamanho e formato real.
+ * Lê o campo `file` de um request multipart (ou de um FormData) e valida tamanho e formato real.
  * Retorna `{ error }` com a mensagem pronta para o usuário quando inválido.
  */
 export async function readImageUpload(
-  formData: FormData,
+  source: Request | FormData,
 ): Promise<ImageUpload | { error: string }> {
+  let formData: FormData
+  if (source instanceof FormData) {
+    formData = source
+  } else {
+    try {
+      formData = await source.formData()
+    } catch {
+      // corpo que não é multipart: erro do cliente (400), não do servidor
+      return { error: 'Arquivo não enviado.' }
+    }
+  }
+
   const file = formData.get('file')
   if (!file || !(file instanceof Blob)) return { error: 'Arquivo não enviado.' }
   if (file.size > MAX_IMAGE_BYTES) return { error: 'Arquivo muito grande (máx 8 MB).' }

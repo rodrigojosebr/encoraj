@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Pencil, UserPlus } from 'lucide-react'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { users, roles } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
@@ -10,9 +11,10 @@ import DeleteUserButton from './_components/DeleteUserButton'
 import { fmtDate } from '@/lib/date/tz'
 
 export default async function UsersPage() {
-  const headersList = await headers()
-  const condoId = headersList.get('x-condo-id')!
-  const currentUserId = headersList.get('x-user-id')!
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const condoId = session.condoId
+  const currentUserId = session.userId
 
   const col = await users()
   const rolesCol = await roles()

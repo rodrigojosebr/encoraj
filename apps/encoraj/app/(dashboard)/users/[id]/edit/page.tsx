@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ObjectId } from 'mongodb'
 import { users, roles } from '@/lib/db/collections'
-import { readSessionHeaders } from '@/lib/auth/session'
+import { readSession } from '@/lib/auth/session'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import UserForm from '../../_components/UserForm'
@@ -16,7 +16,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
 
   if (!ObjectId.isValid(id)) notFound()
 
-  const session = await readSessionHeaders()
+  const session = await readSession()
   if (!session) notFound()
 
   const col = await users()

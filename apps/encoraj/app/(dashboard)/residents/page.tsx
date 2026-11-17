@@ -3,7 +3,7 @@ import { Pencil, UserPlus } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
-import { readSessionHeaders } from '@/lib/auth/session'
+import { readSession } from '@/lib/auth/session'
 import { escapeRegex } from '@/lib/db/escape-regex'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
@@ -12,15 +12,17 @@ import DeleteButton from './_components/DeleteButton'
 import RestoreButton from './_components/RestoreButton'
 import DeletedToggle from './_components/DeletedToggle'
 import { fmtDate } from '@/lib/date/tz'
+import { paginate, parsePage } from '@/lib/pagination'
+import Pagination from '../_components/Pagination'
 
 export default async function ResidentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; deleted?: string }>
+  searchParams: Promise<{ q?: string; deleted?: string; page?: string }>
 }) {
-  const { q, deleted } = await searchParams
+  const { q, deleted, page: pageParam } = await searchParams
   const showDeleted = deleted === '1'
-  const session = await readSessionHeaders()
+  const session = await readSession()
   if (!session) redirect('/login')
   const col = await residents()
 
@@ -32,7 +34,13 @@ export default async function ResidentsPage({
     filter.$or = [{ name: regex }, { apartment: regex }, { bloco: regex }]
   }
 
-  const docs = await col.find(filter).sort({ name: 1 }).toArray()
+  const pagination = paginate(await col.countDocuments(filter), parsePage(pageParam))
+  const docs = await col
+    .find(filter)
+    .sort({ name: 1 })
+    .skip(pagination.skip)
+    .limit(pagination.pageSize)
+    .toArray()
 
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6' })}>
@@ -219,6 +227,8 @@ export default async function ResidentsPage({
           </div>
         )}
       </div>
+
+      <Pagination pathname="/residents" params={{ q, deleted }} pagination={pagination} />
     </div>
   )
 }

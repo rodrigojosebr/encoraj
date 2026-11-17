@@ -41,11 +41,11 @@ Não usa o sistema diretamente. Recebe notificação no WhatsApp com foto da enc
 Porteiro abre o app
   → Toca "Registrar Encomenda"
   → Tira foto da etiqueta
-  → Gemini Flash extrai nome e apartamento da etiqueta  ← Fase 3c (pendente)
+  → Gemini Flash extrai nome e apartamento da etiqueta  ← Fase 3c ✅
   → Porteiro confirma ou ajusta o destinatário
   → Sistema gera código único + QR Code (salvo no S3)
   → Foto da etiqueta salva no S3, registro criado no MongoDB
-  → Z-API envia WhatsApp ao morador:  ← Fase 4b (pendente)
+  → Porteiro toca "Notificar via WhatsApp" (link wa.me com a mensagem pronta):
        "Chegou uma encomenda para você!
         Código: [XXXX] | Apto [NNN]
         [Foto] | [QR Code]"
@@ -238,10 +238,9 @@ Admin ou Síndico acessa /reports
 | Serviço | Uso | Status |
 |---|---|---|
 | **MongoDB Atlas** | Banco de dados principal | ✅ |
-| **Nodemailer SMTP** | Email de recuperação de senha | ✅ implementado / pendente config SMTP |
+| **Nodemailer SMTP** | Email de recuperação de senha | ✅ implementado / link no login desligado até configurar SMTP |
 | **AWS S3** | Fotos de etiquetas, QR Codes, fotos de perfil e condo | ✅ |
 | **Google Gemini Flash** | OCR da etiqueta | 🔜 Fase 3c |
-| **Z-API** | Envio automático de mensagens WhatsApp | 🔜 Fase 4b |
 
 ## Arquitetura de Segurança
 
@@ -348,8 +347,7 @@ apps/encoraj/
         [id]/deliver/route.ts    ← POST confirmar retirada
         [id]/notify/route.ts     ← POST marca notified_at + status notified
       upload/route.ts            ← POST imagem → S3 → URL
-      ocr/route.ts               ← pendente Gemini (Fase 3c)
-      whatsapp/route.ts          ← pendente Z-API (Fase 4b)
+      ocr/route.ts               ← POST imagem → Gemini → morador sugerido
     manifest.ts                  ← Web App Manifest (PWA)
     icon.tsx                     ← 32×32 dynamic icon
     apple-icon.tsx               ← 180×180 apple icon
@@ -375,8 +373,7 @@ apps/encoraj/
       upload.ts                  ← uploadToS3(buffer, key, contentType) → URL pública
     qrcode/
       generate.ts                ← gera PNG + sobe para S3 → URL
-    gemini/                      ← pendente (Fase 3c)
-    zapi/                        ← pendente (Fase 4b)
+    gemini/                      ← ocr.ts → analyzePackageLabel()
   scripts/
     seed.ts
     gen-icons.mjs                ← gera ícones PWA estáticos via canvas

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck, lint e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Valores só para o processo subir; nada aqui é segredo nem aponta para serviço real.
+      # Os testes usam MongoDB em memória e trocam o cliente S3 por um mock.
+      JWT_SECRET: segredo-somente-de-ci-0123456789abcdef
+      MONGODB_URI: mongodb://127.0.0.1:27017/encoraj_ci
+      MONGOMS_DOWNLOAD_DIR: ${{ github.workspace }}/.cache/mongodb-binaries
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Instalar dependências
+        run: yarn install --frozen-lockfile
+
+      - name: Gerar styled-system (Panda CSS)
+        run: yarn workspace encoraj panda
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Cache do binário do MongoDB em memória
+        uses: actions/cache@v4
+        with:
+          path: .cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Testes com cobertura
+        run: yarn workspace encoraj test:coverage

@@ -4,7 +4,7 @@ Sistema web de gestão de encomendas para condomínios. Porteiro fotografa a eti
 
 ## Stack
 
-Next.js 15 · App Router · MongoDB Atlas · Panda CSS · JWT (jose) · AWS S3 · Gemini Flash · Z-API · TypeScript strict
+Next.js 15 · App Router · MongoDB Atlas · Panda CSS · JWT (jose) · AWS S3 · Gemini Flash · TypeScript strict
 
 ## Requisitos
 
@@ -13,7 +13,6 @@ Next.js 15 · App Router · MongoDB Atlas · Panda CSS · JWT (jose) · AWS S3 �
 - MongoDB Atlas (cluster gratuito funciona)
 - Conta AWS S3 (para fotos e QR codes)
 - API Key do Google Gemini
-- Instância Z-API (WhatsApp)
 
 ## Setup
 
@@ -60,10 +59,6 @@ AWS_S3_BUCKET=
 # Google Gemini
 GEMINI_API_KEY=
 
-# Z-API (WhatsApp)
-ZAPI_INSTANCE_ID=
-ZAPI_TOKEN=
-ZAPI_CLIENT_TOKEN=
 ```
 
 ## Comandos

@@ -85,12 +85,14 @@ export async function POST(request: Request) {
     let insertedId
     try {
       insertedId = (await col.insertOne(doc)).insertedId
+    /* v8 ignore start -- @preserve: só dispara em corrida entre dois cadastros do mesmo email */
     } catch (err) {
       if ((err as { code?: number }).code === 11000) {
         return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
       }
       throw err
     }
+    /* v8 ignore stop -- @preserve */
 
     await logAction({
       condo_id: new ObjectId(session.condoId),

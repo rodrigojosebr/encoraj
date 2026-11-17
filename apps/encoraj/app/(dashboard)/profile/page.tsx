@@ -1,15 +1,18 @@
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { users } from '@/lib/db/collections'
 import { getRole } from '@/lib/db/status-map'
+import { signS3Url } from '@/lib/s3/sign'
 import ProfileClient from './_components/ProfileClient'
 
 export default async function ProfilePage() {
-  const headersList = await headers()
-  const userId   = headersList.get('x-user-id')!
-  const userName = decodeURIComponent(headersList.get('x-user-name') ?? '')
-  const userRole = headersList.get('x-user-role') ?? ''
-  const condoName = decodeURIComponent(headersList.get('x-condo-name') ?? '')
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const userId   = session.userId
+  const userName = session.userName
+  const userRole = session.role
+  const condoName = session.condoName
 
   const col = await users()
   const user = await col.findOne({ _id: new ObjectId(userId) }, { projection: { email: 1, photo_url: 1 } })
@@ -24,7 +27,7 @@ export default async function ProfilePage() {
       condoName={condoName}
       isAdmin={userRole === 'admin'}
       userId={userId}
-      photoUrl={user?.photo_url ?? null}
+      photoUrl={await signS3Url(user?.photo_url)}
     />
   )
 }

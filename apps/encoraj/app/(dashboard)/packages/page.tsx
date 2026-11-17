@@ -1,6 +1,6 @@
-import { escapeRegex } from '@/lib/db/escape-regex'
 import Link from 'next/link'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
@@ -8,16 +8,20 @@ import { css } from '@/styled-system/css'
 import { Eye, PackagePlus } from 'lucide-react'
 import { Badge, Button } from '@encoraj/ui'
 import SearchInput from '../_components/SearchInput'
-import { getTodayRange, fmtDate } from '@/lib/date/tz'
+import { fmtDate } from '@/lib/date/tz'
+import { buildPackageFilter } from '@/lib/packages/filter'
+import { paginate, parsePage } from '@/lib/pagination'
+import Pagination from '../_components/Pagination'
 
 export default async function PackagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; period?: string }>
+  searchParams: Promise<{ status?: string; q?: string; period?: string; page?: string }>
 }) {
-  const { status, q, period } = await searchParams
-  const headersList = await headers()
-  const condoId = headersList.get('x-condo-id')!
+  const { status, q, period, page: pageParam } = await searchParams
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const condoId = session.condoId
 
   const [arrived, notified, delivered] = await Promise.all([
     getStatus('arrived'),
@@ -33,42 +37,17 @@ export default async function PackagesPage({
     { label: delivered.label,    value: 'delivered' },
   ]
 
-  const condoOid = new ObjectId(condoId)
-  const filter: Record<string, unknown> = { condo_id: condoOid }
-
-  if (status === 'open') {
-    filter.status_id = { $in: [arrived._id, notified._id] }
-  } else if (status) {
-    filter.status_id = (await getStatus(status))._id
-  }
-
-  if (period === 'today') {
-    const { today, tomorrow } = getTodayRange()
-    if (status === 'delivered') {
-      filter.delivered_at = { $gte: today, $lt: tomorrow }
-    } else {
-      filter.arrived_at = { $gte: today, $lt: tomorrow }
-    }
-  }
-
-  const resCol = await residents()
-
-  // Busca por texto: filtra por código OU por moradores cujo nome bate
-  if (q?.trim()) {
-    const regex = { $regex: escapeRegex(q.trim()), $options: 'i' }
-    const matchingResidents = await resCol
-      .find({ condo_id: condoOid, name: regex })
-      .project({ _id: 1 })
-      .toArray()
-    const residentOids = matchingResidents.map((r) => r._id!)
-    filter.$or = [
-      { code: regex },
-      ...(residentOids.length > 0 ? [{ resident_id: { $in: residentOids } }] : []),
-    ]
-  }
+  const filter = await buildPackageFilter(condoId, { status, period, q }, { searchCode: true })
 
   const col = await packages()
-  const docs = await col.find(filter).sort({ arrived_at: -1 }).toArray()
+  const resCol = await residents()
+  const pagination = paginate(await col.countDocuments(filter), parsePage(pageParam))
+  const docs = await col
+    .find(filter)
+    .sort({ arrived_at: -1 })
+    .skip(pagination.skip)
+    .limit(pagination.pageSize)
+    .toArray()
 
   // Resolve status info (name for Badge, label for display) per package — single call each
   const statusInfos = await Promise.all(docs.map((d) => getStatusById(d.status_id)))
@@ -248,6 +227,8 @@ export default async function PackagesPage({
           </div>
         )}
       </div>
+
+      <Pagination pathname="/packages" params={{ status, q, period }} pagination={pagination} />
     </div>
   )
 }

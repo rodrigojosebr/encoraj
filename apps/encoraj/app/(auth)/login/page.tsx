@@ -1,5 +1,6 @@
 'use client'
 
+import { safeNextPath } from '@/lib/auth/safe-next'
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -33,9 +34,7 @@ function LoginForm() {
       }
 
       const next = searchParams.get('next')
-      // Só caminho interno: '//host' e '/\\host' sairiam do site (open redirect)
-      const safeNext = next && /^\/(?![/\\])/.test(next) ? next : '/'
-      window.location.href = safeNext
+      window.location.href = safeNextPath(next)
     } catch {
       setError('Erro de conexão. Tente novamente.')
     } finally {

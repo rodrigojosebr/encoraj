@@ -10,6 +10,7 @@ export default function DeletedToggle() {
 
   function toggle() {
     const params = new URLSearchParams(searchParams.toString())
+    params.delete('page')
     if (checked) {
       params.delete('deleted')
     } else {

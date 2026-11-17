@@ -204,21 +204,6 @@
 
 ---
 
-## Fase 4b — Notificação WhatsApp automática 🔜
-
-- [ ] `lib/zapi/` — enviar mensagem de texto e imagem via Z-API
-- [ ] `POST /api/whatsapp` — template de mensagem para o morador
-- [ ] Integrar ao fluxo de criação de encomenda → atualizar `notified_at` automaticamente
-- [ ] Substituir botão da Fase 4a por envio automático (botão vira "Reenviar")
-
-**Obs**: Z-API (~R$50-150/mês) ou Evolution API (gratuita, self-hosted). Implementar após deploy em produção.
-
-**Modelo de negócio**: Z-API automático é a feature do plano pago. Plano gratuito usa o botão manual (wa.me) — porteiro clica, WhatsApp abre com mensagem pronta.
-
-**Milestone**: Morador recebe WhatsApp automaticamente com foto, código e QR Code ao registrar encomenda.
-
----
-
 ## Foto do Pacote (opcional, futuro) 💡
 
 **Contexto**: Além da foto da etiqueta (obrigatória, usada para OCR), o porteiro poderia tirar uma segunda foto do pacote/caixa para o morador ver o estado e tamanho antes de descer.
@@ -252,10 +237,12 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 ### P0 — bloqueia o lançamento
 
 **Verificar em produção (pode já estar quebrado)**
-- [ ] Banco de produção não tem o admin do seed (`admin@encoraj.com` / senha padrão publicada no README)
-- [ ] OCR ainda responde: `gemini-2.0-flash` e o SDK `@google/generative-ai` são antigos e o fallback é silencioso — se o modelo foi desligado, ninguém percebe. Migrar para `@google/genai` + modelo atual
-- [ ] Foto de celular acima de ~4,5 MB passa em `/api/upload` e `/api/ocr` (limite de body da Vercel; não há compressão no cliente)
-- [ ] `yarn audit` + atualizar Next.js para o patch de segurança mais recente da linha 15
+- [ ] Banco de produção não tem o admin do seed (`admin@encoraj.com` / senha padrão publicada no README) — rodar `MONGODB_URI=<produção> yarn preflight` em `apps/encoraj` (somente leitura; também aponta email duplicado e índice ausente)
+- [ ] OCR ainda responde? O fallback é silencioso — testar uma etiqueta em produção. Se o modelo foi aposentado, definir `GEMINI_MODEL` na Vercel (não precisa de deploy de código)
+- [ ] Migrar o OCR para o SDK `@google/genai` — fazer junto, com a chave em mãos para testar
+- [x] Foto de celular acima de ~4,5 MB: agora é reduzida no navegador (máx. 1600 px, JPEG) antes do OCR e do upload — **conferir no celular**
+- [ ] **Publicar o Next 15.5.29** — a 15.5.12 em produção tem 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. Upgrade feito e validado localmente (typecheck, lint, 339 testes); **falta comitar, fazer deploy e teste manual**
+- [ ] Majors pendentes, um por vez e com a suíte de testes verde: Next 16 (o `@ducanh2912/next-pwa` está sem manutenção desde 2024 e depende de webpack — decidir substituto antes), Panda CSS 2, driver `mongodb` 7, ESLint 10, TypeScript 7, `lucide-react` 1, `dotenv` 18, `@types/node` 26
 
 **Vazamento de dados**
 - [x] **Vazamento entre condomínios nas páginas**: `/residents` listava moradores de todos os condomínios; `/residents/[id]/edit` e `/users/[id]/edit` abriam registro de qualquer condomínio (faltava `condo_id` no filtro)
@@ -263,23 +250,24 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [x] `/p/[id]` usa ObjectId como segredo: quem tem um link consegue enumerar vizinhos e ver nome, foto da etiqueta e PIN de outros moradores (inclusive de outros condomínios). Trocar por token aleatório (`crypto.randomBytes`) em campo próprio + rate limit na rota
 - [x] `GET /api/users` devolve `password_hash` (sem projeção) e inclui usuários excluídos
 - [x] `GET /api/packages` e `/api/packages/[id]` devolvem `delivery_pin`; PIN gerado com `Math.random` → usar `crypto.randomInt`
-- [ ] Bucket S3 público: fotos de etiqueta (nome + endereço) acessíveis por URL. Tornar privado + URL assinada, ou no mínimo confirmar que não há listagem
+- [x] Imagens servidas por link assinado (`signS3Url`, validade de 1h) — o código já funciona com o bucket privado
+- [ ] **Fechar o bucket na AWS**: ligar "Block all public access" e remover a policy de leitura pública. Fazer só depois do deploy desta versão; conferir que foto de etiqueta, QR code e avatares continuam aparecendo
 
 **Sessão e autenticação**
 - [x] Sessão revogável: usuário desativado / role alterado / senha trocada continua válido por 8h. Checar `status_id` + versão de sessão no banco (no layout e nas rotas de escrita)
 - [x] Open redirect no login: `?next=//evil.com` passa em `startsWith('/')`
-- [ ] Recuperação de senha funcionando: configurar SMTP e descomentar o link (hoje admin que esquece a senha não tem saída). Usar `APP_URL` no link em vez do origin do request; ignorar usuários não ativos; invalidar tokens anteriores
+- [x] Recuperação de senha — backend: link usa `APP_URL`, só conta ativa recebe, pedido novo invalida o anterior, token consumido de forma atômica, limite por email e por IP, audit log
+- [ ] Recuperação de senha — ligar: configurar SMTP na Vercel e descomentar o link "Esqueci minha senha" em `app/(auth)/login/page.tsx`
 - [x] Normalizar email para minúsculas em register/login/users + índice único parcial em `users.email`
 - [ ] Conferir no banco se há email ativo duplicado entre condomínios (legado): se houver, o índice único não é criado (aparece `[indexes]` no log) e o login usa a conta mais recente cuja senha confere. Desativar a conta antiga resolve
 - [x] `/api/register` com rate limit por IP (5/h)
-- [ ] `/api/register` ainda sem verificação de email nem captcha (depende de SMTP / serviço externo)
 - [x] Rate limit de login é só por IP e conta login bem-sucedido: portaria atrás do mesmo IP trava com 5 logins em 15 min; e não há limite por email. Contar só falhas, chave IP+email
 - [x] Política de senha única (hoje mínimo 6 em register/users e 8 em reset/troca)
 
 **LGPD (dados pessoais de moradores: nome, apartamento, WhatsApp, foto de etiqueta)**
 - [ ] Política de privacidade + termos de uso, com aceite no `/register`
 - [ ] Retenção: prazo para apagar foto/QR do S3 e anonimizar encomendas entregues
-- [ ] Exclusão real de morador e de condomínio (hoje só soft-delete; audit log guarda o documento inteiro para sempre)
+- [x] Remoção definitiva a pedido do titular: `DELETE /api/residents/[id]/erase`, `/api/users/[id]/erase` e `/api/condo/erase` — só admin, sem botão na interface (ver CLAUDE.md)
 
 ### P1 — primeira semana
 
@@ -288,27 +276,27 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [x] Upload: limite de tamanho, validar tipo pelo conteúdo (magic bytes) e validar que `photo_url` de `POST /api/packages` aponta para o próprio bucket/condo
 - [x] Escapar `$regex` das buscas (packages, residents, reports, `/api/residents`)
 - [x] Headers de segurança no `next.config.ts` (HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`) e `noindex` em `/p/`
-- [ ] CSP (precisa de teste em navegador: Panda CSS, next/image, service worker)
+- [ ] CSP: já enviada em modo relatório (`Content-Security-Policy-Report-Only`). Navegar pelo app com o console aberto; sem avisos, trocar o nome do header no `next.config.ts` para ativar
 - [x] Índices no MongoDB em `lib/db/indexes.ts`, criados uma vez por processo (saíram de dentro dos helpers de collection)
-- [ ] Paginação em `/packages`, `/reports`, `/residents` (hoje `toArray()` de tudo)
-- [ ] Monitoramento de erro (Sentry ou similar) + alerta; hoje só `console.error`
+- [x] Paginação em `/packages`, `/reports`, `/residents` (25 por página); export CSV virou rota (`/api/reports/export`) e exporta todas as páginas do filtro
 - [ ] Backup do MongoDB (Atlas free não tem) e teste de restauração
-- [ ] Testes mínimos: isolamento entre condomínios, role por rota, fluxo registrar → notificar → retirar; CI rodando typecheck + lint + testes
+- [x] Testes de unidade e de integração das rotas (etapas 1 a 3 do plano abaixo) — 339 testes, 100% das linhas de `lib/`, `app/api/` e `middleware.ts`
+- [x] CI (`.github/workflows/ci.yml`): typecheck + lint + `test:coverage` em PR e push na `main` — **ainda não rodou no GitHub**
+- [ ] Testes ponta a ponta (Playwright) — única cobertura possível para as páginas e `/p/[id]`
 - [x] CSV: neutralizar células iniciadas por `= + - @`
 - [x] Middleware: limpar headers `x-user-*`/`x-condo-*` vindos do cliente nas rotas públicas; responder 401 JSON (não redirect) para `/api/*` sem token
 - [x] Nome de usuário/condomínio com caractere fora de Latin-1 em header (`x-user-name`, `x-condo-name`) — confirmar que não derruba o middleware; codificar com `encodeURIComponent`
 
 ### P2 — depois de lançar
 
-- [ ] Remover dependências sem uso (`jsonwebtoken`, `@types/jsonwebtoken`); `canvas` só serve ao `gen-icons`
-- [ ] `next lint` está depreciado → migrar para ESLint CLI
-- [ ] Backoffice: listar/suspender condomínios, métricas de uso
-- [ ] Planos e cobrança (pré-requisito da Fase 4b como recurso pago)
+- [x] Remover dependências sem uso (`jsonwebtoken`, `@types/jsonwebtoken`)
+- [ ] `canvas` só serve ao `gen-icons` — mover para script avulso
+- [x] `next lint` → ESLint CLI (`eslint .`)
 - [ ] Morador com mais de um telefone / mais de um morador por apartamento
 - [ ] Lembrete de encomenda parada há N dias
-- [ ] Atualizar `PROJECT.md` (ainda marca OCR como pendente)
+- [x] Atualizar `PROJECT.md` (marcações de OCR pendente)
 
-### Plano de testes (não há nenhum hoje)
+### Plano de testes (etapas 1 a 3 escritas em `apps/encoraj/tests/`)
 
 Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco real em memória, sem mock de driver); Playwright só na etapa 4. Meta: 100% de linhas em `lib/` e `app/api/`, com threshold no CI; páginas cobertas por fluxo, não por linha.
 
@@ -360,8 +348,4 @@ AWS_S3_BUCKET=
 # Google Gemini
 GEMINI_API_KEY=
 
-# Z-API (WhatsApp)
-ZAPI_INSTANCE_ID=
-ZAPI_TOKEN=
-ZAPI_CLIENT_TOKEN=
 ```

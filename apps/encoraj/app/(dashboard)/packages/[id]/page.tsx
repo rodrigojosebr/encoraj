@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents } from '@/lib/db/collections'
@@ -7,6 +8,7 @@ import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { fmtDateTime } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
 import { Badge } from '@encoraj/ui'
+import { signS3Url } from '@/lib/s3/sign'
 import DeliverButton from './_components/DeliverButton'
 import NotifyButton from './_components/NotifyButton'
 
@@ -16,8 +18,9 @@ interface RouteContext {
 
 export default async function PackageDetailPage({ params }: RouteContext) {
   const { id } = await params
-  const headersList = await headers()
-  const condoId = headersList.get('x-condo-id')!
+  const session = await readSession()
+  if (!session) redirect('/api/auth/logout')
+  const condoId = session.condoId
 
   if (!ObjectId.isValid(id)) notFound()
 
@@ -36,10 +39,11 @@ export default async function PackageDetailPage({ params }: RouteContext) {
     getStatus('delivered'),
   ])
   const { name: statusName, label: statusLabel } = pkgStatus
+  const [photoUrl, qrcodeUrl] = await Promise.all([signS3Url(pkg.photo_url), signS3Url(pkg.qrcode_url)])
   const isDelivered = pkg.status_id.equals(delivered._id)
   const isArrived = pkg.status_id.equals(arrived._id)
   const isNotified = pkg.status_id.equals(notified._id)
-  const condoName = decodeURIComponent(headersList.get('x-condo-name') ?? '')
+  const condoName = session.condoName
 
   const rowCss = css({ display: 'flex', flexDir: 'column', gap: '0.5' })
   const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', _dark: { color: 'gray.400' } })
@@ -110,14 +114,14 @@ export default async function PackageDetailPage({ params }: RouteContext) {
       </div>
 
       {/* Fotos */}
-      {(pkg.photo_url || pkg.qrcode_url) && (
+      {(photoUrl || qrcodeUrl) && (
         <div className={css({ display: 'grid', gridTemplateColumns: { base: '1fr', md: '1fr 1fr' }, gap: '4' })}>
-          {pkg.photo_url && (
+          {photoUrl && (
             <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
               <span className={labelCss}>Foto da etiqueta</span>
               <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700' } })}>
                 <Image
-                  src={pkg.photo_url}
+                  src={photoUrl}
                   alt="Foto da etiqueta"
                   width={400}
                   height={300}
@@ -126,12 +130,12 @@ export default async function PackageDetailPage({ params }: RouteContext) {
               </div>
             </div>
           )}
-          {pkg.qrcode_url && (
+          {qrcodeUrl && (
             <div className={css({ display: 'flex', flexDir: 'column', gap: '2', alignItems: { base: 'flex-start', md: 'center' } })}>
               <span className={labelCss}>QR Code</span>
               <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700', filter: 'invert(1)' } })}>
                 <Image
-                  src={pkg.qrcode_url}
+                  src={qrcodeUrl}
                   alt="QR Code da encomenda"
                   width={200}
                   height={200}

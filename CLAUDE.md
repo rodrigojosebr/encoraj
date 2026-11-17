@@ -13,24 +13,27 @@ Docs do repo — quando ler:
 
 ## Estado atual e dívidas conhecidas
 
-- **Não há testes automatizados nem CI.** Validação hoje é `yarn typecheck` + `yarn lint` + teste manual.
+- **Testes: vitest** em `apps/encoraj/tests/` (unidade + integração das rotas com MongoDB em memória). Não há CI nem teste ponta a ponta — páginas (Server Components) e `/p/[id]` não têm cobertura automatizada.
 - Hardening de 17/nov/2026 aplicado (sessão revogável, token do link público, rate limits, uploads, índices). O que segue aberto está em `ROADMAP.md` → Fase 10:
-  - recuperação de senha desligada ("Esqueci minha senha" comentado no login; SMTP não configurado)
-  - `/register` sem verificação de email nem captcha (só rate limit por IP)
-  - bucket S3 com URL pública; LGPD (política, retenção, exclusão real)
-  - listagens sem paginação; sem monitoramento de erro; OCR em SDK/modelo antigos
-  - sem CSP (os demais headers de segurança estão no `next.config.ts`)
+  - recuperação de senha: backend pronto e testado; o link "Esqueci minha senha" segue comentado no login até o SMTP estar configurado em produção
+  - bucket S3 ainda público na AWS (o código já serve tudo por link assinado — falta fechar o bucket); LGPD: política de privacidade e prazo de retenção
+  - backup do banco; OCR no SDK antigo (`@google/generative-ai`) — o modelo é trocável por `GEMINI_MODEL`
+  - CSP está em modo relatório (`Content-Security-Policy-Report-Only` no `next.config.ts`): só avisa no console; falta validar no navegador e ativar
 
 ## Regras de segurança (não quebrar)
 
-- **Toda rota de API começa com `const session = await getSession()`** (`lib/auth/session.ts`) e devolve 401 se vier `null`. Não ler `x-user-*` direto em rota. Exceções públicas: `/api/auth/*` e `/api/register`.
-- **Toda query leva `condo_id`** — inclusive em Server Components e inclusive no `updateOne` depois de um `findOne` já filtrado. Página que não tem o `condoId` em mãos usa `readSessionHeaders()`.
+- **Toda rota de API começa com `const session = await getSession()`** (`lib/auth/session.ts`) e devolve 401 se vier `null`. Identidade nunca vem de header. Exceções públicas: `/api/auth/*` e `/api/register`.
+- **Toda query leva `condo_id`** — inclusive em Server Components e inclusive no `updateOne` depois de um `findOne` já filtrado. Página pega o `condoId` de `readSession()`.
 - **Nunca devolver documento inteiro**: projetar fora `password_hash`, `delivery_pin`, `public_token`.
 - **Texto do usuário em `$regex` passa por `escapeRegex()`** (`lib/db/escape-regex.ts`).
+- **Foto é reduzida no navegador antes de subir**: `compressImage()` em `app/(dashboard)/_lib/compress-image.ts` (a Vercel recusa corpo acima de ~4,5 MB).
 - **Upload de imagem passa por `readImageUpload()`** (`lib/upload/image.ts`): limite de tamanho e formato conferido pelos bytes.
 - **Email e senha usam `emailSchema` / `passwordSchema`** (`lib/auth/email.ts`): email em minúsculas, senha mínima única. Busca por email usa `EMAIL_COLLATION` (registros antigos podem ter maiúsculas).
+- **URL de imagem só sai assinada**: no banco (e no JWT) fica a URL canônica; tudo que entrega imagem ao navegador passa por `signS3Url()` (`lib/s3/sign.ts`). Nunca mandar `photo_url`/`qrcode_url` cru para o cliente.
 - **Link público é `/p/{public_token}`**, nunca o `_id`. ObjectId é sequencial, não é segredo.
 - **Limite que conta só falha** (login, PIN, senha atual): `isRateLimited()` antes, `checkRateLimit()` na falha.
+- **Listagem é paginada**: `paginate()` / `parsePage()` de `lib/pagination.ts` + `<Pagination>`; nada de `find().toArray()` sem `limit`. Componente que muda filtro apaga o `page` da URL.
+- **Filtro de encomendas é um só**: `buildPackageFilter()` em `lib/packages/filter.ts` serve `/packages`, `/reports` e o export CSV (`GET /api/reports/export`, todas as páginas, teto de 10 mil linhas).
 - Índices ficam em `lib/db/indexes.ts` (criados uma vez por processo no `getDb()`), não dentro dos helpers de collection.
 
 ## Commands
@@ -48,16 +51,37 @@ Run from `apps/encoraj/` directly:
 yarn dev          # next dev
 yarn seed         # tsx scripts/seed.ts
 yarn panda        # panda codegen → regenerate styled-system/
-yarn typecheck    # tsc --noEmit só do app
+yarn preflight    # confere o banco antes de lançar (somente leitura; aceita MONGODB_URI=<produção>)
+yarn typecheck    # tsc --noEmit do app + dos testes (tsconfig.test.json)
+yarn test                                        # vitest run (suíte inteira)
+yarn vitest run tests/integration/users.test.ts  # um arquivo
+yarn vitest run -t "rate limit"                  # por nome do teste
+yarn test:coverage                               # cobertura de lib/, app/api/ e middleware.ts
 ```
+
+Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mongodb-memory-server`, mock de `next/headers` e do cliente S3); `helpers/factory.ts` cria condomínio/usuário/morador/encomenda e faz `loginAs(user)`. Rotas são chamadas direto (`POST(jsonRequest(...), routeCtx(id))`). **Rota protegida nova entra na tabela de `tests/helpers/routes.ts`** — ela alimenta `guards.test.ts` (401 sem sessão, 403 por role) e `errors.test.ts` (erro interno vira 500 sem vazar detalhe). `yarn test:coverage` falha abaixo do piso definido em `vitest.config.mts`. O CI (`.github/workflows/ci.yml`) roda typecheck, lint e `test:coverage` em todo PR e em push na `main`. `tests/` fica fora do `tsconfig.json` principal para não entrar no `next build`.
 
 `styled-system/` é gerado e gitignorado: depois de clonar ou de mexer em `packages/panda-config`, rodar `yarn panda` (o `prebuild` já faz isso no build). `yarn seed` cria statuses, roles, índices únicos e o condo demo — **nunca rodar contra o banco de produção** (cria admin com senha padrão).
 
+## Remoção definitiva (LGPD)
+
+Para atender pedido de exclusão do titular. **Só admin** (nem síndico), **sem botão na interface** — é chamada pelo dev, com a sessão de um admin do condomínio. Diferente do soft-delete: apaga do banco e do S3 e não tem volta. Lógica em `lib/lgpd/erase.ts`.
+
+| Rota | Corpo | O que apaga |
+|---|---|---|
+| `DELETE /api/residents/{id}/erase` | `{ "confirm": "APAGAR DEFINITIVAMENTE" }` | cadastro do morador; foto, QR code, observações, PIN e link público das encomendas dele; conteúdo dos audit logs. As encomendas ficam, anônimas |
+| `DELETE /api/users/{id}/erase` | `{ "confirm": "APAGAR DEFINITIVAMENTE" }` | cadastro, avatar e links de senha do usuário; nos logs o nome vira "Usuário removido". Não remove a si mesmo |
+| `DELETE /api/condo/erase` | `{ "confirm": "<nome exato do condomínio>", "password": "<senha do admin>" }` | o condomínio inteiro: pasta no S3, encomendas, moradores, usuários, audit logs |
+
+Como chamar: logado como admin no navegador, no console — `await fetch('/api/residents/<id>/erase', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: 'APAGAR DEFINITIVAMENTE' }) }).then(r => r.json())`.
+
 ## Como o request flui (auth)
 
-1. `middleware.ts` apaga qualquer header `x-user-*`/`x-condo-*` vindo do cliente, valida o cookie `encoraj_token` (JWT, `jose`), aplica role por prefixo de **página** (`ROLE_ROUTES`) e injeta `x-user-id`, `x-user-name`, `x-user-role`, `x-condo-id`, `x-condo-name`, `x-token-iat`. Nomes vão com `encodeURIComponent` — quem lê, decodifica. `/api/*` sem token recebe 401 JSON; página recebe redirect para `/login?next=`.
-2. O middleware roda no Edge e **não consulta o banco**. A revogação acontece em `getSession()`: confere no MongoDB se o usuário está ativo, no mesmo condomínio, com o mesmo role, e se o token é posterior a `password_changed_at`. O layout do dashboard chama `getSession()` e manda para `/api/auth/logout` quando falha; cada rota de API chama por conta própria.
-3. `readSessionHeaders()` é a versão sem banco, para Server Components que só precisam do `condoId` (o layout já validou a sessão naquele request).
+1. `middleware.ts` (Edge, sem banco) é só a primeira barreira: valida o cookie `encoraj_token` (JWT, `jose`), aplica role por prefixo de **página** (`ROLE_ROUTES`), devolve 401 JSON para `/api/*` sem token e redirect para `/login?next=` nas páginas. **Não injeta identidade em header** — e apaga qualquer `x-user-*`/`x-condo-*` que o cliente mande.
+2. A identidade vem sempre do cookie, verificado em `lib/auth/session.ts`:
+   - `getSession()` — verifica o JWT **e** confere no MongoDB se o usuário está ativo, no mesmo condomínio, com o mesmo role, e se o token é posterior a `password_changed_at`. É o que torna a sessão revogável. Usado por toda rota de API e pelo layout do dashboard (que manda para `/api/auth/logout` quando falha).
+   - `readSession()` — só verifica o JWT, sem banco. Para Server Components de página, que rodam sob o layout já validado.
+3. Nada depende do middleware para segurança: se ele for contornado (o Next já teve CVE disso), rota e página continuam exigindo cookie válido.
 4. O middleware só protege role de páginas; **cada rota de API checa role por conta própria**.
 5. Multi-tenancy é por filtro: não existe isolamento no banco. Email é único entre usuários **ativos de todos os condomínios** — a pessoa só entra em outro condomínio depois de desativada no anterior; `/register` sempre cria condomínio novo.
 6. Páginas do dashboard leem o MongoDB direto (Server Components); as rotas `GET /api/*` quase não são consumidas pela UI.
@@ -72,7 +96,7 @@ yarn typecheck    # tsc --noEmit só do app
 - **Icons**: `lucide-react`
 - **Storage**: AWS S3 (photos + QR code images)
 - **OCR / AI**: Google Gemini Flash (`@google/generative-ai`) — modelo `gemini-2.0-flash` em `lib/gemini/ocr.ts`
-- **WhatsApp**: hoje via link `wa.me` (manual); Z-API automático pendente (Fase 4b)
+- **WhatsApp**: link `wa.me` aberto pelo porteiro (envio automático saiu do plano)
 - **Language**: TypeScript strict
 
 ## Conventions
@@ -160,18 +184,21 @@ yarn typecheck    # tsc --noEmit só do app
           upload/route.ts       ← POST recebe imagem → S3 → URL
           ocr/route.ts          ← POST imagem → Gemini → morador sugerido
           condo/photo/route.ts  ← POST foto do condo → S3 + DB + re-sign JWT
+          reports/export/route.ts ← GET CSV das encomendas (mesmos filtros de /reports)
+          residents/[id]/erase, users/[id]/erase, condo/erase ← DELETE remoção definitiva (LGPD), só admin
           users/me/photo/route.ts ← POST foto de perfil → S3 + DB + re-sign JWT
-          whatsapp/route.ts     ← pendente (Z-API)
       lib/
         db/         ← client.ts, collections.ts, status-map.ts, indexes.ts, escape-regex.ts
-        auth/       ← jwt.ts, cookies.ts, session.ts (getSession), rateLimit.ts, email.ts (schemas)
+        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), rateLimit.ts, email.ts, safe-next.ts
+        text/       ← slug.ts, csv.ts
         upload/     ← image.ts → readImageUpload()
         audit/      ← log.ts → logAction()
         email/      ← mailer.ts (Nodemailer SMTP), templates.ts (HTML emails)
-        s3/         ← client.ts (S3Client), upload.ts (uploadToS3 → URL pública)
+        s3/         ← client.ts, upload.ts (uploadToS3 → URL canônica), sign.ts (signS3Url), delete.ts
+        lgpd/       ← erase.ts → eraseResident / eraseUser / eraseCondo
+        packages/   ← filter.ts → buildPackageFilter()
         qrcode/     ← generate.ts (gera PNG + sobe para S3 → URL)
         gemini/     ← ocr.ts → analyzePackageLabel()
-        zapi/       ← pendente (Fase 4b — Z-API automático)
       scripts/
         seed.ts     ← cria condo demo + admin inicial
       styled-system/  ← gerado por panda codegen (gitignored)
@@ -282,9 +309,6 @@ AWS_S3_BUCKET=
 
 # Google Gemini
 GEMINI_API_KEY=
+GEMINI_MODEL=        # opcional; padrão gemini-2.0-flash
 
-# Z-API (WhatsApp)
-ZAPI_INSTANCE_ID=
-ZAPI_TOKEN=
-ZAPI_CLIENT_TOKEN=
 ```

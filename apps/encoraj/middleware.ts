@@ -12,7 +12,7 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
   { prefix: '/packages', roles: ['admin', 'porteiro'] },
 ]
 
-// Headers de identidade: só o middleware pode preenchê-los
+// Headers de identidade de versões antigas: ninguém mais lê, e o cliente não pode enviá-los
 const IDENTITY_HEADERS = [
   'x-user-id',
   'x-user-name',
@@ -87,17 +87,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Passa o payload no header para Server Components e rotas lerem sem re-verificar.
-  // Nomes vão codificados: header HTTP não aceita caractere fora de Latin-1.
-  requestHeaders.set('x-user-id', payload.sub)
-  requestHeaders.set('x-user-name', encodeURIComponent(payload.name))
-  requestHeaders.set('x-user-role', payload.role)
-  requestHeaders.set('x-condo-id', payload.condo_id)
-  requestHeaders.set('x-condo-name', encodeURIComponent(payload.condo_name ?? ''))
-  requestHeaders.set('x-user-photo', payload.photo_url ?? '')
-  requestHeaders.set('x-condo-photo', payload.condo_photo_url ?? '')
-  requestHeaders.set('x-token-iat', String(payload.iat ?? 0))
-
+  // Identidade NÃO vai por header: rotas e páginas verificam o cookie por conta própria
+  // (lib/auth/session.ts). O middleware só barra cedo e aplica role de página.
   return NextResponse.next({ request: { headers: requestHeaders } })
 }
 

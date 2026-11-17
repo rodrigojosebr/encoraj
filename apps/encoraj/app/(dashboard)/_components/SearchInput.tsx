@@ -39,6 +39,7 @@ export default function SearchInput({ placeholder, defaultValue }: SearchInputPr
         lastPushed.current = next
 
         const params = new URLSearchParams(searchParams.toString())
+        params.delete('page') // busca nova começa na primeira página
         if (next) {
           params.set('q', next)
         } else {

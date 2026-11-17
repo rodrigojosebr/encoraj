@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
-    const image = await readImageUpload(await request.formData())
+    const image = await readImageUpload(request)
     if ('error' in image) return NextResponse.json({ error: image.error }, { status: 400 })
 
     const key = `condos/${session.condoId}/packages/photos/${randomUUID()}.${image.ext}`
