@@ -241,7 +241,7 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] OCR ainda responde? O fallback é silencioso — testar uma etiqueta em produção. Se o modelo foi aposentado, definir `GEMINI_MODEL` na Vercel (não precisa de deploy de código)
 - [ ] Migrar o OCR para o SDK `@google/genai` — fazer junto, com a chave em mãos para testar
 - [x] Foto de celular acima de ~4,5 MB: agora é reduzida no navegador (máx. 1600 px, JPEG) antes do OCR e do upload — **conferir no celular**
-- [ ] **Publicar o Next 15.5.29** — a 15.5.12 em produção tem 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. Upgrade feito e validado localmente (typecheck, lint, 339 testes); **falta comitar, fazer deploy e teste manual**
+- [ ] **Publicar o Next 15.5.29** — a 15.5.12 em produção tem 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. Upgrade comitado no branch `dash+pwa` (typecheck, lint e 429 testes verdes); **falta teste manual, merge na `main` e deploy**
 - [ ] Majors pendentes, um por vez e com a suíte de testes verde: Next 16 (o `@ducanh2912/next-pwa` está sem manutenção desde 2024 e depende de webpack — decidir substituto antes), Panda CSS 2, driver `mongodb` 7, ESLint 10, TypeScript 7, `lucide-react` 1, `dotenv` 18, `@types/node` 26
 
 **Vazamento de dados**
