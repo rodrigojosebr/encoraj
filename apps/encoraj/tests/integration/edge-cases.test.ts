@@ -131,7 +131,7 @@ describe('status-map', () => {
 describe('cadastro e recuperação — casos de borda', () => {
   it('nome de condomínio sem letra latina ganha slug padrão', async () => {
     const res = await register(
-      jsonRequest('POST', { condoName: '日本語マンション', name: 'Ana', email: 'ana@teste.com', password: 'senha-forte-123' }),
+      jsonRequest('POST', { condoName: '日本語マンション', name: 'Ana', email: 'ana@teste.com', password: 'senha-forte-123', acceptTerms: true }),
     )
     expect(res.status).toBe(201)
     expect((await (await condominiums()).findOne({ name: '日本語マンション' }))!.slug).toBe('condominio')

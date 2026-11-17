@@ -41,6 +41,8 @@ export async function middleware(request: NextRequest) {
     matchesPrefix(pathname, '/register') ||
     matchesPrefix(pathname, '/forgot-password') ||
     matchesPrefix(pathname, '/reset-password') ||
+    matchesPrefix(pathname, '/termos') ||
+    matchesPrefix(pathname, '/privacidade') ||
     pathname.startsWith('/p/') ||
     matchesPrefix(pathname, '/api/auth') ||
     matchesPrefix(pathname, '/api/register')

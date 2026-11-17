@@ -208,7 +208,10 @@ export default async function PublicPackagePage({ params }: RouteContext) {
         </div>
 
         <p className={css({ fontSize: 'xs', color: 'gray.400', textAlign: 'center', _dark: { color: 'gray.600' } })}>
-          Encoraj · Gestão de encomendas
+          Encoraj · Gestão de encomendas ·{' '}
+          <a href="/privacidade" className={css({ color: 'inherit', textDecoration: 'underline' })}>
+            Privacidade
+          </a>
         </p>
       </div>
     </div>

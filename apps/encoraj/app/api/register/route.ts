@@ -7,6 +7,7 @@ import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
 import { toSlug } from '@/lib/text/slug'
+import { TERMS_REQUIRED_MESSAGE, TERMS_VERSION } from '@/lib/legal/terms'
 import { emailSchema, passwordSchema, EMAIL_COLLATION } from '@/lib/auth/email'
 
 const RegisterSchema = z.object({
@@ -14,6 +15,7 @@ const RegisterSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: emailSchema,
   password: passwordSchema,
+  acceptTerms: z.literal(true, { error: TERMS_REQUIRED_MESSAGE }),
 })
 
 export async function POST(request: Request) {
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
         role_id: adminRoleId,
         status_id: activeStatusId,
         created_at: now,
+        terms_accepted_at: now,
+        terms_version: TERMS_VERSION,
       })
       userId = userResult.insertedId
     /* v8 ignore start -- @preserve: só dispara em corrida entre dois cadastros do mesmo email */

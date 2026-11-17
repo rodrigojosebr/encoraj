@@ -24,7 +24,7 @@ const passed = (res: Response) => res.headers.get('x-middleware-next') === '1'
 const location = (res: Response) => new URL(res.headers.get('location')!)
 
 describe('middleware', () => {
-  it.each(['/login', '/register', '/forgot-password', '/reset-password', '/p/abc', '/api/register'])(
+  it.each(['/login', '/register', '/forgot-password', '/reset-password', '/termos', '/privacidade', '/p/abc', '/api/register'])(
     'deixa passar a rota pública %s sem cookie',
     async (path) => {
       expect(passed(await middleware(await request(path)))).toBe(true)

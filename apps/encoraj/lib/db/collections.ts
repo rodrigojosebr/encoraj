@@ -37,6 +37,9 @@ export interface UserDoc {
   status_id: ObjectId
   photo_url?: string
   password_changed_at?: Date
+  /** Aceite dos Termos e da Política no cadastro do condomínio (só o admin que se cadastrou) */
+  terms_accepted_at?: Date
+  terms_version?: string
   created_at: Date
   deleted_at?: Date
   deleted_by?: ObjectId

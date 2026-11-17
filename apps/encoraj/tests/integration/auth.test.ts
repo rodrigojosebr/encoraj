@@ -16,6 +16,7 @@ import { getDb } from '@/lib/db/client'
 import { ensureIndexes } from '@/lib/db/indexes'
 import { auditLogs, condominiums, passwordResetTokens, users } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
+import { TERMS_REQUIRED_MESSAGE, TERMS_VERSION } from '@/lib/legal/terms'
 import { createCondo, createUser, jsonRequest, PASSWORD } from '../helpers/factory'
 
 const tryLogin = (email: string, password: string, ip = '10.0.0.1') =>
@@ -149,7 +150,7 @@ describe('logout', () => {
 })
 
 describe('POST /api/register', () => {
-  const body = { condoName: 'Residencial São José', name: 'Ana', email: 'Ana@Teste.com', password: 'senha-forte-123' }
+  const body = { condoName: 'Residencial São José', name: 'Ana', email: 'Ana@Teste.com', password: 'senha-forte-123', acceptTerms: true }
   const post = (data: object, ip = '10.0.0.1') => register(jsonRequest('POST', data, { 'x-forwarded-for': ip }))
 
   it('cria condomínio novo + admin e já loga', async () => {
@@ -160,7 +161,20 @@ describe('POST /api/register', () => {
     const condo = await (await condominiums()).findOne({ _id: user!.condo_id })
     expect(condo).toMatchObject({ name: 'Residencial São José', slug: 'residencial-sao-jose' })
     expect(await bcrypt.compare(body.password, user!.password_hash)).toBe(true)
+    expect(user).toMatchObject({ terms_version: TERMS_VERSION, terms_accepted_at: expect.any(Date) })
     expect(await sessionOf(res)).toMatchObject({ sub: user!._id.toString(), role: 'admin', condo_id: condo!._id.toString() })
+  })
+
+  it.each([
+    ['ausente', { acceptTerms: undefined }],
+    ['falso', { acceptTerms: false }],
+    ['texto em vez de booleano', { acceptTerms: 'true' }],
+  ])('sem aceite dos Termos e da Política (%s) nada é criado', async (_name, override) => {
+    const res = await post({ ...body, ...override })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: TERMS_REQUIRED_MESSAGE })
+    expect(await (await condominiums()).countDocuments({})).toBe(0)
+    expect(await (await users()).countDocuments({})).toBe(0)
   })
 
   it('nunca vincula a pessoa a um condomínio existente de mesmo nome', async () => {

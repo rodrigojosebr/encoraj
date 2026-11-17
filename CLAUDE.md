@@ -13,10 +13,10 @@ Docs do repo — quando ler:
 
 ## Estado atual e dívidas conhecidas
 
-- **Testes: vitest** em `apps/encoraj/tests/` (unidade + integração das rotas com MongoDB em memória). Não há CI nem teste ponta a ponta — páginas (Server Components) e `/p/[id]` não têm cobertura automatizada.
+- **Testes: vitest** em `apps/encoraj/tests/` (unidade + integração das rotas com MongoDB em memória). Não há teste ponta a ponta (decisão: sem Playwright) — páginas (Server Components) e `/p/[id]` são validadas por teste manual.
 - Hardening de 17/nov/2026 aplicado (sessão revogável, token do link público, rate limits, uploads, índices). O que segue aberto está em `ROADMAP.md` → Fase 10:
   - recuperação de senha: backend pronto e testado; o link "Esqueci minha senha" segue comentado no login até o SMTP estar configurado em produção
-  - bucket S3 ainda público na AWS (o código já serve tudo por link assinado — falta fechar o bucket); LGPD: política de privacidade e prazo de retenção
+  - bucket S3 ainda público na AWS (o código já serve tudo por link assinado — falta fechar o bucket); textos legais sem revisão jurídica e sem `LEGAL_CONTACT_EMAIL` definido
   - backup do banco; OCR no SDK antigo (`@google/generative-ai`) — o modelo é trocável por `GEMINI_MODEL`
   - CSP está em modo relatório (`Content-Security-Policy-Report-Only` no `next.config.ts`): só avisa no console; falta validar no navegador e ativar
 
@@ -62,6 +62,13 @@ yarn test:coverage                               # cobertura de lib/, app/api/ e
 Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mongodb-memory-server`, mock de `next/headers` e do cliente S3); `helpers/factory.ts` cria condomínio/usuário/morador/encomenda e faz `loginAs(user)`. Rotas são chamadas direto (`POST(jsonRequest(...), routeCtx(id))`). **Rota protegida nova entra na tabela de `tests/helpers/routes.ts`** — ela alimenta `guards.test.ts` (401 sem sessão, 403 por role) e `errors.test.ts` (erro interno vira 500 sem vazar detalhe). `yarn test:coverage` falha abaixo do piso definido em `vitest.config.mts`. O CI (`.github/workflows/ci.yml`) roda typecheck, lint e `test:coverage` em todo PR e em push na `main`. `tests/` fica fora do `tsconfig.json` principal para não entrar no `next build`.
 
 `styled-system/` é gerado e gitignorado: depois de clonar ou de mexer em `packages/panda-config`, rodar `yarn panda` (o `prebuild` já faz isso no build). `yarn seed` cria statuses, roles, índices únicos e o condo demo — **nunca rodar contra o banco de produção** (cria admin com senha padrão).
+
+## Documentos legais e retenção
+
+- `/termos` e `/privacidade` são públicas (`app/(legal)/`). Identificação de quem opera e canal de contato vêm de `LEGAL_COMPANY_NAME`, `LEGAL_COMPANY_DOC`, `LEGAL_CONTACT_EMAIL` — nada fixo no código.
+- **Mudou o texto? Atualizar `TERMS_VERSION` em `lib/legal/terms.ts`.** O cadastro exige o aceite e grava `terms_accepted_at` + `terms_version` no admin.
+- **Não existe exclusão automática por prazo.** Dado pessoal só sai a pedido do titular ou do condomínio, pelas rotas abaixo. A Política de Privacidade afirma isso — não criar job de limpeza sem mudar o texto.
+- Mudou o que é coletado, com quem é compartilhado ou por quanto tempo fica? A Política de Privacidade tem que mudar junto.
 
 ## Remoção definitiva (LGPD)
 
@@ -137,7 +144,9 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           [id]/page.tsx     ← pública (sem login): foto, código, QR code; delivered → "retirada"
         (auth)/
           login/page.tsx
-          register/page.tsx ← self-service onboarding
+          register/page.tsx ← self-service onboarding (exige aceite dos termos)
+        (legal)/
+          termos/page.tsx, privacidade/page.tsx ← públicas
         (dashboard)/
           layout.tsx        ← Server Component; passa props para DashboardShell
           page.tsx
@@ -221,7 +230,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 { _id, name, slug, photo_url?, status_id, created_at }
 
 // users
-{ _id, condo_id, name, email, password_hash, password_changed_at?, role_id, status_id, photo_url?, created_at,
+{ _id, condo_id, name, email, password_hash, password_changed_at?, terms_accepted_at?, terms_version?, role_id, status_id, photo_url?, created_at,
   deleted_at?, deleted_by? }
 
 // residents
@@ -310,5 +319,10 @@ AWS_S3_BUCKET=
 # Google Gemini
 GEMINI_API_KEY=
 GEMINI_MODEL=        # opcional; padrão gemini-2.0-flash
+
+# Documentos legais (/termos, /privacidade)
+LEGAL_COMPANY_NAME=
+LEGAL_COMPANY_DOC=
+LEGAL_CONTACT_EMAIL=
 
 ```

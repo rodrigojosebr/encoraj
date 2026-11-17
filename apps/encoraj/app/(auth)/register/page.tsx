@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { css } from '@/styled-system/css'
 import { Button, FormField } from '@encoraj/ui'
 
+const legalLinkCss = css({ color: 'blue.600', textDecoration: 'underline', _dark: { color: 'blue.400' } })
+
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -21,6 +23,7 @@ export default function RegisterPage() {
       name: form.get('name') as string,
       email: form.get('email') as string,
       password: form.get('password') as string,
+      acceptTerms: form.get('acceptTerms') === 'on',
     }
 
     try {
@@ -152,6 +155,17 @@ export default function RegisterPage() {
               )}
             </button>
           </div>
+
+          <label className={css({ display: 'flex', alignItems: 'flex-start', gap: '2', fontSize: 'sm', color: 'gray.600', cursor: 'pointer', _dark: { color: 'gray.300' } })}>
+            <input type="checkbox" name="acceptTerms" required className={css({ mt: '1', flexShrink: 0 })} />
+            <span>
+              Li e aceito os{' '}
+              <Link href="/termos" target="_blank" className={legalLinkCss}>Termos de Uso</Link>
+              {' '}e a{' '}
+              <Link href="/privacidade" target="_blank" className={legalLinkCss}>Política de Privacidade</Link>
+              , e declaro ter autorização para cadastrar este condomínio.
+            </span>
+          </label>
 
           {error && (
             <p className={css({ fontSize: 'sm', color: 'red.600' })}>{error}</p>

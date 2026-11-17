@@ -103,7 +103,7 @@ async function main() {
 
   // 7. Variáveis de ambiente deste processo (só presença, nunca o valor)
   console.log('\nVariáveis de ambiente (as deste terminal — confira também na Vercel):')
-  for (const name of ['JWT_SECRET', 'APP_URL', 'AWS_S3_BUCKET', 'GEMINI_API_KEY', 'SMTP_HOST', 'SMTP_FROM']) {
+  for (const name of ['JWT_SECRET', 'APP_URL', 'AWS_S3_BUCKET', 'GEMINI_API_KEY', 'SMTP_HOST', 'SMTP_FROM', 'LEGAL_COMPANY_NAME', 'LEGAL_CONTACT_EMAIL']) {
     console.log(`  ${process.env[name] ? '✅' : '⚠️ '} ${name}${process.env[name] ? '' : ' não definida'}`)
   }
 

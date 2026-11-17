@@ -265,8 +265,10 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [x] Política de senha única (hoje mínimo 6 em register/users e 8 em reset/troca)
 
 **LGPD (dados pessoais de moradores: nome, apartamento, WhatsApp, foto de etiqueta)**
-- [ ] Política de privacidade + termos de uso, com aceite no `/register`
-- [ ] Retenção: prazo para apagar foto/QR do S3 e anonimizar encomendas entregues
+- [x] Política de Privacidade (`/privacidade`) e Termos de Uso (`/termos`), com aceite obrigatório no `/register` (grava data e versão aceita)
+- [ ] Definir na Vercel `LEGAL_COMPANY_NAME`, `LEGAL_COMPANY_DOC` e `LEGAL_CONTACT_EMAIL` — sem o email, os documentos não mostram canal de contato para pedidos de dados
+- [ ] Passar os dois textos por revisão jurídica antes de divulgar o produto
+- Retenção: **não há prazo automático** (decisão de 17/nov/2026). Dado só é removido a pedido do titular ou do condomínio, pelas rotas de remoção definitiva
 - [x] Remoção definitiva a pedido do titular: `DELETE /api/residents/[id]/erase`, `/api/users/[id]/erase` e `/api/condo/erase` — só admin, sem botão na interface (ver CLAUDE.md)
 
 ### P1 — primeira semana
@@ -282,7 +284,6 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] Backup do MongoDB (Atlas free não tem) e teste de restauração
 - [x] Testes de unidade e de integração das rotas (etapas 1 a 3 do plano abaixo) — 339 testes, 100% das linhas de `lib/`, `app/api/` e `middleware.ts`
 - [x] CI (`.github/workflows/ci.yml`): typecheck + lint + `test:coverage` em PR e push na `main` — **ainda não rodou no GitHub**
-- [ ] Testes ponta a ponta (Playwright) — única cobertura possível para as páginas e `/p/[id]`
 - [x] CSV: neutralizar células iniciadas por `= + - @`
 - [x] Middleware: limpar headers `x-user-*`/`x-condo-*` vindos do cliente nas rotas públicas; responder 401 JSON (não redirect) para `/api/*` sem token
 - [x] Nome de usuário/condomínio com caractere fora de Latin-1 em header (`x-user-name`, `x-condo-name`) — confirmar que não derruba o middleware; codificar com `encodeURIComponent`
@@ -298,7 +299,7 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 
 ### Plano de testes (etapas 1 a 3 escritas em `apps/encoraj/tests/`)
 
-Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco real em memória, sem mock de driver); Playwright só na etapa 4. Meta: 100% de linhas em `lib/` e `app/api/`, com threshold no CI; páginas cobertas por fluxo, não por linha.
+Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco real em memória, sem mock de driver). Meta: 100% de linhas em `lib/` e `app/api/`, com threshold no CI; páginas cobertas por fluxo, não por linha.
 
 1. **Unidade pura (sem banco)** — `escapeRegex`, `readImageUpload` (JPEG/PNG/WebP válidos, tipo forjado, arquivo grande), `emailSchema`/`passwordSchema`, `lib/date/tz.ts` (virada de dia em BRT), `jwt.ts` (assina, verifica, expira, re-sign descarta `iat`), parsing da resposta do Gemini (SDK mockado: JSON com cerca de markdown, id fora da lista, lixo). Extrair para `lib/` e testar: `toSlug`, validação do `?next=`, `csvCell`, formatadores de WhatsApp.
 2. **Middleware** — rota pública passa sem identidade; header `x-user-*` forjado é apagado; `/api/*` sem token → 401; página sem token → redirect com `next`; token inválido limpa cookie; role errado → redirect; nome com acento/emoji não quebra.
@@ -313,8 +314,9 @@ Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco r
    - packages: foto de outro bucket/condo recusada, morador inativo recusado, resposta sem PIN/token; deliver (PIN errado, limite, entrega dupla → 409, audit log); notify não "desentrega"
    - upload/OCR/fotos: S3 e Gemini mockados
    - `rateLimit`: janela, expiração, `isRateLimited`, `clearRateLimit`
-4. **Fluxo ponta a ponta (Playwright)** — cadastro → morador → registrar chegada → notificar → `/p/{token}` → retirada com PIN; `/p/` com token errado → 404; `/residents` de um condomínio não mostra morador de outro.
-5. **Componentes `@encoraj/ui`** — por último; baixo risco.
+4. **Componentes `@encoraj/ui`** — por último; baixo risco.
+
+Sem teste ponta a ponta (decisão de 17/nov/2026: não haverá Playwright). Páginas e `/p/[id]` são validadas por teste manual.
 
 **Milestone**: um condomínio real pode se cadastrar sozinho sem que dados de moradores fiquem expostos e sem depender de suporte manual para recuperar acesso.
 

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { escapeRegex } from '@/lib/db/escape-regex'
 import { emailSchema, passwordSchema, PASSWORD_MIN } from '@/lib/auth/email'
 import { safeNextPath } from '@/lib/auth/safe-next'
+import { formatTermsVersion, legalInfo, TERMS_VERSION } from '@/lib/legal/terms'
 import { toSlug } from '@/lib/text/slug'
 import { csvCell } from '@/lib/text/csv'
 import { clientIp } from '@/lib/auth/rateLimit'
@@ -29,6 +30,34 @@ describe('emailSchema / passwordSchema', () => {
   it('exige o tamanho mínimo de senha', () => {
     expect(passwordSchema.safeParse('a'.repeat(PASSWORD_MIN - 1)).success).toBe(false)
     expect(passwordSchema.safeParse('a'.repeat(PASSWORD_MIN)).success).toBe(true)
+  })
+})
+
+describe('documentos legais', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('versão é uma data e é exibida no formato brasileiro', () => {
+    expect(TERMS_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(formatTermsVersion('2026-11-17')).toBe('17/11/2026')
+    expect(formatTermsVersion()).toBe(formatTermsVersion(TERMS_VERSION))
+  })
+
+  it('identificação vem do ambiente, com padrão quando não configurada', () => {
+    vi.stubEnv('LEGAL_COMPANY_NAME', '')
+    vi.stubEnv('LEGAL_COMPANY_DOC', '')
+    vi.stubEnv('LEGAL_CONTACT_EMAIL', '')
+    expect(legalInfo()).toEqual({ companyName: 'Encoraj', companyDoc: null, contactEmail: null })
+
+    vi.stubEnv('LEGAL_COMPANY_NAME', ' Encoraj Tecnologia Ltda ')
+    vi.stubEnv('LEGAL_COMPANY_DOC', 'CNPJ 00.000.000/0001-00')
+    vi.stubEnv('LEGAL_CONTACT_EMAIL', 'privacidade@exemplo.com')
+    expect(legalInfo()).toEqual({
+      companyName: 'Encoraj Tecnologia Ltda',
+      companyDoc: 'CNPJ 00.000.000/0001-00',
+      contactEmail: 'privacidade@exemplo.com',
+    })
   })
 })
 
