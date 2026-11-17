@@ -1,6 +1,10 @@
 import Link from 'next/link'
 import { Pencil, UserPlus } from 'lucide-react'
+import { redirect } from 'next/navigation'
+import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
+import { readSessionHeaders } from '@/lib/auth/session'
+import { escapeRegex } from '@/lib/db/escape-regex'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Button } from '@encoraj/ui'
@@ -16,17 +20,16 @@ export default async function ResidentsPage({
 }) {
   const { q, deleted } = await searchParams
   const showDeleted = deleted === '1'
+  const session = await readSessionHeaders()
+  if (!session) redirect('/login')
   const col = await residents()
 
   const { _id: statusId } = await getStatus(showDeleted ? 'deleted' : 'active')
-  const filter: Record<string, unknown> = { status_id: statusId }
+  const filter: Record<string, unknown> = { condo_id: new ObjectId(session.condoId), status_id: statusId }
 
   if (q?.trim()) {
-    filter.$or = [
-      { name: { $regex: q.trim(), $options: 'i' } },
-      { apartment: { $regex: q.trim(), $options: 'i' } },
-      { bloco: { $regex: q.trim(), $options: 'i' } },
-    ]
+    const regex = { $regex: escapeRegex(q.trim()), $options: 'i' }
+    filter.$or = [{ name: regex }, { apartment: regex }, { bloco: regex }]
   }
 
   const docs = await col.find(filter).sort({ name: 1 }).toArray()

@@ -7,10 +7,10 @@ import { css } from '@/styled-system/css'
 import { Button, useToast } from '@encoraj/ui'
 import { fmtDateTime } from '@/lib/date/tz'
 
-// vercel
-
 interface NotifyButtonProps {
   id: string
+  /** Token do link público /p/{token} (pacotes antigos usam o próprio id) */
+  publicToken: string
   whatsapp: string
   residentName: string
   deliveryPin: string
@@ -26,7 +26,7 @@ function formatWhatsApp(raw: string): string {
   return digits.startsWith('55') ? digits : `55${digits}`
 }
 
-export default function NotifyButton({ id, whatsapp, residentName, deliveryPin, condoName, alreadyNotified, notifiedAt }: NotifyButtonProps) {
+export default function NotifyButton({ id, publicToken, whatsapp, residentName, deliveryPin, condoName, alreadyNotified, notifiedAt }: NotifyButtonProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -35,7 +35,7 @@ export default function NotifyButton({ id, whatsapp, residentName, deliveryPin, 
     setLoading(true)
 
     // Monta e abre o WhatsApp ANTES do await — mobile bloqueia window.open após async
-    const publicUrl = `${window.location.origin}/p/${id}`
+    const publicUrl = `${window.location.origin}/p/${publicToken}`
     const msg = [
       `📦 *Encomenda chegou!*`,
       ``,

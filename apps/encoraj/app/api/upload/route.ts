@@ -1,28 +1,22 @@
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
 import { uploadToS3 } from '@/lib/s3/upload'
+import { getSession } from '@/lib/auth/session'
+import { readImageUpload } from '@/lib/upload/image'
 
 export async function POST(request: Request) {
   try {
-    const headersList = await headers()
-    const condoId = headersList.get('x-condo-id')
-    if (!condoId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    if (!file) return NextResponse.json({ error: 'Arquivo não enviado' }, { status: 400 })
-
-    const allowed = ['image/jpeg', 'image/png', 'image/webp']
-    if (!allowed.includes(file.type)) {
-      return NextResponse.json({ error: 'Formato inválido. Use JPEG, PNG ou WebP.' }, { status: 400 })
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (session.role !== 'porteiro' && session.role !== 'admin') {
+      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-    const key = `condos/${condoId}/packages/photos/${randomUUID()}.${ext}`
-    const url = await uploadToS3(buffer, key, file.type)
+    const image = await readImageUpload(await request.formData())
+    if ('error' in image) return NextResponse.json({ error: image.error }, { status: 400 })
+
+    const key = `condos/${session.condoId}/packages/photos/${randomUUID()}.${image.ext}`
+    const url = await uploadToS3(image.buffer, key, image.contentType)
 
     return NextResponse.json({ url })
   } catch (err) {

@@ -172,6 +172,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
               id={pkg._id!.toString()}
               whatsapp={resident.whatsapp}
               residentName={resident.name}
+              publicToken={pkg.public_token ?? pkg._id!.toString()}
               deliveryPin={pkg.delivery_pin ?? pkg.code}
               condoName={condoName}
               alreadyNotified={isNotified}

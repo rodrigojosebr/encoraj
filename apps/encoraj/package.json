@@ -42,11 +42,14 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "@vitest/coverage-v8": "^5.1.0",
     "canvas": "^3.2.1",
     "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "mongodb-memory-server": "^11.3.0",
     "tsx": "^4.19.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.1.0"
   }
 }

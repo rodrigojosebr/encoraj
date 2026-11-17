@@ -117,8 +117,8 @@ export default function RegisterPage() {
               name="password"
               type={showPassword ? 'text' : 'password'}
               required
-              minLength={6}
-              placeholder="Mínimo 6 caracteres"
+              minLength={8}
+              placeholder="Mínimo 8 caracteres"
               autoComplete="new-password"
             />
             <button

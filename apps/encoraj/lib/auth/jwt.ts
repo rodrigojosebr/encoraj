@@ -14,10 +14,16 @@ export interface JwtPayload {
   condo_name: string
   photo_url?: string       // user profile photo (S3 URL)
   condo_photo_url?: string // condo photo (S3 URL)
+  iat?: number             // preenchido pelo jose na verificação
+  exp?: number
 }
 
 export async function signToken(payload: JwtPayload): Promise<string> {
-  return new SignJWT(payload as unknown as Record<string, unknown>)
+  // iat/exp de um token anterior não podem ser reaproveitados no re-sign
+  const { iat: _iat, exp: _exp, ...claims } = payload
+  void _iat
+  void _exp
+  return new SignJWT(claims as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('8h')

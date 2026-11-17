@@ -1,3 +1,4 @@
+import { escapeRegex } from '@/lib/db/escape-regex'
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
@@ -54,7 +55,7 @@ export default async function PackagesPage({
 
   // Busca por texto: filtra por código OU por moradores cujo nome bate
   if (q?.trim()) {
-    const regex = { $regex: q.trim(), $options: 'i' }
+    const regex = { $regex: escapeRegex(q.trim()), $options: 'i' }
     const matchingResidents = await resCol
       .find({ condo_id: condoOid, name: regex })
       .project({ _id: 1 })

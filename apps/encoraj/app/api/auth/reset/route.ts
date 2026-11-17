@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const usersCol = await users()
     await usersCol.updateOne(
       { _id: tokenDoc.user_id },
-      { $set: { password_hash: passwordHash } }
+      { $set: { password_hash: passwordHash, password_changed_at: new Date() } }
     )
 
     await tokensCol.updateOne(

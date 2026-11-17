@@ -10,7 +10,7 @@ import { getTodayRange, fmtDate } from '@/lib/date/tz'
 
 export default async function DashboardPage() {
   const headersList = await headers()
-  const name = headersList.get('x-user-name') ?? ''
+  const name = decodeURIComponent(headersList.get('x-user-name') ?? '')
   const role = headersList.get('x-user-role') ?? ''
   const condoId = headersList.get('x-condo-id')!
 

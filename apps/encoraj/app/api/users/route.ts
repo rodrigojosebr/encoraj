@@ -1,33 +1,34 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
-import { headers } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { users } from '@/lib/db/collections'
 import { getStatus, getRole } from '@/lib/db/status-map'
 import { logAction } from '@/lib/audit/log'
+import { getSession } from '@/lib/auth/session'
+import { emailSchema, passwordSchema, EMAIL_COLLATION } from '@/lib/auth/email'
 
 const ALLOWED_ROLES = ['admin', 'zelador', 'porteiro', 'sindico'] as const
 
 const CreateUserSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  name: z.string().trim().min(2).max(120),
+  email: emailSchema,
+  password: passwordSchema,
   role: z.enum(ALLOWED_ROLES),
 })
 
 export async function GET() {
   try {
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!condoId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (session.role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
     const col = await users()
     const docs = await col
-      .find({ condo_id: new ObjectId(condoId) })
+      .find(
+        { condo_id: new ObjectId(session.condoId), status_id: (await getStatus('active'))._id },
+        { projection: { password_hash: 0, password_changed_at: 0 } },
+      )
       .sort({ name: 1 })
       .toArray()
 
@@ -40,23 +41,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const actorId = headersList.get('x-user-id')
-    const actorName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!role || !actorId || !actorName || !condoId) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    }
-    if (role !== 'admin') {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
-    }
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (session.role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
     const body = await request.json()
     const parsed = CreateUserSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.flatten() }, { status: 400 })
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Dados inválidos', details: parsed.error.flatten() },
+        { status: 400 },
+      )
     }
 
     const col = await users()
@@ -65,7 +60,12 @@ export async function POST(request: Request) {
       getRole(parsed.data.role),
     ])
 
-    const existing = await col.findOne({ email: parsed.data.email, status_id: activeStatusId })
+    // Email único entre usuários ativos de TODOS os condomínios: quem ainda está ativo
+    // em outro condomínio precisa ser desativado lá antes de ser cadastrado aqui.
+    const existing = await col.findOne(
+      { email: parsed.data.email, status_id: activeStatusId },
+      { collation: EMAIL_COLLATION },
+    )
     if (existing) {
       return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
     }
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     const password_hash = await bcrypt.hash(parsed.data.password, 10)
     const now = new Date()
     const doc = {
-      condo_id: new ObjectId(condoId),
+      condo_id: new ObjectId(session.condoId),
       name: parsed.data.name,
       email: parsed.data.email,
       password_hash,
@@ -82,19 +82,27 @@ export async function POST(request: Request) {
       created_at: now,
     }
 
-    const result = await col.insertOne(doc)
+    let insertedId
+    try {
+      insertedId = (await col.insertOne(doc)).insertedId
+    } catch (err) {
+      if ((err as { code?: number }).code === 11000) {
+        return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
+      }
+      throw err
+    }
 
     await logAction({
-      condo_id: new ObjectId(condoId),
+      condo_id: new ObjectId(session.condoId),
       entity: 'users',
-      entity_id: result.insertedId,
+      entity_id: insertedId,
       action: 'created',
-      actor_id: new ObjectId(actorId),
-      actor_name: actorName,
+      actor_id: new ObjectId(session.userId),
+      actor_name: session.userName,
       after: { name: doc.name, email: doc.email, role: parsed.data.role },
     })
 
-    return NextResponse.json({ _id: result.insertedId }, { status: 201 })
+    return NextResponse.json({ _id: insertedId }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/users]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

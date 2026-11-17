@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
-import { headers, cookies } from 'next/headers'
+import { cookies } from 'next/headers'
 import { condominiums } from '@/lib/db/collections'
 import { signToken, verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 
 const UpdateCondoSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2).max(120),
 })
 
 export async function GET() {
   try {
-    const headersList = await headers()
-    const condoId = headersList.get('x-condo-id')
-
-    if (!condoId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    const { condoId } = session
 
     const col = await condominiums()
     const condo = await col.findOne({ _id: new ObjectId(condoId) })
@@ -31,15 +31,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const actorId = headersList.get('x-user-id')
-    const actorName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!role || !actorId || !actorName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId: actorId, userName: actorName, condoId } = session
     if (role !== 'admin') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
@@ -58,7 +54,7 @@ export async function PUT(request: Request) {
 
     await logAction({
       condo_id: new ObjectId(condoId),
-      entity: 'users', // audit_logs entity is typed — using 'users' as closest fit for settings
+      entity: 'condominiums',
       entity_id: new ObjectId(condoId),
       action: 'updated',
       actor_id: new ObjectId(actorId),

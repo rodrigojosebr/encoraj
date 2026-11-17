@@ -1,9 +1,9 @@
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { ObjectId } from 'mongodb'
 import { users, condominiums } from '@/lib/db/collections'
 import DashboardShell from './_components/DashboardShell'
 import { getRole } from '@/lib/db/status-map'
+import { getSession } from '@/lib/auth/session'
 
 interface NavItem {
   href: string
@@ -26,14 +26,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const headersList = await headers()
-  const role = headersList.get('x-user-role')
-  const userId = headersList.get('x-user-id')
-  const condoId = headersList.get('x-condo-id')
-  const name = decodeURIComponent(headersList.get('x-user-name') ?? '')
-  const condoName = decodeURIComponent(headersList.get('x-condo-name') ?? '')
+  // Valida no banco: usuário desativado, com role alterado ou senha trocada perde o acesso
+  // na próxima navegação, sem esperar o JWT expirar. /api/auth/logout limpa o cookie.
+  const session = await getSession()
+  if (!session) redirect('/api/auth/logout')
 
-  if (!role) redirect('/login')
+  const { role, userId, condoId, userName: name, condoName } = session
 
   const [visibleItems, roleLabel, userDoc, condoDoc] = await Promise.all([
     Promise.resolve(
@@ -42,8 +40,8 @@ export default async function DashboardLayout({
         .map(({ href, label }) => ({ href, label }))
     ),
     getRole(role).then(r => r.label).catch(() => role),
-    userId ? (await users()).findOne({ _id: new ObjectId(userId) }, { projection: { photo_url: 1 } }) : null,
-    condoId ? (await condominiums()).findOne({ _id: new ObjectId(condoId) }, { projection: { photo_url: 1 } }) : null,
+    (await users()).findOne({ _id: new ObjectId(userId) }, { projection: { photo_url: 1 } }),
+    (await condominiums()).findOne({ _id: new ObjectId(condoId) }, { projection: { photo_url: 1 } }),
   ])
 
   const userPhoto = userDoc?.photo_url ?? null

@@ -1,23 +1,21 @@
 import { NextResponse } from 'next/server'
-import { headers, cookies } from 'next/headers'
+import { cookies } from 'next/headers'
 import { ObjectId } from 'mongodb'
 import { condominiums } from '@/lib/db/collections'
 import { uploadToS3 } from '@/lib/s3/upload'
 import { signToken, verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { readImageUpload } from '@/lib/upload/image'
+import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 
 export async function DELETE() {
   try {
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const userId = headersList.get('x-user-id')
-    const userName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!userId || !userName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId, userName, condoId } = session
     if (role !== 'admin') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
@@ -27,7 +25,7 @@ export async function DELETE() {
 
     await logAction({
       condo_id: new ObjectId(condoId),
-      entity: 'users',
+      entity: 'condominiums',
       entity_id: new ObjectId(condoId),
       action: 'updated',
       actor_id: new ObjectId(userId),
@@ -58,39 +56,27 @@ export async function DELETE() {
 
 export async function POST(request: Request) {
   try {
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const userId = headersList.get('x-user-id')
-    const userName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!userId || !userName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId, userName, condoId } = session
     if (role !== 'admin') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    if (!file) return NextResponse.json({ error: 'Arquivo não enviado' }, { status: 400 })
+    const image = await readImageUpload(await request.formData())
+    if ('error' in image) return NextResponse.json({ error: image.error }, { status: 400 })
 
-    const allowed = ['image/jpeg', 'image/png', 'image/webp']
-    if (!allowed.includes(file.type)) {
-      return NextResponse.json({ error: 'Formato inválido. Use JPEG, PNG ou WebP.' }, { status: 400 })
-    }
-
-    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-    const key = `condos/${condoId}/logo.${ext}`
-    const bytes = await file.arrayBuffer()
-    const photo_url = await uploadToS3(Buffer.from(bytes), key, file.type)
+    const key = `condos/${condoId}/logo.${image.ext}`
+    const photo_url = await uploadToS3(image.buffer, key, image.contentType)
 
     const col = await condominiums()
     await col.updateOne({ _id: new ObjectId(condoId) }, { $set: { photo_url } })
 
     await logAction({
       condo_id: new ObjectId(condoId),
-      entity: 'users',
+      entity: 'condominiums',
       entity_id: new ObjectId(condoId),
       action: 'updated',
       actor_id: new ObjectId(userId),

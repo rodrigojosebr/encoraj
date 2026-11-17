@@ -115,8 +115,8 @@ export default function UserForm({ id, defaultValues, roleOptions }: UserFormPro
         name="password"
         type="password"
         required={!id}
-        minLength={6}
-        placeholder={id ? '••••••••' : 'Mínimo 6 caracteres'}
+        minLength={8}
+        placeholder={id ? '••••••••' : 'Mínimo 8 caracteres'}
         autoComplete={id ? 'new-password' : 'new-password'}
       />
 

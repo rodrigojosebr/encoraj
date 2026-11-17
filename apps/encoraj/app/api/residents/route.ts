@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
-import { headers } from 'next/headers'
+import { escapeRegex } from '@/lib/db/escape-regex'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
+import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 
 const CreateResidentSchema = z.object({
-  name: z.string().min(2),
-  apartment: z.string().min(1),
-  bloco: z.string().optional(),
-  whatsapp: z.string().min(1),
+  name: z.string().trim().min(2).max(120),
+  apartment: z.string().trim().min(1).max(20),
+  bloco: z.string().trim().max(20).optional(),
+  whatsapp: z.string().trim().min(8).max(20),
 })
 
 export async function GET(request: Request) {
@@ -18,11 +19,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()
 
-    const headersList = await headers()
-    const condoId = headersList.get('x-condo-id')
-    if (!condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    if (!['admin', 'zelador', 'porteiro'].includes(session.role)) {
+      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    }
+    const { condoId } = session
 
     const col = await residents()
     const filter: Record<string, unknown> = {
@@ -31,10 +35,8 @@ export async function GET(request: Request) {
     }
 
     if (q) {
-      filter.$or = [
-        { name: { $regex: q, $options: 'i' } },
-        { apartment: { $regex: q, $options: 'i' } },
-      ]
+      const regex = { $regex: escapeRegex(q), $options: 'i' }
+      filter.$or = [{ name: regex }, { apartment: regex }]
     }
 
     const docs = await col.find(filter).sort({ name: 1 }).toArray()
@@ -47,15 +49,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const actorId = headersList.get('x-user-id')
-    const actorName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!role || !actorId || !actorName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId: actorId, userName: actorName, condoId } = session
 
     if (role !== 'admin' && role !== 'zelador') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })

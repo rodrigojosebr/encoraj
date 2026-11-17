@@ -1,10 +1,16 @@
 import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
+import type { Metadata } from 'next'
 import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents, condominiums } from '@/lib/db/collections'
 import { getStatusById, getStatus } from '@/lib/db/status-map'
 import { fmtDateTime, fmtDate } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
+import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+
+export const metadata: Metadata = { robots: { index: false, follow: false } }
+export const dynamic = 'force-dynamic'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -13,11 +19,27 @@ interface RouteContext {
 export default async function PublicPackagePage({ params }: RouteContext) {
   const { id } = await params
 
-  if (!ObjectId.isValid(id)) notFound()
+  // Rota sem login: limita tentativas por IP para dificultar varredura de links
+  const rl = await checkRateLimit(`public-pkg:${clientIp(await headers())}`, 60, 10 * 60 * 1000)
+  if (rl.blocked) notFound()
 
+  const { _id: deliveredStatusId } = await getStatus('delivered')
   const col = await packages()
-  const pkg = await col.findOne({ _id: new ObjectId(id) })
-  if (!pkg) notFound()
+
+  // O link é /p/{public_token} — token aleatório, não derivado do _id.
+  let found = /^[A-Za-z0-9_-]{20,64}$/.test(id) ? await col.findOne({ public_token: id }) : null
+
+  // Compatibilidade: links enviados antes do token usavam o ObjectId. Vale só para
+  // encomenda antiga (sem token) e ainda não retirada — some sozinho com o tempo.
+  if (!found && /^[0-9a-f]{24}$/i.test(id)) {
+    found = await col.findOne({
+      _id: new ObjectId(id),
+      public_token: { $exists: false },
+      status_id: { $ne: deliveredStatusId },
+    })
+  }
+  if (!found) notFound()
+  const pkg = found
 
   const [resident, condo, pkgStatus, delivered] = await Promise.all([
     residents().then(c => c.findOne({ _id: pkg.resident_id })),

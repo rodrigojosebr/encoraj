@@ -33,7 +33,9 @@ function LoginForm() {
       }
 
       const next = searchParams.get('next')
-      window.location.href = next && next.startsWith('/') ? next : '/'
+      // Só caminho interno: '//host' e '/\\host' sairiam do site (open redirect)
+      const safeNext = next && /^\/(?![/\\])/.test(next) ? next : '/'
+      window.location.href = safeNext
     } catch {
       setError('Erro de conexão. Tente novamente.')
     } finally {

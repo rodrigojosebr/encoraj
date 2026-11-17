@@ -1,3 +1,4 @@
+import { escapeRegex } from '@/lib/db/escape-regex'
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { ObjectId } from 'mongodb'
@@ -79,7 +80,7 @@ export default async function ReportsPage({
   const resCol = await residents()
   if (q) {
     const matched = await resCol
-      .find({ condo_id: condoOid, name: { $regex: q, $options: 'i' } }, { projection: { _id: 1 } })
+      .find({ condo_id: condoOid, name: { $regex: escapeRegex(q), $options: 'i' } }, { projection: { _id: 1 } })
       .toArray()
     filter.resident_id = { $in: matched.map((r) => r._id!) }
   }

@@ -1,18 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { compare, hash } from 'bcryptjs'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { users } from '@/lib/db/collections'
+import { getSession } from '@/lib/auth/session'
+import { passwordSchema } from '@/lib/auth/email'
+import { signToken, verifyToken } from '@/lib/auth/jwt'
+import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { checkRateLimit, isRateLimited } from '@/lib/auth/rateLimit'
+import { logAction } from '@/lib/audit/log'
 
 const schema = z.object({
   current_password: z.string().min(1, 'Informe a senha atual.'),
-  new_password: z.string().min(8, 'A nova senha deve ter pelo menos 8 caracteres.'),
+  new_password: passwordSchema,
 })
 
-export async function PUT(request: NextRequest) {
+export async function PUT(request: Request) {
   try {
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
     }
 
@@ -27,8 +34,14 @@ export async function PUT(request: NextRequest) {
 
     const { current_password, new_password } = parsed.data
 
+    // Sessão roubada não pode ficar chutando a senha atual
+    const rlKey = `pwd:${session.userId}`
+    if (await isRateLimited(rlKey, 5)) {
+      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em alguns minutos.' }, { status: 429 })
+    }
+
     const col = await users()
-    const user = await col.findOne({ _id: new ObjectId(userId) })
+    const user = await col.findOne({ _id: new ObjectId(session.userId) })
 
     if (!user) {
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 })
@@ -36,13 +49,38 @@ export async function PUT(request: NextRequest) {
 
     const valid = await compare(current_password, user.password_hash)
     if (!valid) {
+      await checkRateLimit(rlKey, 5, 15 * 60 * 1000)
       return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 400 })
     }
 
     const newHash = await hash(new_password, 10)
-    await col.updateOne({ _id: user._id }, { $set: { password_hash: newHash } })
+    await col.updateOne(
+      { _id: user._id },
+      { $set: { password_hash: newHash, password_changed_at: new Date() } },
+    )
 
-    return NextResponse.json({ ok: true })
+    await logAction({
+      condo_id: new ObjectId(session.condoId),
+      entity: 'users',
+      entity_id: user._id!,
+      action: 'updated',
+      actor_id: user._id!,
+      actor_name: session.userName,
+      after: { password_changed: true },
+    })
+
+    // password_changed_at derruba todas as sessões antigas; re-assina a atual para
+    // quem trocou a senha continuar logado neste dispositivo.
+    const response = NextResponse.json({ ok: true })
+    const currentToken = (await cookies()).get(AUTH_COOKIE)?.value
+    if (currentToken) {
+      try {
+        const payload = await verifyToken(currentToken)
+        response.cookies.set(AUTH_COOKIE, await signToken(payload), COOKIE_OPTIONS)
+      } catch { /* token inválido — fará login de novo */ }
+    }
+
+    return response
   } catch (err) {
     console.error('[me/password]', err)
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 })

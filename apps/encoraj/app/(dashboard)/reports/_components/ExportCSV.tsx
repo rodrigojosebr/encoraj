@@ -13,6 +13,12 @@ interface Row {
   retirado: string
 }
 
+// Célula iniciada por = + - @ vira fórmula no Excel: prefixa com apóstrofo
+function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+  return `"${safe.replace(/"/g, '""')}"`
+}
+
 export default function ExportCSV({ rows }: { rows: Row[] }) {
   const { toast } = useToast()
 
@@ -22,7 +28,7 @@ export default function ExportCSV({ rows }: { rows: Row[] }) {
       cols.join(';'),
       ...rows.map((r) =>
         [r.codigo, r.morador, r.apartamento, r.status, r.chegada, r.notificado, r.retirado]
-          .map((v) => `"${v.replace(/"/g, '""')}"`)
+          .map(csvCell)
           .join(';')
       ),
     ]

@@ -36,7 +36,10 @@ export interface UserDoc {
   role_id: ObjectId
   status_id: ObjectId
   photo_url?: string
+  password_changed_at?: Date
   created_at: Date
+  deleted_at?: Date
+  deleted_by?: ObjectId
 }
 
 export interface ResidentDoc {
@@ -49,8 +52,6 @@ export interface ResidentDoc {
   status_id: ObjectId
   created_at: Date
   created_by: ObjectId
-  updated_at?: Date
-  updated_by?: ObjectId
   deleted_at?: Date
   deleted_by?: ObjectId
 }
@@ -66,7 +67,7 @@ export interface PasswordResetTokenDoc {
 export interface AuditLogDoc {
   _id?: ObjectId
   condo_id: ObjectId
-  entity: 'residents' | 'users' | 'packages'
+  entity: 'residents' | 'users' | 'packages' | 'condominiums'
   entity_id: ObjectId
   action: 'created' | 'updated' | 'deleted'
   actor_id: ObjectId
@@ -82,6 +83,8 @@ export interface PackageDoc {
   resident_id: ObjectId
   code: string
   delivery_pin?: string
+  /** Token aleatório do link público /p/{token}. Pacotes antigos não têm. */
+  public_token?: string
   qrcode_url: string
   photo_url: string
   status_id: ObjectId
@@ -140,15 +143,10 @@ export interface RateLimitDoc {
 
 export async function passwordResetTokens(): Promise<Collection<PasswordResetTokenDoc>> {
   const db = await getDb()
-  const col = db.collection<PasswordResetTokenDoc>('password_reset_tokens')
-  await col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
-  return col
+  return db.collection<PasswordResetTokenDoc>('password_reset_tokens')
 }
 
 export async function rateLimits(): Promise<Collection<RateLimitDoc>> {
   const db = await getDb()
-  const col = db.collection<RateLimitDoc>('rate_limits')
-  await col.createIndex({ key: 1 }, { unique: true, background: true })
-  await col.createIndex({ reset_at: 1 }, { expireAfterSeconds: 0, background: true })
-  return col
+  return db.collection<RateLimitDoc>('rate_limits')
 }

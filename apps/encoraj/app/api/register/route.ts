@@ -5,18 +5,20 @@ import { users, condominiums } from '@/lib/db/collections'
 import { getStatus, getRole } from '@/lib/db/status-map'
 import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { emailSchema, passwordSchema, EMAIL_COLLATION } from '@/lib/auth/email'
 
 const RegisterSchema = z.object({
-  condoName: z.string().min(3),
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  condoName: z.string().trim().min(3).max(120),
+  name: z.string().trim().min(2).max(120),
+  email: emailSchema,
+  password: passwordSchema,
 })
 
 function toSlug(str: string): string {
   return str
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
@@ -24,11 +26,23 @@ function toSlug(str: string): string {
 
 export async function POST(request: Request) {
   try {
+    // Rate limit: 5 cadastros por IP por hora
+    const rl = await checkRateLimit(`register:${clientIp(request.headers)}`, 5, 60 * 60 * 1000)
+    if (rl.blocked) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Tente novamente mais tarde.' },
+        { status: 429 },
+      )
+    }
+
     const body = await request.json()
     const parsed = RegisterSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' },
+        { status: 400 },
+      )
     }
 
     const { condoName, name, email, password } = parsed.data
@@ -38,16 +52,20 @@ export async function POST(request: Request) {
       getRole('admin'),
     ])
 
-    // Verifica email único globalmente entre usuários ativos
+    // Email único globalmente entre usuários ativos. O cadastro SEMPRE cria um condomínio
+    // novo — nunca vincula a pessoa a um condomínio existente.
     const usersCol = await users()
-    const existingUser = await usersCol.findOne({ email, status_id: activeStatusId })
+    const existingUser = await usersCol.findOne(
+      { email, status_id: activeStatusId },
+      { collation: EMAIL_COLLATION },
+    )
     if (existingUser) {
       return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
     }
 
     // Gera slug único (adiciona sufixo numérico se já existir)
     const condosCol = await condominiums()
-    const baseSlug = toSlug(condoName)
+    const baseSlug = toSlug(condoName) || 'condominio'
     let slug = baseSlug
     let suffix = 2
     while (await condosCol.findOne({ slug })) {
@@ -66,19 +84,30 @@ export async function POST(request: Request) {
 
     // Cria usuário admin
     const password_hash = await bcrypt.hash(password, 12)
-    const userResult = await usersCol.insertOne({
-      condo_id: condoResult.insertedId,
-      name,
-      email,
-      password_hash,
-      role_id: adminRoleId,
-      status_id: activeStatusId,
-      created_at: now,
-    })
+    let userId
+    try {
+      const userResult = await usersCol.insertOne({
+        condo_id: condoResult.insertedId,
+        name,
+        email,
+        password_hash,
+        role_id: adminRoleId,
+        status_id: activeStatusId,
+        created_at: now,
+      })
+      userId = userResult.insertedId
+    } catch (err) {
+      // Corrida com outro cadastro do mesmo email (índice único) — desfaz o condomínio
+      await condosCol.deleteOne({ _id: condoResult.insertedId })
+      if ((err as { code?: number }).code === 11000) {
+        return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
+      }
+      throw err
+    }
 
     // Login automático
     const token = await signToken({
-      sub: userResult.insertedId.toString(),
+      sub: userId.toString(),
       name,
       role: 'admin',
       condo_id: condoResult.insertedId.toString(),

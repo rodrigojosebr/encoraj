@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
-import { headers } from 'next/headers'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
+import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 
 const UpdateResidentSchema = z.object({
-  name: z.string().min(2).optional(),
-  apartment: z.string().min(1).optional(),
-  bloco: z.string().optional(),
-  whatsapp: z.string().min(1).optional(),
+  name: z.string().trim().min(2).max(120).optional(),
+  apartment: z.string().trim().min(1).max(20).optional(),
+  bloco: z.string().trim().max(20).optional(),
+  whatsapp: z.string().trim().min(8).max(20).optional(),
 })
 
 interface RouteContext {
@@ -20,15 +20,11 @@ interface RouteContext {
 export async function PUT(request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const actorId = headersList.get('x-user-id')
-    const actorName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!role || !actorId || !actorName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId: actorId, userName: actorName, condoId } = session
 
     if (role !== 'admin' && role !== 'zelador') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
@@ -55,7 +51,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
     const updateFields = { ...parsed.data }
 
-    await col.updateOne({ _id: new ObjectId(id) }, { $set: updateFields })
+    await col.updateOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId) }, { $set: updateFields })
 
     await logAction({
       condo_id: new ObjectId(condoId),
@@ -78,15 +74,11 @@ export async function PUT(request: Request, { params }: RouteContext) {
 export async function PATCH(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const actorId = headersList.get('x-user-id')
-    const actorName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!role || !actorId || !actorName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId: actorId, userName: actorName, condoId } = session
 
     if (role !== 'admin' && role !== 'zelador') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
@@ -107,7 +99,7 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Morador não encontrado nos excluídos' }, { status: 404 })
     }
     await col.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id), condo_id: new ObjectId(condoId) },
       {
         $set: { status_id: activeStatusId },
         $unset: { deleted_at: '', deleted_by: '' },
@@ -135,15 +127,11 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
-    const headersList = await headers()
-    const role = headersList.get('x-user-role')
-    const actorId = headersList.get('x-user-id')
-    const actorName = headersList.get('x-user-name')
-    const condoId = headersList.get('x-condo-id')
-
-    if (!role || !actorId || !actorName || !condoId) {
+    const session = await getSession()
+    if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
+    const { role, userId: actorId, userName: actorName, condoId } = session
 
     if (role !== 'admin' && role !== 'zelador') {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
@@ -166,7 +154,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
     const now = new Date()
     await col.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id), condo_id: new ObjectId(condoId) },
       { $set: { status_id: deletedStatusId, deleted_at: now, deleted_by: new ObjectId(actorId) } },
     )
 

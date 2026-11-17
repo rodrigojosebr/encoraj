@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
-import { headers } from 'next/headers'
 import { packages } from '@/lib/db/collections'
+import { getSession } from '@/lib/auth/session'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -10,11 +10,10 @@ interface RouteContext {
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
-    const headersList = await headers()
-    const condoId = headersList.get('x-condo-id')
-
-    if (!condoId) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!['admin', 'porteiro', 'sindico'].includes(session.role)) {
+      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
     if (!ObjectId.isValid(id)) {
@@ -22,7 +21,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
 
     const col = await packages()
-    const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId) })
+    const doc = await col.findOne(
+      { _id: new ObjectId(id), condo_id: new ObjectId(session.condoId) },
+      { projection: { delivery_pin: 0, public_token: 0 } },
+    )
 
     if (!doc) {
       return NextResponse.json({ error: 'Encomenda não encontrada' }, { status: 404 })

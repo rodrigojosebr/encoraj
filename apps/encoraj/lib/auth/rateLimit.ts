@@ -7,10 +7,10 @@ interface RateLimitResult {
 }
 
 /**
- * Verifica e incrementa o contador de tentativas para uma chave.
+ * Incrementa o contador da chave e diz se o limite foi estourado.
  * Usa MongoDB com TTL index para limpar automaticamente janelas expiradas.
  *
- * @param key     identificador único (ex: `login:1.2.3.4`, `forgot:email@x.com`)
+ * @param key     identificador único (ex: `register:1.2.3.4`, `forgot:email@x.com`)
  * @param max     máximo de tentativas permitidas na janela
  * @param windowMs duração da janela em milissegundos
  */
@@ -23,7 +23,10 @@ export async function checkRateLimit(
   const now = new Date()
   const resetAt = new Date(now.getTime() + windowMs)
 
-  // upsert: cria o doc se não existe, incrementa attempts se já existe e ainda não expirou
+  // O TTL do MongoDB roda a cada ~60s: uma janela vencida pode ainda estar no banco.
+  await col.deleteOne({ key, reset_at: { $lte: now } })
+
+  // upsert: cria o doc se não existe, incrementa attempts se já existe
   const result = await col.findOneAndUpdate(
     { key },
     {
@@ -41,4 +44,22 @@ export async function checkRateLimit(
   }
 
   return { blocked: false, remaining: max - attempts }
+}
+
+/** Consulta sem incrementar — para limites que contam só falhas (login, PIN). */
+export async function isRateLimited(key: string, max: number): Promise<boolean> {
+  const col = await rateLimits()
+  const doc = await col.findOne({ key, reset_at: { $gt: new Date() } })
+  return !!doc && doc.attempts >= max
+}
+
+/** Zera o contador (ex.: depois de um login bem-sucedido). */
+export async function clearRateLimit(key: string): Promise<void> {
+  const col = await rateLimits()
+  await col.deleteOne({ key })
+}
+
+/** IP do cliente. Na Vercel o `x-forwarded-for` é sobrescrito pela plataforma. */
+export function clientIp(headers: { get(name: string): string | null }): string {
+  return headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 }
