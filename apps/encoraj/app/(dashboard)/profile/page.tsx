@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { users } from '@/lib/db/collections'
-import { getRole } from '@/lib/db/status-map'
+import { can } from '@/lib/auth/permissions'
+import { roleLabels } from '@/lib/auth/user-roles'
 import { signS3Url } from '@/lib/s3/sign'
 import ProfileClient from './_components/ProfileClient'
 
@@ -11,13 +12,12 @@ export default async function ProfilePage() {
   if (!session) redirect('/api/auth/logout')
   const userId   = session.userId
   const userName = session.userName
-  const userRole = session.role
   const condoName = session.condoName
 
   const col = await users()
   const user = await col.findOne({ _id: new ObjectId(userId) }, { projection: { email: 1, photo_url: 1 } })
 
-  const roleLabel = await getRole(userRole).then(r => r.label).catch(() => userRole)
+  const roleLabel = await roleLabels(session.roles)
 
   return (
     <ProfileClient
@@ -25,7 +25,7 @@ export default async function ProfilePage() {
       email={user?.email ?? ''}
       roleLabel={roleLabel}
       condoName={condoName}
-      isAdmin={userRole === 'admin'}
+      isAdmin={can(session, 'users.manage')}
       userId={userId}
       photoUrl={await signS3Url(user?.photo_url)}
     />

@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
-import { getStatus, getStatusById, getRole } from '@/lib/db/status-map'
+import { getStatus, getStatusById } from '@/lib/db/status-map'
+import { roleLabels } from '@/lib/auth/user-roles'
 import { css } from '@/styled-system/css'
 import { Eye } from 'lucide-react'
 import { Badge, Button } from '@encoraj/ui'
@@ -13,10 +14,9 @@ export default async function DashboardPage() {
   const session = await readSession()
   if (!session) redirect('/api/auth/logout')
   const name = session.userName
-  const role = session.role
   const condoId = session.condoId
 
-  const roleLabel = await getRole(role).then(r => r.label).catch(() => role)
+  const roleLabel = await roleLabels(session.roles)
 
   const col = await packages()
   const condoOid = new ObjectId(condoId)
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   const residentIds = [...new Set(recentDocs.map((d) => d.resident_id.toString()))]
   const resCol = await residents()
   const residentDocs = residentIds.length
-    ? await resCol.find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) } }).toArray()
+    ? await resCol.find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) }, condo_id: new ObjectId(condoId) }).toArray()
     : []
   const residentMap = Object.fromEntries(residentDocs.map((r) => [r._id!.toString(), r]))
 

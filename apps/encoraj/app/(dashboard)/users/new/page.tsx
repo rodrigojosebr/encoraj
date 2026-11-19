@@ -1,16 +1,23 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { UNASSIGNABLE_ROLES } from '@/lib/auth/roles'
+import { readSession } from '@/lib/auth/session'
+import { can } from '@/lib/auth/permissions'
 import { roles } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import UserForm from '../_components/UserForm'
 
 export default async function NewUserPage() {
+  const session = await readSession()
+  if (!session || !can(session, 'users.manage')) notFound()
+
   const [{ _id: activeStatusId }, rolesCol] = await Promise.all([
     getStatus('active'),
     roles(),
   ])
   const allRoles = await rolesCol
-    .find({ status_id: activeStatusId, name: { $ne: 'morador' } })
+    .find({ status_id: activeStatusId, name: { $nin: UNASSIGNABLE_ROLES } })
     .sort({ name: 1 })
     .toArray()
   const roleOptions = allRoles.map((r) => ({ value: r.name, label: r.label }))

@@ -15,10 +15,16 @@ import * as condoRoute from '@/app/api/condo/route'
 import * as condoPhoto from '@/app/api/condo/photo/route'
 import * as reportsExport from '@/app/api/reports/export/route'
 import * as managementExport from '@/app/api/reports/management/export/route'
+import * as clientErrors from '@/app/api/client-errors/route'
+import * as adminError from '@/app/api/admin/errors/[id]/route'
+import * as adminCondos from '@/app/api/admin/condos/route'
+import * as adminOrgs from '@/app/api/admin/organizations/route'
+import * as orgCondos from '@/app/api/org/condos/route'
+import * as enterCondo from '@/app/api/condos/[id]/enter/route'
 import * as eraseResident from '@/app/api/residents/[id]/erase/route'
 import * as eraseUser from '@/app/api/users/[id]/erase/route'
 import * as eraseCondo from '@/app/api/condo/erase/route'
-import { ALL_ROLES, jsonRequest, routeCtx, type RoleName } from './factory'
+import { ALL_ROLES, jsonRequest, routeCtx, type CondoRole } from './factory'
 
 /**
  * Contrato de acesso de TODAS as rotas protegidas. Rota nova entra aqui —
@@ -27,7 +33,7 @@ import { ALL_ROLES, jsonRequest, routeCtx, type RoleName } from './factory'
 const id = () => routeCtx(new ObjectId())
 const req = (method: string) => jsonRequest(method, method === 'GET' ? undefined : {})
 
-export const PROTECTED_ROUTES: Array<{ name: string; call: () => Promise<Response>; roles: RoleName[] }> = [
+export const PROTECTED_ROUTES: Array<{ name: string; call: () => Promise<Response>; roles: CondoRole[] }> = [
   { name: 'GET /api/users', call: () => usersRoute.GET(), roles: ['admin'] },
   { name: 'POST /api/users', call: () => usersRoute.POST(req('POST')), roles: ['admin'] },
   { name: 'PUT /api/users/[id]', call: () => userRoute.PUT(req('PUT'), id()), roles: ['admin'] },
@@ -58,6 +64,18 @@ export const PROTECTED_ROUTES: Array<{ name: string; call: () => Promise<Respons
 
   { name: 'GET /api/reports/export', call: () => reportsExport.GET(req('GET')), roles: ['admin', 'sindico'] },
   { name: 'GET /api/reports/management/export', call: () => managementExport.GET(req('GET')), roles: ['admin', 'sindico'] },
+
+  { name: 'POST /api/client-errors', call: () => clientErrors.POST(req('POST')), roles: ALL_ROLES },
+
+  // Plataforma: nenhum perfil de condomínio entra — só a role superadmin.
+  // (O super admin passa em TODAS as rotas desta tabela: ver permissions.test e condos.test.)
+  { name: 'PATCH /api/admin/errors/[id]', call: () => adminError.PATCH(req('PATCH'), id()), roles: [] },
+  { name: 'POST /api/admin/condos', call: () => adminCondos.POST(req('POST')), roles: [] },
+  { name: 'POST /api/admin/organizations', call: () => adminOrgs.POST(req('POST')), roles: [] },
+
+  // Administradora: só a role `administradora` (e o super admin) — nenhum perfil de condomínio
+  { name: 'POST /api/org/condos', call: () => orgCondos.POST(req('POST')), roles: [] },
+  { name: 'POST /api/condos/[id]/enter', call: () => enterCondo.POST(req('POST'), id()), roles: [] },
 
   // Remoção definitiva (LGPD): só admin — nem síndico. Corpo vazio nunca apaga nada.
   { name: 'DELETE /api/residents/[id]/erase', call: () => eraseResident.DELETE(req('DELETE'), id()), roles: ['admin'] },

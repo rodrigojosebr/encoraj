@@ -12,7 +12,7 @@ export default function TermsPage() {
     <LegalPage title="Termos de Uso">
       <p>
         Estes Termos regulam o uso do Encoraj, sistema de gestão de encomendas para condomínios operado por{' '}
-        {companyName} (“Encoraj”, “nós”). Ao criar uma conta, você declara que leu e aceita estes Termos e a{' '}
+        {companyName} (“Encoraj”, “nós”). Ao usar o sistema, você declara que leu e aceita estes Termos e a{' '}
         <Link href="/privacidade" className={linkCss}>Política de Privacidade</Link>.
       </p>
 
@@ -27,8 +27,8 @@ export default function TermsPage() {
       <Section title="2. Quem pode usar">
         <List
           items={[
-            'A conta é criada por alguém com poderes para representar o condomínio (síndico, administradora ou pessoa por eles autorizada). Ao se cadastrar, você declara ter essa autorização.',
-            'O administrador da conta cria e remove os acessos da equipe (porteiros, zeladores, síndico) e responde pelo uso que essas pessoas fazem do sistema.',
+            'O condomínio é cadastrado pelo Encoraj, a pedido de quem tem poderes para representá-lo (síndico, administradora ou pessoa por eles autorizada), e já nasce com um administrador indicado por essa pessoa.',
+            'O administrador do condomínio cria e remove os acessos da equipe (porteiros, zeladores, síndico) e responde pelo uso que essas pessoas fazem do sistema.',
             'Cada acesso é pessoal. Não compartilhe senha; avise o administrador se suspeitar de uso indevido.',
           ]}
         />

@@ -2,15 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
-
-// Rotas que exigem role mínima
-const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
-  { prefix: '/users', roles: ['admin'] },
-  { prefix: '/settings', roles: ['admin'] },
-  { prefix: '/reports', roles: ['admin', 'sindico'] },
-  { prefix: '/residents', roles: ['admin', 'zelador'] },
-  { prefix: '/packages', roles: ['admin', 'porteiro'] },
-]
+import { tokenRoles } from '@/lib/auth/roles'
+import { can, PAGE_PERMISSIONS } from '@/lib/auth/permissions'
 
 // Headers de identidade de versões antigas: ninguém mais lê, e o cliente não pode enviá-los
 const IDENTITY_HEADERS = [
@@ -46,14 +39,12 @@ export async function proxy(request: NextRequest) {
   if (
     PUBLIC_ASSET.test(pathname) ||
     matchesPrefix(pathname, '/login') ||
-    matchesPrefix(pathname, '/register') ||
     matchesPrefix(pathname, '/forgot-password') ||
     matchesPrefix(pathname, '/reset-password') ||
     matchesPrefix(pathname, '/termos') ||
     matchesPrefix(pathname, '/privacidade') ||
     pathname.startsWith('/p/') ||
-    matchesPrefix(pathname, '/api/auth') ||
-    matchesPrefix(pathname, '/api/register')
+    matchesPrefix(pathname, '/api/auth')
   ) {
     return NextResponse.next({ request: { headers: requestHeaders } })
   }
@@ -91,14 +82,17 @@ export async function proxy(request: NextRequest) {
   }
 
   // Verifica permissão por role para rotas do dashboard
-  for (const route of ROLE_ROUTES) {
-    if (matchesPrefix(pathname, route.prefix) && !route.roles.includes(payload.role)) {
+  // Telas de plataforma: só super admin. (As rotas /api/admin conferem por conta própria.)
+  // Permissão por página, pela mesma tabela que as rotas e o menu usam (roles se somam)
+  const subject = { roles: tokenRoles(payload) }
+  for (const page of PAGE_PERMISSIONS) {
+    if (matchesPrefix(pathname, page.prefix) && !can(subject, page.permission)) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
   // Identidade NÃO vai por header: rotas e páginas verificam o cookie por conta própria
-  // (lib/auth/session.ts). O proxy só barra cedo e aplica role de página.
+  // (lib/auth/session.ts). O proxy só barra cedo e aplica a permissão de página.
   return NextResponse.next({ request: { headers: requestHeaders } })
 }
 

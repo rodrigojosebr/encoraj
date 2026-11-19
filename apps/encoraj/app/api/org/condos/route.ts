@@ -1,0 +1,57 @@
+import { NextResponse } from 'next/server'
+import { ObjectId } from 'mongodb'
+import { z } from 'zod'
+import { condominiums } from '@/lib/db/collections'
+import { getSession } from '@/lib/auth/session'
+import { can } from '@/lib/auth/permissions'
+import { createCondoInOrganization } from '@/lib/condos/create'
+import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
+
+const schema = z.object({
+  condoName: z.string().trim().min(3, 'Nome do condomínio muito curto.').max(120),
+})
+
+/**
+ * Cria mais um condomínio dentro da administradora do condomínio em que a sessão está.
+ * Para o admin da administradora é sempre a dele (getSession() só o deixa estar em
+ * condomínio dela); o super admin cria na administradora do condomínio em que entrou.
+ * A administradora nunca vem do corpo do request.
+ */
+export async function POST(request: Request) {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!can(session, 'org.condos')) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+    const parsed = schema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }, { status: 400 })
+    }
+
+    const current = await (await condominiums()).findOne(
+      { _id: new ObjectId(session.condoId) },
+      { projection: { org_id: 1 } },
+    )
+    if (!current?.org_id) {
+      return NextResponse.json({ error: 'Este condomínio é autogerido: não pertence a uma administradora.' }, { status: 409 })
+    }
+
+    const { condoId, slug } = await createCondoInOrganization(current.org_id, parsed.data.condoName)
+
+    await logAction({
+      condo_id: condoId,
+      entity: 'condominiums',
+      entity_id: condoId,
+      action: 'created',
+      actor_id: new ObjectId(session.userId),
+      actor_name: session.userName,
+      after: { name: parsed.data.condoName, slug, org_id: current.org_id },
+    })
+
+    return NextResponse.json({ _id: condoId, slug }, { status: 201 })
+  } catch (err) {
+    await reportError('[POST /api/org/condos]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
+}

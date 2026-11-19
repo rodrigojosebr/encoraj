@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
@@ -11,6 +11,7 @@ import SearchInput from '../_components/SearchInput'
 import { fmtDate } from '@/lib/date/tz'
 import { buildPackageFilter } from '@/lib/packages/filter'
 import { paginate, parsePage } from '@/lib/pagination'
+import { can } from '@/lib/auth/permissions'
 import Pagination from '../_components/Pagination'
 
 export default async function PackagesPage({
@@ -21,6 +22,7 @@ export default async function PackagesPage({
   const { status, q, period, page: pageParam } = await searchParams
   const session = await readSession()
   if (!session) redirect('/api/auth/logout')
+  if (!can(session, 'packages.register')) notFound()
   const condoId = session.condoId
 
   const [arrived, notified, delivered] = await Promise.all([
@@ -55,7 +57,7 @@ export default async function PackagesPage({
   // Busca nomes dos moradores em lote
   const residentIds = [...new Set(docs.map((d) => d.resident_id.toString()))]
   const residentDocs = await resCol
-    .find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) } })
+    .find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) }, condo_id: new ObjectId(condoId) })
     .toArray()
   const residentMap = Object.fromEntries(residentDocs.map((r) => [r._id!.toString(), r]))
 

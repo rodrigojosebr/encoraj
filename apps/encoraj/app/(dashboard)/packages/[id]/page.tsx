@@ -10,6 +10,7 @@ import { css } from '@/styled-system/css'
 import { Badge } from '@encoraj/ui'
 import { signS3Url } from '@/lib/s3/sign'
 import DeliverButton from './_components/DeliverButton'
+import { can } from '@/lib/auth/permissions'
 import NotifyButton from './_components/NotifyButton'
 
 interface RouteContext {
@@ -20,6 +21,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
   const { id } = await params
   const session = await readSession()
   if (!session) redirect('/api/auth/logout')
+  if (!can(session, 'packages.register')) notFound()
   const condoId = session.condoId
 
   if (!ObjectId.isValid(id)) notFound()
@@ -30,7 +32,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
   if (!pkg) notFound()
 
   const resCol = await residents()
-  const resident = await resCol.findOne({ _id: pkg.resident_id })
+  const resident = await resCol.findOne({ _id: pkg.resident_id, condo_id: pkg.condo_id })
 
   const [pkgStatus, arrived, notified, delivered] = await Promise.all([
     getStatusById(pkg.status_id),
@@ -171,12 +173,12 @@ export default async function PackageDetailPage({ params }: RouteContext) {
       {/* Ações */}
       {!isDelivered && (
         <div className={css({ display: 'flex', gap: '3', flexWrap: 'wrap' })}>
-          {(isArrived || isNotified) && resident?.whatsapp && (
+          {(isArrived || isNotified) && resident?.whatsapp && pkg.public_token && (
             <NotifyButton
               id={pkg._id!.toString()}
               whatsapp={resident.whatsapp}
               residentName={resident.name}
-              publicToken={pkg.public_token ?? pkg._id!.toString()}
+              publicToken={pkg.public_token}
               deliveryPin={pkg.delivery_pin ?? pkg.code}
               condoName={condoName}
               alreadyNotified={isNotified}

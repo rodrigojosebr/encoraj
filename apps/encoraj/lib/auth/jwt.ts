@@ -9,7 +9,8 @@ const secret = new TextEncoder().encode(process.env.JWT_SECRET)
 export interface JwtPayload {
   sub: string   // user _id como string
   name: string
-  role: string
+  /** Todas as roles do usuário — as permissões se somam */
+  roles: string[]
   condo_id: string
   condo_name: string
   photo_url?: string       // user profile photo (S3 URL)

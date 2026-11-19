@@ -7,6 +7,8 @@ import { users } from '@/lib/db/collections'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { checkRateLimit, isRateLimited } from '@/lib/auth/rateLimit'
 import { eraseCondo } from '@/lib/lgpd/erase'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 const schema = z.object({
   /** Nome exato do condomínio, como está cadastrado */
@@ -24,7 +26,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    if (!can(session, 'data.erase')) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
     const parsed = schema.safeParse(await request.json().catch(() => ({})))
     if (!parsed.success) {
@@ -61,7 +63,7 @@ export async function DELETE(request: Request) {
     response.cookies.set(AUTH_COOKIE, '', { ...COOKIE_OPTIONS, maxAge: 0 })
     return response
   } catch (err) {
-    console.error('[DELETE /api/condo/erase]', err)
+    await reportError('[DELETE /api/condo/erase]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

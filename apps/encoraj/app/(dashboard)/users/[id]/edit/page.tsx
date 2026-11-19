@@ -3,8 +3,11 @@ import Link from 'next/link'
 import { ObjectId } from 'mongodb'
 import { users, roles } from '@/lib/db/collections'
 import { readSession } from '@/lib/auth/session'
+import { canManageUserWith, UNASSIGNABLE_ROLES } from '@/lib/auth/roles'
+import { userRoleNames } from '@/lib/auth/user-roles'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
+import { can } from '@/lib/auth/permissions'
 import UserForm from '../../_components/UserForm'
 
 interface EditUserPageProps {
@@ -18,6 +21,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
 
   const session = await readSession()
   if (!session) notFound()
+  if (!can(session, 'users.manage')) notFound()
 
   const col = await users()
   const user = await col.findOne(
@@ -27,11 +31,15 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
   if (!user) notFound()
 
   const rolesCol = await roles()
-  const [roleDoc, allRoles, { _id: activeStatusId }] = await Promise.all([
-    rolesCol.findOne({ _id: user.role_id }),
-    rolesCol.find({ name: { $ne: 'morador' } }).sort({ name: 1 }).toArray(),
+  const [userRoles, allRoles, { _id: activeStatusId }] = await Promise.all([
+    userRoleNames(user),
+    rolesCol.find({ name: { $nin: UNASSIGNABLE_ROLES } }).sort({ name: 1 }).toArray(),
     getStatus('active'),
   ])
+
+  // Ninguém edita quem está acima — super admin, admin da administradora (a API recusa do mesmo jeito)
+  if (!canManageUserWith(session, userRoles)) notFound()
+
   const roleOptions = allRoles
     .filter((r) => r.status_id.equals(activeStatusId))
     .map((r) => ({ value: r.name, label: r.label }))
@@ -54,10 +62,12 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
         <UserForm
           id={id}
           roleOptions={roleOptions}
+          rolesOptional={userRoles.some((name) => UNASSIGNABLE_ROLES.includes(name))}
           defaultValues={{
             name: user.name,
             email: user.email,
-            role: roleDoc?.name ?? roleOptions[0]?.value ?? '',
+            // só as roles que a tela atribui; superadmin e administradora ficam como estão no banco
+            roles: userRoles.filter((name) => roleOptions.some((option) => option.value === name)),
           }}
         />
       </div>

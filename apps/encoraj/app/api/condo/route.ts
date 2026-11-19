@@ -8,6 +8,8 @@ import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { signS3Url } from '@/lib/s3/sign'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 const UpdateCondoSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -25,7 +27,7 @@ export async function GET() {
 
     return NextResponse.json({ name: condo.name, slug: condo.slug, photo_url: await signS3Url(condo.photo_url) })
   } catch (err) {
-    console.error('[GET /api/condo]', err)
+    await reportError('[GET /api/condo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -36,8 +38,8 @@ export async function PUT(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId: actorId, userName: actorName, condoId } = session
-    if (role !== 'admin') {
+    const { userId: actorId, userName: actorName, condoId } = session
+    if (!can(session, 'condo.manage')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -81,7 +83,7 @@ export async function PUT(request: Request) {
 
     return response
   } catch (err) {
-    console.error('[PUT /api/condo]', err)
+    await reportError('[PUT /api/condo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

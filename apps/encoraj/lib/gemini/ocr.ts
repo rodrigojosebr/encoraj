@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { reportError } from '@/lib/observability/report'
 
 export interface ResidentContext {
   id: string
@@ -14,6 +15,17 @@ export interface OcrResult {
 }
 
 const DEFAULT_MODEL = 'gemini-2.0-flash'
+
+/** O que aconteceu numa chamada — vai para o monitoramento de uso de IA, sem texto nem imagem */
+export interface OcrUsage {
+  model: string
+  outcome: 'matched' | 'no_match' | 'invalid_response' | 'error' | 'disabled'
+  confidence?: OcrResult['confidence']
+  promptTokens: number
+  outputTokens: number
+  totalTokens: number
+  latencyMs: number
+}
 
 const PROMPT_TEMPLATE = (residents: ResidentContext[]) => `
 You are analyzing a package delivery label photo.
@@ -47,19 +59,29 @@ export async function analyzePackageLabel(
   imageBase64: string,
   mimeType: string,
   residents: ResidentContext[],
+  /** Chamado uma vez por tentativa de usar o modelo (não é chamado se não há moradores) */
+  onUsage?: (usage: OcrUsage) => void,
 ): Promise<OcrResult | null> {
+  // Modelo trocável por env: quando o Google aposentar um modelo, basta mudar a variável
+  const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL
+  const startedAt = Date.now()
+  const tokens = { promptTokens: 0, outputTokens: 0, totalTokens: 0 }
+  const report = (outcome: OcrUsage['outcome'], confidence?: OcrResult['confidence']) =>
+    onUsage?.({ model: modelName, outcome, confidence, ...tokens, latencyMs: Date.now() - startedAt })
+
   try {
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
-      console.error('[OCR] GEMINI_API_KEY not set')
+      // OCR desligado por configuração: o porteiro só vê a seleção manual — precisa de alerta
+      await reportError('[OCR]', new Error('GEMINI_API_KEY não definida'))
+      report('disabled')
       return null
     }
 
     if (residents.length === 0) return null
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    // Modelo trocável por env: quando o Google aposentar um modelo, basta mudar a variável
-    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || DEFAULT_MODEL })
+    const model = genAI.getGenerativeModel({ model: modelName })
 
     const result = await model.generateContent([
       { text: PROMPT_TEMPLATE(residents) },
@@ -71,6 +93,11 @@ export async function analyzePackageLabel(
       },
     ])
 
+    const usage = result.response.usageMetadata
+    tokens.promptTokens = usage?.promptTokenCount ?? 0
+    tokens.outputTokens = usage?.candidatesTokenCount ?? 0
+    tokens.totalTokens = usage?.totalTokenCount ?? tokens.promptTokens + tokens.outputTokens
+
     const text = result.response.text().trim()
 
     // Strip markdown code fences if Gemini wraps the JSON anyway
@@ -80,28 +107,39 @@ export async function analyzePackageLabel(
     try {
       parsed = JSON.parse(jsonText)
     } catch {
-      console.error('[OCR] Failed to parse Gemini response:', text)
+      // Sem o texto da resposta: ele traz o que foi lido da etiqueta (nome, apartamento)
+      await reportError('[OCR]', new Error('resposta do modelo não é JSON válido'))
+      report('invalid_response')
       return null
     }
 
-    if (!parsed.resident_id) return null
+    if (!parsed.resident_id) {
+      report('no_match')
+      return null
+    }
 
     // Validate that the returned id actually exists in our list
     const match = residents.find((r) => r.id === parsed.resident_id)
     if (!match) {
-      console.warn('[OCR] Gemini returned unknown resident_id:', parsed.resident_id)
+      await reportError('[OCR]', new Error('modelo devolveu morador que não está na lista'))
+      report('invalid_response')
       return null
     }
 
+    const confidence = (['high', 'medium', 'low'].includes(parsed.confidence)
+      ? parsed.confidence
+      : 'low') as OcrResult['confidence']
+    report('matched', confidence)
+
     return {
       resident_id: parsed.resident_id,
-      confidence: (['high', 'medium', 'low'].includes(parsed.confidence)
-        ? parsed.confidence
-        : 'low') as OcrResult['confidence'],
+      confidence,
       extracted_text: parsed.extracted_text ?? '',
     }
   } catch (err) {
-    console.error('[OCR] analyzePackageLabel error:', err)
+    // Falha do Gemini (modelo aposentado, cota, rede): o fallback é silencioso para o porteiro
+    await reportError('[OCR]', err)
+    report('error')
     return null
   }
 }

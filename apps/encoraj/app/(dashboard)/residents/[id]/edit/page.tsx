@@ -5,6 +5,7 @@ import { residents } from '@/lib/db/collections'
 import { readSession } from '@/lib/auth/session'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
+import { can } from '@/lib/auth/permissions'
 import ResidentForm from '../../_components/ResidentForm'
 
 interface EditResidentPageProps {
@@ -18,6 +19,7 @@ export default async function EditResidentPage({ params }: EditResidentPageProps
 
   const session = await readSession()
   if (!session) notFound()
+  if (!can(session, 'residents.write')) notFound()
 
   const col = await residents()
   const { _id: activeStatusId } = await getStatus('active')

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Pencil, UserPlus } from 'lucide-react'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import { users, roles } from '@/lib/db/collections'
@@ -8,11 +8,13 @@ import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
 import DeleteUserButton from './_components/DeleteUserButton'
+import { can } from '@/lib/auth/permissions'
 import { fmtDate } from '@/lib/date/tz'
 
 export default async function UsersPage() {
   const session = await readSession()
   if (!session) redirect('/api/auth/logout')
+  if (!can(session, 'users.manage')) notFound()
   const condoId = session.condoId
   const currentUserId = session.userId
 
@@ -37,7 +39,7 @@ export default async function UsersPage() {
   const deleted = docs.filter((u) => u.status_id.equals(deletedStatusId))
 
   function UserRow({ u, isDeleted }: { u: (typeof docs)[0]; isDeleted: boolean }) {
-    const roleName = roleMap[u.role_id.toString()] ?? '—'
+    const roleName = u.role_ids.map((id) => roleMap[id.toString()]).filter(Boolean).join(', ') || '—'
     const isSelf = u._id!.toString() === currentUserId
     return (
       <tr className={css({ borderBottom: '1px solid', borderColor: 'gray.100', _hover: { bg: 'gray.50' }, _dark: { borderColor: 'gray.800', _hover: { bg: 'gray.800' } } })}>
@@ -77,7 +79,7 @@ export default async function UsersPage() {
   }
 
   function UserCard({ u, isDeleted }: { u: (typeof docs)[0]; isDeleted: boolean }) {
-    const roleName = roleMap[u.role_id.toString()] ?? '—'
+    const roleName = u.role_ids.map((id) => roleMap[id.toString()]).filter(Boolean).join(', ') || '—'
     const isSelf = u._id!.toString() === currentUserId
     return (
       <div className={css({ bg: 'white', border: '1px solid', borderColor: 'gray.200', borderRadius: 'lg', p: '4', display: 'flex', flexDir: 'column', gap: '2', _dark: { bg: 'gray.900', borderColor: 'gray.700' } })}>

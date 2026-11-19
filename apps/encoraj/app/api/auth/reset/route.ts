@@ -7,6 +7,7 @@ import { getStatus } from '@/lib/db/status-map'
 import { passwordSchema } from '@/lib/auth/email'
 import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
 import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
 
 const schema = z.object({
   token: z.string().min(1),
@@ -50,7 +51,8 @@ export async function POST(request: NextRequest) {
     const user = await usersCol.findOneAndUpdate(
       { _id: tokenDoc.user_id, status_id: (await getStatus('active'))._id },
       // password_changed_at derruba as sessões abertas (ver lib/auth/session.ts)
-      { $set: { password_hash: await hash(password, 10), password_changed_at: now } },
+      // Senha escolhida pelo próprio dono (provou o email): não precisa trocar de novo
+      { $set: { password_hash: await hash(password, 10), password_changed_at: now }, $unset: { must_change_password: '' } },
     )
     if (!user) {
       // Conta desativada depois de pedir o link
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[reset]', err)
+    await reportError('[reset]', err)
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 })
   }
 }

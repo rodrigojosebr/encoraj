@@ -7,13 +7,17 @@ import { AUTH_COOKIE } from '@/lib/auth/cookies'
 const base: JwtPayload = {
   sub: '507f1f77bcf86cd799439011',
   name: 'José Ação 🚀',
-  role: 'admin',
+  roles: ['admin'],
   condo_id: '507f1f77bcf86cd799439012',
   condo_name: 'Condomínio – Demo',
 }
 
-async function request(path: string, opts: { role?: string; token?: string; headers?: Record<string, string> } = {}) {
-  const token = opts.token ?? (opts.role ? await signToken({ ...base, role: opts.role }) : undefined)
+async function request(
+  path: string,
+  opts: { role?: string; roles?: string[]; token?: string; headers?: Record<string, string> } = {},
+) {
+  const roles = opts.roles ?? (opts.role ? [opts.role] : undefined)
+  const token = opts.token ?? (roles ? await signToken({ ...base, roles }) : undefined)
   return new NextRequest(`http://localhost${path}`, {
     headers: { ...(token ? { cookie: `${AUTH_COOKIE}=${token}` } : {}), ...opts.headers },
   })
@@ -24,7 +28,7 @@ const passed = (res: Response) => res.headers.get('x-middleware-next') === '1'
 const location = (res: Response) => new URL(res.headers.get('location')!)
 
 describe('proxy', () => {
-  it.each(['/login', '/register', '/forgot-password', '/reset-password', '/termos', '/privacidade', '/p/abc', '/api/register'])(
+  it.each(['/login', '/forgot-password', '/reset-password', '/termos', '/privacidade', '/p/abc'])(
     'deixa passar a rota pública %s sem cookie',
     async (path) => {
       expect(passed(await proxy(await request(path)))).toBe(true)
@@ -44,6 +48,11 @@ describe('proxy', () => {
       expect(passed(await proxy(await request(path)))).toBe(false)
     },
   )
+
+  it('cadastro público não existe mais: /register e /api/register exigem login como qualquer rota', async () => {
+    expect(location(await proxy(await request('/register'))).pathname).toBe('/login')
+    expect((await proxy(await request('/api/register'))).status).toBe(401)
+  })
 
   it('não trata como pública uma rota que só começa igual', async () => {
     const res = await proxy(await request('/loginfalso'))
@@ -96,12 +105,51 @@ describe('proxy', () => {
     ['/residents', 'porteiro', false],
     ['/packages', 'porteiro', true],
     ['/packages/new', 'sindico', false],
+    // super admin entra em todas as telas, de plataforma e de condomínio
+    ['/users', 'superadmin', true],
+    ['/packages', 'superadmin', true],
+    ['/settings', 'superadmin', true],
+    ['/admin/condos', 'superadmin', true],
+    ['/admin/condos', 'admin', false],
+    ['/admin/condos', 'administradora', false],
+    // administradora: tudo do condomínio + a tela dos condomínios dela
+    ['/condos', 'administradora', true],
+    ['/users', 'administradora', true],
+    ['/reports', 'administradora', true],
+    ['/condos', 'admin', false],
+    ['/condos', 'sindico', false],
+    ['/condos', 'superadmin', true],
+    ['/admin/errors', 'superadmin', true],
+    ['/admin/ai', 'superadmin', true],
+    ['/admin/errors', 'admin', false],
+    ['/admin/ai', 'sindico', false],
+    ['/admin/permissions', 'superadmin', true],
+    ['/admin/permissions', 'admin', false],
+    ['/admin', 'porteiro', false],
     ['/', 'zelador', true],
     ['/profile', 'sindico', true],
   ])('%s com role %s → passa: %s', async (path, role, allowed) => {
     const res = await proxy(await request(path, { role }))
     expect(passed(res)).toBe(allowed)
     if (!allowed) expect(location(res).pathname).toBe('/')
+  })
+
+  it.each([
+    [['zelador', 'porteiro'], '/residents', true],
+    [['zelador', 'porteiro'], '/packages', true],
+    [['zelador', 'porteiro'], '/users', false],
+    [['admin', 'superadmin'], '/users', true],
+    [['admin', 'superadmin'], '/admin/errors', true],
+    [['sindico', 'porteiro'], '/reports', true],
+    [['sindico', 'porteiro'], '/admin/ai', false],
+  ])('roles %j somadas em %s → passa: %s', async (roles, path, allowed) => {
+    expect(passed(await proxy(await request(path, { roles })))).toBe(allowed)
+  })
+
+  it('token sem roles não entra em nenhuma tela com role', async () => {
+    const res = await proxy(await request('/packages', { roles: [] }))
+    expect(passed(res)).toBe(false)
+    expect(location(res).pathname).toBe('/')
   })
 
   it('nome com acento e emoji não derruba o proxy', async () => {

@@ -9,7 +9,7 @@ import { fmtDateTime } from '@/lib/date/tz'
 
 interface NotifyButtonProps {
   id: string
-  /** Token do link público /p/{token} (pacotes antigos usam o próprio id) */
+  /** Token do link público /p/{token} */
   publicToken: string
   whatsapp: string
   residentName: string

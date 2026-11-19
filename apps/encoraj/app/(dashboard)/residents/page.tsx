@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Pencil, UserPlus } from 'lucide-react'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
 import { readSession } from '@/lib/auth/session'
@@ -13,6 +13,7 @@ import RestoreButton from './_components/RestoreButton'
 import DeletedToggle from './_components/DeletedToggle'
 import { fmtDate } from '@/lib/date/tz'
 import { paginate, parsePage } from '@/lib/pagination'
+import { can } from '@/lib/auth/permissions'
 import Pagination from '../_components/Pagination'
 
 export default async function ResidentsPage({
@@ -23,7 +24,8 @@ export default async function ResidentsPage({
   const { q, deleted, page: pageParam } = await searchParams
   const showDeleted = deleted === '1'
   const session = await readSession()
-  if (!session) redirect('/login')
+  if (!session) redirect('/api/auth/logout')
+  if (!can(session, 'residents.write')) notFound()
   const col = await residents()
 
   const { _id: statusId } = await getStatus(showDeleted ? 'deleted' : 'active')

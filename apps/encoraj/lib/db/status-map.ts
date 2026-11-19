@@ -100,4 +100,3 @@ export async function getRoleById(id: ObjectId): Promise<RoleInfo> {
 
   return primeRole({ _id: doc._id, name: doc.name, label: doc.label })
 }
-

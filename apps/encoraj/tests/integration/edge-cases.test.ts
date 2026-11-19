@@ -1,14 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ObjectId } from 'mongodb'
+import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/email/mailer', () => ({ sendEmail: vi.fn(async () => {}) }))
 vi.mock('@/lib/gemini/ocr', () => ({ analyzePackageLabel: vi.fn() }))
 
 import { POST as login } from '@/app/api/auth/route'
-import { POST as register } from '@/app/api/register/route'
 import { POST as forgot } from '@/app/api/auth/forgot/route'
 import { GET as getCondo, PUT as updateCondo } from '@/app/api/condo/route'
 import { POST as ocr } from '@/app/api/ocr/route'
+import { POST as createCondoRoute } from '@/app/api/admin/condos/route'
+import { POST as createOrgRoute } from '@/app/api/admin/organizations/route'
+import { POST as createOrgCondo } from '@/app/api/org/condos/route'
+import { POST as deliver } from '@/app/api/packages/[id]/deliver/route'
+import { DELETE as eraseUser } from '@/app/api/users/[id]/erase/route'
+import { roleLabels } from '@/lib/auth/user-roles'
 import { PUT as updateResident } from '@/app/api/residents/[id]/route'
 import { PUT as updateUser, DELETE as deleteUser } from '@/app/api/users/[id]/route'
 import { sendEmail } from '@/lib/email/mailer'
@@ -17,10 +23,11 @@ import { getSession, readSession } from '@/lib/auth/session'
 import { signToken, verifyToken, type JwtPayload } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
 import { getDb } from '@/lib/db/client'
-import { condominiums, residents, users } from '@/lib/db/collections'
+import { condominiums, packages, residents, users } from '@/lib/db/collections'
 import { getRole, getRoleById, getStatus, getStatusById } from '@/lib/db/status-map'
 import {
   createCondo,
+  createPackage,
   createResident,
   createUser,
   formRequest,
@@ -58,7 +65,7 @@ describe('login — dados inconsistentes no banco', () => {
   it('role ou condomínio inexistente → 500, sem cookie', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const noRole = await createUser(await createCondo())
-    await (await users()).updateOne({ _id: noRole._id }, { $set: { role_id: new ObjectId() } })
+    await (await users()).updateOne({ _id: noRole._id }, { $set: { role_ids: [new ObjectId()] } })
     const noCondo = await createUser(await createCondo())
     await (await users()).updateOne({ _id: noCondo._id }, { $set: { condo_id: new ObjectId() } })
 
@@ -71,14 +78,16 @@ describe('login — dados inconsistentes no banco', () => {
 })
 
 describe('sessão — token estranho', () => {
-  const base: JwtPayload = { sub: '', name: 'x', role: 'admin', condo_id: '', condo_name: 'x' }
+  const base: JwtPayload = { sub: '', name: 'x', roles: ['admin'], condo_id: '', condo_name: 'x' }
   const use = async (payload: Partial<JwtPayload>) => {
     requestState.cookies.set(AUTH_COOKIE, await signToken({ ...base, ...payload } as JwtPayload))
   }
   const ids = { sub: new ObjectId().toString(), condo_id: new ObjectId().toString() }
 
   it('recusa token sem identidade ou com id malformado', async () => {
-    await use({ ...ids, role: '' })
+    await use({ ...ids, roles: [] })
+    expect(await readSession()).toBeNull()
+    await use({ ...ids, roles: [''] })
     expect(await readSession()).toBeNull()
     await use({ sub: 'abc', condo_id: ids.condo_id })
     expect(await readSession()).toBeNull()
@@ -94,7 +103,7 @@ describe('sessão — token estranho', () => {
   it('usuário com role inexistente no banco → sem sessão', async () => {
     const user = await createUser(await createCondo())
     await loginAs(user)
-    await (await users()).updateOne({ _id: user._id }, { $set: { role_id: new ObjectId() } })
+    await (await users()).updateOne({ _id: user._id }, { $set: { role_ids: [new ObjectId()] } })
     expect(await getSession()).toBeNull()
   })
 })
@@ -128,15 +137,7 @@ describe('status-map', () => {
   })
 })
 
-describe('cadastro e recuperação — casos de borda', () => {
-  it('nome de condomínio sem letra latina ganha slug padrão', async () => {
-    const res = await register(
-      jsonRequest('POST', { condoName: '日本語マンション', name: 'Ana', email: 'ana@teste.com', password: 'senha-forte-123', acceptTerms: true }),
-    )
-    expect(res.status).toBe(201)
-    expect((await (await condominiums()).findOne({ name: '日本語マンション' }))!.slug).toBe('condominio')
-  })
-
+describe('recuperação de senha — casos de borda', () => {
   it('forgot: limite por email é silencioso e condomínio ausente usa nome padrão', async () => {
     const user = await createUser(await createCondo(), 'admin', { email: 'ana@teste.com' })
     await (await users()).updateOne({ _id: user._id }, { $set: { condo_id: new ObjectId() } })
@@ -152,6 +153,32 @@ describe('cadastro e recuperação — casos de borda', () => {
 })
 
 describe('rotas — respostas 4xx restantes', () => {
+  it('corpo que não é JSON → 400, nunca 500', async () => {
+    const broken = (method = 'POST') =>
+      new NextRequest('http://localhost/api/test', {
+        method,
+        headers: { 'content-type': 'application/json' },
+        body: '{isto não é json',
+      })
+    const condo = await createCondo()
+    await loginAs(await createUser(condo, ['admin', 'superadmin']))
+
+    expect((await createCondoRoute(broken())).status).toBe(400)
+    expect((await createOrgRoute(broken())).status).toBe(400)
+    expect((await createOrgCondo(broken())).status).toBe(400)
+    // encomenda que existe: corpo ilegível vira "sem PIN" → 400, e nada é entregue
+    const pkg = await createPackage(condo, (await createResident(condo))._id)
+    expect((await deliver(broken(), routeCtx(pkg._id))).status).toBe(400)
+    expect((await (await packages()).findOne({ _id: pkg._id }))!.delivered_at).toBeUndefined()
+    expect((await eraseUser(broken('DELETE'), routeCtx(new ObjectId()))).status).toBe(400)
+    expect(await (await condominiums()).countDocuments({})).toBe(1)
+  })
+
+  it('rótulos das roles vêm do banco; role desconhecida aparece pelo nome', async () => {
+    expect(await roleLabels(['admin', 'administradora', 'nao-existe'])).toBe('Administrador, Administradora, nao-existe')
+    expect(await roleLabels([])).toBe('')
+  })
+
   it('condomínio da sessão apagado → 404', async () => {
     const condo = await createCondo()
     await loginAs(await createUser(condo, 'admin'))

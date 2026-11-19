@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { ObjectId } from 'mongodb'
 import { NextRequest } from 'next/server'
-import { condominiums, packages, residents, users } from '@/lib/db/collections'
+import { condominiums, organizations, packages, residents, users } from '@/lib/db/collections'
 import { getRole, getStatus } from '@/lib/db/status-map'
 import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
@@ -10,8 +10,10 @@ import { requestState } from './request-state'
 export const PASSWORD = 'senha-forte-123'
 const PASSWORD_HASH = bcrypt.hashSync(PASSWORD, 4) // custo baixo: teste não precisa de hash lento
 
-export type RoleName = 'admin' | 'zelador' | 'porteiro' | 'sindico'
-export const ALL_ROLES: RoleName[] = ['admin', 'zelador', 'porteiro', 'sindico']
+/** Roles de condomínio — as que a tabela de acesso das rotas percorre */
+export type CondoRole = 'admin' | 'zelador' | 'porteiro' | 'sindico'
+export type RoleName = CondoRole | 'superadmin' | 'administradora'
+export const ALL_ROLES: CondoRole[] = ['admin', 'zelador', 'porteiro', 'sindico']
 
 export interface TestCondo {
   _id: ObjectId
@@ -22,16 +24,32 @@ export interface TestUser {
   _id: ObjectId
   name: string
   email: string
-  role: RoleName
+  roles: RoleName[]
   condo: TestCondo
 }
 
 let seq = 0
 
-export async function createCondo(name?: string): Promise<TestCondo> {
+export interface TestOrg {
+  _id: ObjectId
+  name: string
+}
+
+/** Administradora. Sem ela, o condomínio é autogerido. */
+export async function createOrg(name = `Administradora ${++seq}`): Promise<TestOrg> {
+  const { insertedId } = await (await organizations()).insertOne({
+    name,
+    status_id: (await getStatus('active'))._id,
+    created_at: new Date(),
+  })
+  return { _id: insertedId, name }
+}
+
+export async function createCondo(name?: string, org?: TestOrg): Promise<TestCondo> {
   const n = ++seq
   const condoName = name ?? `Condomínio ${n}`
   const { insertedId } = await (await condominiums()).insertOne({
+    ...(org ? { org_id: org._id } : {}),
     name: condoName,
     slug: `condo-${n}-${new ObjectId().toString()}`,
     status_id: (await getStatus('active'))._id,
@@ -42,22 +60,26 @@ export async function createCondo(name?: string): Promise<TestCondo> {
 
 export async function createUser(
   condo: TestCondo,
-  role: RoleName = 'admin',
-  overrides: { email?: string; name?: string; passwordHash?: string; created_at?: Date } = {},
+  /** Uma role ou várias — as permissões se somam */
+  role: RoleName | RoleName[] = 'admin',
+  overrides: { email?: string; name?: string; passwordHash?: string; created_at?: Date; org?: TestOrg; mustChangePassword?: boolean } = {},
 ): Promise<TestUser> {
   const n = ++seq
   const name = overrides.name ?? `Usuário ${n}`
   const email = overrides.email ?? `user${n}@teste.com`
+  const roles = Array.isArray(role) ? role : [role]
   const { insertedId } = await (await users()).insertOne({
     condo_id: condo._id,
+    ...(overrides.org ? { org_id: overrides.org._id } : {}),
+    ...(overrides.mustChangePassword ? { must_change_password: true } : {}),
     name,
     email,
     password_hash: overrides.passwordHash ?? PASSWORD_HASH,
-    role_id: (await getRole(role))._id,
+    role_ids: await Promise.all(roles.map(async (r) => (await getRole(r))._id)),
     status_id: (await getStatus('active'))._id,
     created_at: overrides.created_at ?? new Date(),
   })
-  return { _id: insertedId, name, email, role, condo }
+  return { _id: insertedId, name, email, roles, condo }
 }
 
 export async function createResident(condo: TestCondo, name = `Morador ${++seq}`) {
@@ -106,7 +128,7 @@ export async function loginAs(user: TestUser): Promise<string> {
   const token = await signToken({
     sub: user._id.toString(),
     name: user.name,
-    role: user.role,
+    roles: user.roles,
     condo_id: user.condo._id.toString(),
     condo_name: user.condo.name,
   })

@@ -1,12 +1,15 @@
 import type { ObjectId } from 'mongodb'
 import {
+  aiUsage,
   auditLogs,
   condominiums,
+  organizations,
   packages,
   passwordResetTokens,
   residents,
   users,
 } from '@/lib/db/collections'
+import { getStatus } from '@/lib/db/status-map'
 import { deleteS3Prefix, deleteS3Urls } from '@/lib/s3/delete'
 
 /**
@@ -30,18 +33,37 @@ export interface EraseResult {
   files: number
 }
 
+/** Morador com encomenda aguardando retirada não pode ser removido */
+export interface ErasePending {
+  pending: number
+}
+
 /**
  * Apaga o morador e tudo que o identifica: cadastro, foto da etiqueta e QR code das
  * encomendas dele, observações, PIN, link público e o conteúdo dos registros de auditoria.
  * As encomendas continuam existindo, anônimas, para os relatórios não mudarem de total.
+ *
+ * Só remove quem não tem NADA pendente de retirada: enquanto houver encomenda na
+ * portaria, o PIN e o cadastro são necessários para entregá-la. É isso que garante que
+ * nunca exista encomenda em aberto sem PIN.
+ *
+ * @returns null se o morador não existe; `{ pending }` se há encomendas em aberto.
  */
-export async function eraseResident(condoId: ObjectId, residentId: ObjectId): Promise<EraseResult | null> {
+export async function eraseResident(
+  condoId: ObjectId,
+  residentId: ObjectId,
+): Promise<EraseResult | ErasePending | null> {
   const resCol = await residents()
   const resident = await resCol.findOne({ _id: residentId, condo_id: condoId })
   if (!resident) return null
 
   const pkgCol = await packages()
   const scope = { condo_id: condoId, resident_id: residentId }
+
+  const { _id: deliveredStatusId } = await getStatus('delivered')
+  const pending = await pkgCol.countDocuments({ ...scope, status_id: { $ne: deliveredStatusId } })
+  if (pending > 0) return { pending }
+
   const pkgs = await pkgCol.find(scope, { projection: { photo_url: 1, qrcode_url: 1 } }).toArray()
 
   const files = await deleteS3Urls(pkgs.flatMap((p) => [p.photo_url, p.qrcode_url]))
@@ -102,11 +124,31 @@ export interface EraseCondoResult {
 /** Apaga o condomínio inteiro: arquivos, encomendas, moradores, usuários e auditoria. */
 export async function eraseCondo(condoId: ObjectId): Promise<EraseCondoResult | null> {
   const condosCol = await condominiums()
-  if (!(await condosCol.findOne({ _id: condoId }, { projection: { _id: 1 } }))) return null
+  const condo = await condosCol.findOne({ _id: condoId }, { projection: { org_id: 1 } })
+  if (!condo) return null
+
+  const usersCol = await users()
+
+  // Os admins da administradora não são do condomínio: só "moram" nele para ter onde cair
+  // no login. Vão para outro condomínio dela (sem a foto, que ficava na pasta apagada).
+  // Se este era o último, a administradora sai junto, com os admins dela.
+  if (condo.org_id) {
+    const sibling = await condosCol.findOne(
+      { org_id: condo.org_id, _id: { $ne: condoId } },
+      { sort: { name: 1 }, projection: { _id: 1 } },
+    )
+    if (sibling) {
+      await usersCol.updateMany(
+        { condo_id: condoId, org_id: condo.org_id },
+        { $set: { condo_id: sibling._id }, $unset: { photo_url: '' } },
+      )
+    } else {
+      await (await organizations()).deleteOne({ _id: condo.org_id })
+    }
+  }
 
   const files = await deleteS3Prefix(`condos/${condoId.toString()}/`)
 
-  const usersCol = await users()
   const userIds = (await usersCol.find({ condo_id: condoId }, { projection: { _id: 1 } }).toArray()).map((u) => u._id)
   await (await passwordResetTokens()).deleteMany({ user_id: { $in: userIds } })
 
@@ -116,6 +158,7 @@ export async function eraseCondo(condoId: ObjectId): Promise<EraseCondoResult | 
     (await residents()).deleteMany(scope),
     usersCol.deleteMany(scope),
     (await auditLogs()).deleteMany(scope),
+    (await aiUsage()).deleteMany(scope),
   ])
   await condosCol.deleteOne({ _id: condoId })
 

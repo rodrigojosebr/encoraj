@@ -14,6 +14,8 @@
         "APP_URL",
         "GEMINI_API_KEY",
         "GEMINI_MODEL",
+        "AI_PRICE_INPUT_USD_PER_MTOK",
+        "AI_PRICE_OUTPUT_USD_PER_MTOK",
         "LEGAL_COMPANY_NAME",
         "LEGAL_COMPANY_DOC",
         "LEGAL_CONTACT_EMAIL",

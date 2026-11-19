@@ -9,6 +9,8 @@ import { readImageUpload } from '@/lib/upload/image'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { signS3Url } from '@/lib/s3/sign'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 export async function DELETE() {
   try {
@@ -16,8 +18,8 @@ export async function DELETE() {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId, userName, condoId } = session
-    if (role !== 'admin') {
+    const { userId, userName, condoId } = session
+    if (!can(session, 'condo.manage')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -50,7 +52,7 @@ export async function DELETE() {
 
     return response
   } catch (err) {
-    console.error('[DELETE /api/condo/photo]', err)
+    await reportError('[DELETE /api/condo/photo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -61,8 +63,8 @@ export async function POST(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId, userName, condoId } = session
-    if (role !== 'admin') {
+    const { userId, userName, condoId } = session
+    if (!can(session, 'condo.manage')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -101,7 +103,7 @@ export async function POST(request: Request) {
 
     return response
   } catch (err) {
-    console.error('[POST /api/condo/photo]', err)
+    await reportError('[POST /api/condo/photo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

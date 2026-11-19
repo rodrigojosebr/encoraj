@@ -99,6 +99,61 @@ describe('analyzePackageLabel', () => {
     expect(await analyzePackageLabel('b', 'image/png', residents)).toBeNull()
   })
 
+  describe('monitoramento de uso', () => {
+    const usageOf = async (prepare: () => void) => {
+      const onUsage = vi.fn()
+      prepare()
+      await analyzePackageLabel('b', 'image/png', residents, onUsage)
+      expect(onUsage).toHaveBeenCalledTimes(1)
+      return onUsage.mock.calls[0][0]
+    }
+
+    it('informa modelo, resultado, tokens e tempo quando identifica', async () => {
+      const usage = await usageOf(() =>
+        generateContent.mockResolvedValueOnce({
+          response: {
+            text: () => '{"resident_id":"r1","confidence":"medium","extracted_text":"Maria"}',
+            usageMetadata: { promptTokenCount: 1200, candidatesTokenCount: 40, totalTokenCount: 1240 },
+          },
+        }),
+      )
+      expect(usage).toMatchObject({
+        model: 'gemini-2.0-flash',
+        outcome: 'matched',
+        confidence: 'medium',
+        promptTokens: 1200,
+        outputTokens: 40,
+        totalTokens: 1240,
+      })
+      expect(usage.latencyMs).toBeGreaterThanOrEqual(0)
+      expect(JSON.stringify(usage)).not.toContain('Maria') // nunca o texto lido
+    })
+
+    it('soma os tokens quando o provedor não manda o total', async () => {
+      const usage = await usageOf(() =>
+        generateContent.mockResolvedValueOnce({
+          response: { text: () => '{"resident_id":null}', usageMetadata: { promptTokenCount: 900, candidatesTokenCount: 10 } },
+        }),
+      )
+      expect(usage).toMatchObject({ outcome: 'no_match', totalTokens: 910 })
+    })
+
+    it.each([
+      ['resposta que não é JSON', () => reply('ilegível'), 'invalid_response'],
+      ['id fora da lista', () => reply('{"resident_id":"r999","confidence":"high","extracted_text":"x"}'), 'invalid_response'],
+      ['falha do Gemini', () => generateContent.mockRejectedValueOnce(new Error('quota')), 'error'],
+      ['sem chave', () => delete process.env.GEMINI_API_KEY, 'disabled'],
+    ])('%s → %s', async (_name, prepare, outcome) => {
+      expect(await usageOf(prepare)).toMatchObject({ outcome, promptTokens: 0, totalTokens: 0 })
+    })
+
+    it('sem moradores não há chamada nem registro', async () => {
+      const onUsage = vi.fn()
+      await analyzePackageLabel('b', 'image/png', [], onUsage)
+      expect(onUsage).not.toHaveBeenCalled()
+    })
+  })
+
   it('devolve null sem chave ou sem moradores, sem chamar o Gemini', async () => {
     expect(await analyzePackageLabel('b', 'image/png', [])).toBeNull()
     delete process.env.GEMINI_API_KEY

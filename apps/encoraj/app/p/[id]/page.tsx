@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
-import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents, condominiums } from '@/lib/db/collections'
 import { getStatusById, getStatus } from '@/lib/db/status-map'
@@ -24,26 +23,13 @@ export default async function PublicPackagePage({ params }: RouteContext) {
   const rl = await checkRateLimit(`public-pkg:${clientIp(await headers())}`, 60, 10 * 60 * 1000)
   if (rl.blocked) notFound()
 
-  const { _id: deliveredStatusId } = await getStatus('delivered')
-  const col = await packages()
-
-  // O link é /p/{public_token} — token aleatório, não derivado do _id.
-  let found = /^[A-Za-z0-9_-]{20,64}$/.test(id) ? await col.findOne({ public_token: id }) : null
-
-  // Compatibilidade: links enviados antes do token usavam o ObjectId. Vale só para
-  // encomenda antiga (sem token) e ainda não retirada — some sozinho com o tempo.
-  if (!found && /^[0-9a-f]{24}$/i.test(id)) {
-    found = await col.findOne({
-      _id: new ObjectId(id),
-      public_token: { $exists: false },
-      status_id: { $ne: deliveredStatusId },
-    })
-  }
+  // O link é /p/{public_token}: token aleatório, nunca o _id (que é sequencial)
+  const found = /^[A-Za-z0-9_-]{20,64}$/.test(id) ? await (await packages()).findOne({ public_token: id }) : null
   if (!found) notFound()
   const pkg = found
 
   const [resident, condo, pkgStatus, delivered] = await Promise.all([
-    residents().then(c => c.findOne({ _id: pkg.resident_id })),
+    residents().then(c => c.findOne({ _id: pkg.resident_id, condo_id: pkg.condo_id })),
     condominiums().then(c => c.findOne({ _id: pkg.condo_id })),
     getStatusById(pkg.status_id),
     getStatus('delivered'),

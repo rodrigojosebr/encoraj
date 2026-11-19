@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { css } from '@/styled-system/css'
 import { Button } from '@encoraj/ui'
+import { reportClientError } from '../_lib/report-client-error'
 
 export default function DashboardError({
   error,
@@ -13,6 +14,7 @@ export default function DashboardError({
 }) {
   useEffect(() => {
     console.error(error)
+    reportClientError(error)
   }, [error])
 
   return (

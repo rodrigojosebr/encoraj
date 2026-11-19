@@ -9,6 +9,8 @@ process.env.MONGODB_URI = uri.toString()
 process.env.JWT_SECRET = 'segredo-somente-de-teste-0123456789abcdef'
 process.env.APP_URL = 'http://localhost:3000'
 delete process.env.GEMINI_API_KEY
+delete process.env.AI_PRICE_INPUT_USD_PER_MTOK
+delete process.env.AI_PRICE_OUTPUT_USD_PER_MTOK
 
 // ── Mocks globais ───────────────────────────────────────────────────────────
 vi.mock('next/headers', () => ({
@@ -50,9 +52,12 @@ const ROLES = [
   { name: 'porteiro', label: 'Porteiro' },
   { name: 'sindico', label: 'Síndico' },
   { name: 'morador', label: 'Morador' },
+  { name: 'superadmin', label: 'Super admin' },
+  { name: 'administradora', label: 'Administradora' },
 ]
 // statuses e roles nunca são apagados: os _id ficam estáveis e o cache do app continua válido
 const VOLATILE = [
+  'organizations',
   'condominiums',
   'users',
   'residents',
@@ -60,6 +65,8 @@ const VOLATILE = [
   'audit_logs',
   'rate_limits',
   'password_reset_tokens',
+  'error_logs',
+  'ai_usage',
 ]
 
 const client = new MongoClient(process.env.MONGODB_URI)

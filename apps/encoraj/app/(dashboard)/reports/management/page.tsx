@@ -1,10 +1,11 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { Download } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import { readSession } from '@/lib/auth/session'
 import { addDays, fmtDate, fmtDateTime, tzParts } from '@/lib/date/tz'
 import { pageHref } from '@/lib/pagination'
+import { can } from '@/lib/auth/permissions'
 import { getManagementReport, resolvePeriod, TOP_N } from '@/lib/reports/management'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -106,6 +107,7 @@ export default async function ManagementReportPage({
 }) {
   const session = await readSession()
   if (!session) redirect('/api/auth/logout')
+  if (!can(session, 'reports.view')) notFound()
 
   const period = resolvePeriod(await searchParams)
   const report = await getManagementReport(session.condoId, period)

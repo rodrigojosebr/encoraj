@@ -6,7 +6,8 @@ import { getStatus } from '@/lib/db/status-map'
 import { sendEmail } from '@/lib/email/mailer'
 import { resetPasswordEmail } from '@/lib/email/templates'
 import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
-import { emailSchema, EMAIL_COLLATION } from '@/lib/auth/email'
+import { emailSchema } from '@/lib/auth/email'
+import { reportError } from '@/lib/observability/report'
 
 const schema = z.object({ email: emailSchema })
 
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Só contas ativas recebem link (conta desativada não volta por aqui)
     const usersCol = await users()
     const matchingUsers = await usersCol
-      .find({ email, status_id: (await getStatus('active'))._id }, { collation: EMAIL_COLLATION })
+      .find({ email, status_id: (await getStatus('active'))._id })
       .toArray()
 
     // Responde sempre 200 — não revela se o email existe
@@ -75,14 +76,14 @@ export async function POST(request: NextRequest) {
           })
         } catch (err) {
           // Falha de SMTP não pode virar resposta diferente (revelaria que o email existe)
-          console.error('[forgot] envio falhou', err)
+          await reportError('[forgot] envio falhou', err)
         }
       }),
     )
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[forgot]', err)
+    await reportError('[forgot]', err)
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 })
   }
 }

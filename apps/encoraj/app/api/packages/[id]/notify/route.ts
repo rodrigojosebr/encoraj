@@ -4,6 +4,8 @@ import { packages } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -14,7 +16,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
     const { id } = await params
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'admin' && session.role !== 'porteiro') {
+    if (!can(session, 'packages.notify')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
     if (!ObjectId.isValid(id)) {
@@ -54,7 +56,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[POST /api/packages/[id]/notify]', err)
+    await reportError('[POST /api/packages/[id]/notify]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

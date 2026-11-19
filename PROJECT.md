@@ -263,7 +263,6 @@ apps/encoraj/
       [id]/page.tsx              ← pública (sem login): foto, código, QR; entregue → banner verde
     (auth)/
       login/page.tsx             ← LoginForm em Suspense (useSearchParams); redireciona para ?next=
-      register/page.tsx
       forgot-password/page.tsx
       reset-password/page.tsx    ← ?token= na URL
     (dashboard)/
@@ -329,7 +328,6 @@ apps/encoraj/
         route.ts                 ← POST login (rate-limited), DELETE logout
         forgot/route.ts          ← POST forgot-password (rate-limited, silencioso)
         reset/route.ts           ← POST reset-password
-      register/route.ts
       condo/
         route.ts                 ← GET/PUT nome do condo
         photo/route.ts           ← POST upload foto → S3 + re-sign JWT; DELETE remove foto

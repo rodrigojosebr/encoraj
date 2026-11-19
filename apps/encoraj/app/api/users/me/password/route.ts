@@ -4,12 +4,13 @@ import { compare, hash } from 'bcryptjs'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { users } from '@/lib/db/collections'
-import { getSession } from '@/lib/auth/session'
+import { getSessionForPasswordChange } from '@/lib/auth/session'
 import { passwordSchema } from '@/lib/auth/email'
 import { signToken, verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { checkRateLimit, isRateLimited } from '@/lib/auth/rateLimit'
 import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
 
 const schema = z.object({
   current_password: z.string().min(1, 'Informe a senha atual.'),
@@ -18,7 +19,8 @@ const schema = z.object({
 
 export async function PUT(request: Request) {
   try {
-    const session = await getSession()
+    // Única rota que aceita quem ainda precisa trocar a senha recebida de outra pessoa
+    const session = await getSessionForPasswordChange()
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
     }
@@ -54,10 +56,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 400 })
     }
 
+    if (new_password === current_password) {
+      return NextResponse.json({ error: 'A nova senha precisa ser diferente da atual.' }, { status: 400 })
+    }
+
     const newHash = await hash(new_password, 10)
     await col.updateOne(
       { _id: user._id },
-      { $set: { password_hash: newHash, password_changed_at: new Date() } },
+      { $set: { password_hash: newHash, password_changed_at: new Date() }, $unset: { must_change_password: '' } },
     )
 
     await logAction({
@@ -83,7 +89,7 @@ export async function PUT(request: Request) {
 
     return response
   } catch (err) {
-    console.error('[me/password]', err)
+    await reportError('[me/password]', err)
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 })
   }
 }

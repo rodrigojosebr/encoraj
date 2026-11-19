@@ -3,6 +3,8 @@ import { getSession } from '@/lib/auth/session'
 import { getManagementReport, resolvePeriod, type ManagementReport } from '@/lib/reports/management'
 import { csvDocument, csvResponse } from '@/lib/text/csv'
 import { fmtDate, fmtDateTime } from '@/lib/date/tz'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 type Table = { columns: string[]; rows: Array<Array<string | number>> }
 
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'admin' && session.role !== 'sindico') {
+    if (!can(session, 'reports.view')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -49,7 +51,7 @@ export async function GET(request: Request) {
 
     return csvResponse(`gerencial-${section}-${period.fromStr}-a-${period.toStr}.csv`, csvDocument(columns, rows))
   } catch (err) {
-    console.error('[GET /api/reports/management/export]', err)
+    await reportError('[GET /api/reports/management/export]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

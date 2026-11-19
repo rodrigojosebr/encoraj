@@ -1,11 +1,9 @@
 /**
  * Versão dos Termos de Uso e da Política de Privacidade (data da última alteração).
  * Mudou o texto de app/(legal)/termos ou app/(legal)/privacidade? Atualize aqui —
- * o cadastro grava qual versão o admin aceitou.
+ * a data aparece no topo dos dois documentos.
  */
-export const TERMS_VERSION = '2026-11-17'
-
-export const TERMS_REQUIRED_MESSAGE = 'É preciso aceitar os Termos de Uso e a Política de Privacidade.'
+export const TERMS_VERSION = '2026-11-19'
 
 export interface LegalInfo {
   /** Quem opera o Encoraj (razão social ou nome) */

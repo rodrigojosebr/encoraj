@@ -18,8 +18,18 @@ export interface RoleDoc {
   created_at: Date
 }
 
+/** Administradora: empresa que cuida de vários condomínios */
+export interface OrganizationDoc {
+  _id?: ObjectId
+  name: string
+  status_id: ObjectId
+  created_at: Date
+}
+
 export interface CondominiumDoc {
   _id?: ObjectId
+  /** Administradora a que pertence. Ausente = condomínio autogerido */
+  org_id?: ObjectId
   name: string
   slug: string
   photo_url?: string
@@ -29,17 +39,20 @@ export interface CondominiumDoc {
 
 export interface UserDoc {
   _id?: ObjectId
+  /** Condomínio do usuário. Para o admin da administradora, é onde ele cai ao fazer login */
   condo_id: ObjectId
+  /** Só no admin da administradora (role `administradora`): de qual ela é */
+  org_id?: ObjectId
   name: string
   email: string
   password_hash: string
-  role_id: ObjectId
+  /** Roles do usuário — as permissões se somam */
+  role_ids: ObjectId[]
   status_id: ObjectId
   photo_url?: string
   password_changed_at?: Date
-  /** Aceite dos Termos e da Política no cadastro do condomínio (só o admin que se cadastrou) */
-  terms_accepted_at?: Date
-  terms_version?: string
+  /** A senha atual foi definida por outra pessoa: o dono precisa trocá-la antes de usar o sistema */
+  must_change_password?: boolean
   created_at: Date
   deleted_at?: Date
   deleted_by?: ObjectId
@@ -85,8 +98,9 @@ export interface PackageDoc {
   condo_id: ObjectId
   resident_id: ObjectId
   code: string
+  /** 6 dígitos exigidos na retirada. Só fica ausente depois da remoção definitiva do morador */
   delivery_pin?: string
-  /** Token aleatório do link público /p/{token}. Pacotes antigos não têm. */
+  /** Token aleatório do link público /p/{token}. Idem: ausente só após remoção definitiva */
   public_token?: string
   qrcode_url: string
   photo_url: string
@@ -115,6 +129,11 @@ export async function roles(): Promise<Collection<RoleDoc>> {
 export async function condominiums(): Promise<Collection<CondominiumDoc>> {
   const db = await getDb()
   return db.collection<CondominiumDoc>('condominiums')
+}
+
+export async function organizations(): Promise<Collection<OrganizationDoc>> {
+  const db = await getDb()
+  return db.collection<OrganizationDoc>('organizations')
 }
 
 export async function users(): Promise<Collection<UserDoc>> {
@@ -152,4 +171,54 @@ export async function passwordResetTokens(): Promise<Collection<PasswordResetTok
 export async function rateLimits(): Promise<Collection<RateLimitDoc>> {
   const db = await getDb()
   return db.collection<RateLimitDoc>('rate_limits')
+}
+
+// ── Plataforma (super admin) — não pertencem a um condomínio ──────────────────
+
+/** Erro de servidor agrupado: o mesmo erro vira um documento só, com contador. */
+export interface ErrorLogDoc {
+  _id?: ObjectId
+  /** Hash de origem + tipo + mensagem mascarada */
+  fingerprint: string
+  label: string
+  name: string
+  /** Sempre mascarada (sem email, telefone, token ou link assinado) */
+  message: string
+  stack?: string
+  extra?: Record<string, string>
+  env: string
+  count: number
+  first_at: Date
+  last_at: Date
+  resolved_at?: Date
+  resolved_by?: ObjectId
+}
+
+export type AiOutcome = 'matched' | 'no_match' | 'invalid_response' | 'error' | 'disabled'
+
+/** Uma chamada ao modelo de IA (hoje: leitura de etiqueta). Sem texto nem imagem. */
+export interface AiUsageDoc {
+  _id?: ObjectId
+  condo_id: ObjectId
+  user_id: ObjectId
+  feature: 'ocr'
+  model: string
+  outcome: AiOutcome
+  confidence?: 'high' | 'medium' | 'low'
+  prompt_tokens: number
+  output_tokens: number
+  total_tokens: number
+  latency_ms: number
+  image_bytes: number
+  created_at: Date
+}
+
+export async function errorLogs(): Promise<Collection<ErrorLogDoc>> {
+  const db = await getDb()
+  return db.collection<ErrorLogDoc>('error_logs')
+}
+
+export async function aiUsage(): Promise<Collection<AiUsageDoc>> {
+  const db = await getDb()
+  return db.collection<AiUsageDoc>('ai_usage')
 }

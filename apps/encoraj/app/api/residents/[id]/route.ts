@@ -5,6 +5,8 @@ import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 const UpdateResidentSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
@@ -24,9 +26,9 @@ export async function PUT(request: Request, { params }: RouteContext) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId: actorId, userName: actorName, condoId } = session
+    const { userId: actorId, userName: actorName, condoId } = session
 
-    if (role !== 'admin' && role !== 'zelador') {
+    if (!can(session, 'residents.write')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -66,7 +68,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[PUT /api/residents/[id]]', err)
+    await reportError('[PUT /api/residents/[id]]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -78,9 +80,9 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId: actorId, userName: actorName, condoId } = session
+    const { userId: actorId, userName: actorName, condoId } = session
 
-    if (role !== 'admin' && role !== 'zelador') {
+    if (!can(session, 'residents.write')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -119,7 +121,7 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[PATCH /api/residents/[id]]', err)
+    await reportError('[PATCH /api/residents/[id]]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -131,9 +133,9 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId: actorId, userName: actorName, condoId } = session
+    const { userId: actorId, userName: actorName, condoId } = session
 
-    if (role !== 'admin' && role !== 'zelador') {
+    if (!can(session, 'residents.write')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -170,7 +172,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[DELETE /api/residents/[id]]', err)
+    await reportError('[DELETE /api/residents/[id]]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

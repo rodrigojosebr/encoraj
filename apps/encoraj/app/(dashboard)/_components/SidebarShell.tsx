@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useLocalStorage } from '../_lib/use-local-storage'
 import {
+  Briefcase,
+  Building2,
   LayoutDashboard,
   Package,
   Users,
@@ -12,6 +14,9 @@ import {
   BarChart2,
   Settings,
   UserCircle,
+  Bug,
+  Sparkles,
+  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   X,
@@ -30,6 +35,11 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?
   '/reports':   BarChart2,
   '/settings':  Settings,
   '/profile':   UserCircle,
+  '/condos':    Briefcase,
+  '/admin/condos': Building2,
+  '/admin/errors': Bug,
+  '/admin/ai':     Sparkles,
+  '/admin/permissions': ShieldCheck,
 }
 
 interface NavItem {

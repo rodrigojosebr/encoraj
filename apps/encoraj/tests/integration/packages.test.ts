@@ -170,10 +170,13 @@ describe('POST /api/packages/[id]/deliver', () => {
     expect((await tryDeliver(other._id, '123456')).status).toBe(200) // limite é por encomenda
   })
 
-  it('encomenda antiga, sem PIN, é entregue sem código', async () => {
+  it('encomenda sem PIN nunca é entregue, com ou sem código', async () => {
     const { condo, resident } = await scenario()
-    const legacy = await createPackage(condo, resident._id, { delivery_pin: null })
-    expect((await tryDeliver(legacy._id)).status).toBe(200)
+    const noPin = await createPackage(condo, resident._id, { delivery_pin: null })
+
+    expect((await tryDeliver(noPin._id)).status).toBe(409)
+    expect((await tryDeliver(noPin._id, '123456')).status).toBe(409)
+    expect(await statusOf(noPin._id)).toBe((await getStatus('arrived'))._id.toString())
   })
 
   it('não entrega encomenda de outro condomínio, nem conhecendo o PIN', async () => {

@@ -3,7 +3,6 @@
 import { safeNextPath } from '@/lib/auth/safe-next'
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { css } from '@/styled-system/css'
 import { Button, FormField } from '@encoraj/ui'
 
@@ -141,7 +140,7 @@ function LoginForm() {
             Entrar
           </Button>
 
-          {/* TODO: habilitar quando SMTP estiver configurado
+          {/* TODO: habilitar quando SMTP estiver configurado (e voltar o `import Link from 'next/link'`)
           <Link
             href="/forgot-password"
             className={css({ fontSize: 'sm', color: 'gray.500', textAlign: 'center', textDecoration: 'none', _hover: { color: 'blue.600' }, _dark: { color: 'gray.400', _hover: { color: 'blue.400' } } })}
@@ -151,15 +150,6 @@ function LoginForm() {
           */}
         </form>
 
-        <p className={css({ fontSize: 'sm', color: 'gray.500', textAlign: 'center', _dark: { color: 'gray.400' } })}>
-          Novo condomínio?{' '}
-          <Link
-            href="/register"
-            className={css({ color: 'blue.600', textDecoration: 'none', _hover: { textDecoration: 'underline' }, _dark: { color: 'blue.400' } })}
-          >
-            Criar conta
-          </Link>
-        </p>
       </div>
     </main>
   )

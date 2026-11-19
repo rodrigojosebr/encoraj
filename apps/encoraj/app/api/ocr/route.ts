@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
-import { analyzePackageLabel, type ResidentContext } from '@/lib/gemini/ocr'
+import { analyzePackageLabel, type OcrUsage, type ResidentContext } from '@/lib/gemini/ocr'
+import { recordAiUsage } from '@/lib/ai/usage'
 import { getSession } from '@/lib/auth/session'
 import { readImageUpload } from '@/lib/upload/image'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +15,7 @@ export async function POST(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    if (session.role !== 'porteiro' && session.role !== 'admin') {
+    if (!can(session, 'packages.register')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
     const condoId = session.condoId
@@ -43,7 +46,18 @@ export async function POST(request: Request) {
       bloco: r.bloco,
     }))
 
-    const result = await analyzePackageLabel(base64, image.contentType, residentContexts)
+    let usage: OcrUsage | undefined
+    const result = await analyzePackageLabel(base64, image.contentType, residentContexts, (u) => {
+      usage = u
+    })
+    if (usage) {
+      await recordAiUsage({
+        condoId: session.condoId,
+        userId: session.userId,
+        imageBytes: image.buffer.length,
+        usage,
+      })
+    }
 
     if (!result) {
       return NextResponse.json({ match: null, confidence: 'low', extracted_text: '', error: 'ocr_unavailable' })
@@ -65,7 +79,7 @@ export async function POST(request: Request) {
       extracted_text: result.extracted_text,
     })
   } catch (err) {
-    console.error('[POST /api/ocr]', err)
+    await reportError('[POST /api/ocr]', err)
     return NextResponse.json({ match: null, confidence: 'low', extracted_text: '', error: 'ocr_unavailable' })
   }
 }

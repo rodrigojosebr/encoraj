@@ -1,8 +1,14 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { readSession } from '@/lib/auth/session'
+import { can } from '@/lib/auth/permissions'
 import { css } from '@/styled-system/css'
 import ResidentForm from '../_components/ResidentForm'
 
-export default function NewResidentPage() {
+export default async function NewResidentPage() {
+  const session = await readSession()
+  if (!session || !can(session, 'residents.write')) notFound()
+
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6' })}>
       <div>

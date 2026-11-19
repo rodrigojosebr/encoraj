@@ -8,9 +8,3 @@ export const PASSWORD_MIN = 8
 export const passwordSchema = z
   .string()
   .min(PASSWORD_MIN, `A senha deve ter pelo menos ${PASSWORD_MIN} caracteres.`)
-
-/**
- * Comparação de email ignorando maiúsculas/minúsculas — cobre registros antigos,
- * gravados antes da normalização.
- */
-export const EMAIL_COLLATION = { locale: 'en', strength: 2 } as const

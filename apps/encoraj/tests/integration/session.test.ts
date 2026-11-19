@@ -33,7 +33,7 @@ describe('getSession', () => {
     expect(await getSession()).toEqual({
       userId: user._id.toString(),
       userName: 'José',
-      role: 'porteiro',
+      roles: ['porteiro'],
       condoId: user.condo._id.toString(),
       condoName: 'Condomínio Ação',
     })
@@ -55,8 +55,39 @@ describe('getSession', () => {
     await loginAs(user)
     await (await users()).updateOne(
       { _id: user._id },
-      { $set: { role_id: (await getRole('porteiro'))._id } },
+      { $set: { role_ids: [(await getRole('porteiro'))._id] } },
     )
+    expect(await getSession()).toBeNull()
+  })
+
+  it('várias roles: a sessão traz todas, em qualquer ordem', async () => {
+    const user = await createUser(await createCondo(), ['zelador', 'porteiro'])
+    await loginAs({ ...user, roles: ['porteiro', 'zelador'] })
+    expect((await getSession())!.roles.sort()).toEqual(['porteiro', 'zelador'])
+  })
+
+  it('ganhar ou perder UMA role invalida o token antigo', async () => {
+    const user = await createUser(await createCondo(), ['zelador', 'porteiro'])
+    const ids = { zelador: (await getRole('zelador'))._id, porteiro: (await getRole('porteiro'))._id, admin: (await getRole('admin'))._id }
+
+    await loginAs(user)
+    await (await users()).updateOne({ _id: user._id }, { $set: { role_ids: [ids.zelador] } })
+    expect(await getSession()).toBeNull() // perdeu porteiro
+
+    await (await users()).updateOne({ _id: user._id }, { $set: { role_ids: [ids.zelador, ids.porteiro, ids.admin] } })
+    expect(await getSession()).toBeNull() // ganhou admin: token antigo não vira admin sozinho
+  })
+
+  it('token que afirma uma role que o banco não deu é recusado', async () => {
+    const user = await createUser(await createCondo(), 'porteiro')
+    await loginAs({ ...user, roles: ['porteiro', 'admin'] })
+    expect(await getSession()).toBeNull()
+  })
+
+  it('usuário sem nenhuma role não tem sessão', async () => {
+    const user = await createUser(await createCondo(), 'porteiro')
+    await loginAs(user)
+    await (await users()).updateOne({ _id: user._id }, { $set: { role_ids: [] } })
     expect(await getSession()).toBeNull()
   })
 

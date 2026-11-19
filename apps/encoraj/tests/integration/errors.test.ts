@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 // Simula o banco fora do ar no primeiro acesso de qualquer rota protegida
-vi.mock('@/lib/auth/session', () => ({
-  getSession: vi.fn(async () => {
+vi.mock('@/lib/auth/session', () => {
+  const down = vi.fn(async () => {
     throw new Error('banco fora do ar')
-  }),
-}))
+  })
+  return { getSession: down, getSessionForPasswordChange: down }
+})
 
 import { POST as login } from '@/app/api/auth/route'
-import { POST as register } from '@/app/api/register/route'
 import { POST as forgot } from '@/app/api/auth/forgot/route'
 import { POST as reset } from '@/app/api/auth/reset/route'
 import { PROTECTED_ROUTES } from '../helpers/routes'
@@ -47,7 +47,6 @@ describe('falha interna nunca vaza detalhe e sempre é registrada', () => {
 
   it.each([
     ['POST /api/auth', login],
-    ['POST /api/register', register],
     ['POST /api/auth/forgot', forgot],
     ['POST /api/auth/reset', reset],
   ])('%s com corpo ilegível', async (_name, handler) => {

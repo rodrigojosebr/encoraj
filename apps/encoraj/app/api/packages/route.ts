@@ -8,6 +8,9 @@ import { logAction } from '@/lib/audit/log'
 import { generateAndUploadQRCode } from '@/lib/qrcode/generate'
 import { getSession } from '@/lib/auth/session'
 import { s3PublicUrl } from '@/lib/s3/upload'
+import { signS3Url } from '@/lib/s3/sign'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 const createSchema = z.object({
   resident_id: z.string().refine((v) => ObjectId.isValid(v), 'Morador inválido'),
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (!['admin', 'porteiro', 'sindico'].includes(session.role)) {
+    if (!can(session, 'packages.read')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -46,9 +49,17 @@ export async function GET(request: Request) {
       .limit(500)
       .toArray()
 
-    return NextResponse.json(docs)
+    // URL de imagem só sai assinada
+    const signed = await Promise.all(
+      docs.map(async (doc) => ({
+        ...doc,
+        photo_url: await signS3Url(doc.photo_url),
+        qrcode_url: await signS3Url(doc.qrcode_url),
+      })),
+    )
+    return NextResponse.json(signed)
   } catch (err) {
-    console.error('[GET /api/packages]', err)
+    await reportError('[GET /api/packages]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -57,7 +68,7 @@ export async function POST(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'porteiro' && session.role !== 'admin') {
+    if (!can(session, 'packages.register')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -124,9 +135,9 @@ export async function POST(request: Request) {
       after: { resident_id, code, photo_url, notes },
     })
 
-    return NextResponse.json({ _id: packageId, code, qrcode_url }, { status: 201 })
+    return NextResponse.json({ _id: packageId, code, qrcode_url: await signS3Url(qrcode_url) }, { status: 201 })
   } catch (err) {
-    console.error('[POST /api/packages]', err)
+    await reportError('[POST /api/packages]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

@@ -12,11 +12,13 @@ interface RoleOption {
 
 interface UserFormProps {
   id?: string
-  defaultValues?: { name: string; email: string; role: string }
+  defaultValues?: { name: string; email: string; roles: string[] }
   roleOptions: RoleOption[]
+  /** Quem já tem um perfil que a tela não atribui (administradora, super admin) pode ficar sem perfil de condomínio */
+  rolesOptional?: boolean
 }
 
-export default function UserForm({ id, defaultValues, roleOptions }: UserFormProps) {
+export default function UserForm({ id, defaultValues, roleOptions, rolesOptional = false }: UserFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [error, setError] = useState<string | null>(null)
@@ -28,10 +30,16 @@ export default function UserForm({ id, defaultValues, roleOptions }: UserFormPro
     setLoading(true)
 
     const form = new FormData(e.currentTarget)
-    const body: Record<string, string> = {
+    const roles = form.getAll('roles') as string[]
+    if (roles.length === 0 && !rolesOptional) {
+      setError('Escolha pelo menos um perfil.')
+      setLoading(false)
+      return
+    }
+    const body: Record<string, string | string[]> = {
       name: form.get('name') as string,
       email: form.get('email') as string,
-      role: form.get('role') as string,
+      roles,
     }
     const password = form.get('password') as string
     if (password) body.password = password
@@ -82,32 +90,19 @@ export default function UserForm({ id, defaultValues, roleOptions }: UserFormPro
 
       <div className={css({ display: 'flex', flexDir: 'column', gap: '1.5' })}>
         <label className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.700', _dark: { color: 'gray.300' } })}>
-          Perfil <span className={css({ color: 'red.500' })}>*</span>
+          Perfis {!rolesOptional && <span className={css({ color: 'red.500' })}>*</span>}
         </label>
-        <select
-          name="role"
-          required
-          defaultValue={defaultValues?.role ?? 'porteiro'}
-          className={css({
-            w: 'full',
-            px: '3',
-            py: '2',
-            border: '1px solid',
-            borderColor: 'gray.300',
-            borderRadius: 'md',
-            fontSize: 'sm',
-            bg: 'white',
-            color: 'gray.900',
-            outline: 'none',
-            cursor: 'pointer',
-            _focus: { borderColor: 'blue.500', ring: '1px', ringColor: 'blue.500' },
-            _dark: { bg: 'gray.900', borderColor: 'gray.700', color: 'gray.100' },
-          })}
-        >
+        <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
           {roleOptions.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
+            <label key={r.value} className={css({ display: 'flex', alignItems: 'center', gap: '2', fontSize: 'sm', color: 'gray.800', cursor: 'pointer', _dark: { color: 'gray.200' } })}>
+              <input type="checkbox" name="roles" value={r.value} defaultChecked={defaultValues?.roles.includes(r.value) ?? false} />
+              {r.label}
+            </label>
           ))}
-        </select>
+        </div>
+        <span className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
+          As permissões se somam: marque todos os papéis que a pessoa exerce.
+        </span>
       </div>
 
       <FormField
@@ -117,7 +112,8 @@ export default function UserForm({ id, defaultValues, roleOptions }: UserFormPro
         required={!id}
         minLength={8}
         placeholder={id ? '••••••••' : 'Mínimo 8 caracteres'}
-        autoComplete={id ? 'new-password' : 'new-password'}
+        autoComplete="new-password"
+        hint="A pessoa terá que trocar esta senha ao entrar."
       />
 
       <div className={css({ display: 'flex', gap: '3', pt: '2' })}>

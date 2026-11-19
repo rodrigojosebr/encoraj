@@ -3,14 +3,18 @@ import bcrypt from 'bcryptjs'
 import { GET as listUsers, POST as createUserRoute } from '@/app/api/users/route'
 import { PUT as updateUser, DELETE as deleteUser } from '@/app/api/users/[id]/route'
 import { PUT as changePassword } from '@/app/api/users/me/password/route'
+import { POST as createResidentRoute } from '@/app/api/residents/route'
+import { POST as createPackageRoute } from '@/app/api/packages/route'
+import { GET as exportReport } from '@/app/api/reports/export/route'
 import { auditLogs, users } from '@/lib/db/collections'
 import { getRole, getStatus } from '@/lib/db/status-map'
+import { userRoleNames } from '@/lib/auth/user-roles'
 import { getSession } from '@/lib/auth/session'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
-import { createCondo, createUser, jsonRequest, loginAs, PASSWORD, routeCtx } from '../helpers/factory'
+import { createCondo, createResident, createUser, jsonRequest, loginAs, PASSWORD, photoUrl, routeCtx } from '../helpers/factory'
 import { requestState } from '../helpers/request-state'
 
-const newUser = { name: 'Novo Zelador', email: 'Ze@Teste.com', password: 'senha-forte-123', role: 'zelador' }
+const newUser = { name: 'Novo Zelador', email: 'Ze@Teste.com', password: 'senha-forte-123', roles: ['zelador'] }
 
 describe('GET /api/users', () => {
   it('lista só usuários ativos do próprio condomínio, sem hash de senha', async () => {
@@ -39,7 +43,7 @@ describe('POST /api/users', () => {
 
     const created = await (await users()).findOne({ email: 'ze@teste.com' })
     expect(created).toMatchObject({ condo_id: admin.condo._id, name: 'Novo Zelador' })
-    expect(created!.role_id.equals((await getRole('zelador'))._id)).toBe(true)
+    expect(created!.role_ids).toEqual([(await getRole('zelador'))._id])
     expect(await bcrypt.compare(newUser.password, created!.password_hash)).toBe(true)
 
     const log = await (await auditLogs()).findOne({ entity_id: created!._id })
@@ -64,7 +68,9 @@ describe('POST /api/users', () => {
 
   it.each([
     ['senha curta', { password: '1234567' }],
-    ['role inexistente', { role: 'morador' }],
+    ['role que a tela não atribui', { roles: ['morador'] }],
+    ['nenhuma role', { roles: [] }],
+    ['role única fora de lista (formato antigo)', { roles: undefined, role: 'zelador' }],
     ['email inválido', { email: 'x' }],
   ])('%s → 400', async (_name, override) => {
     await loginAs(await createUser(await createCondo()))
@@ -97,9 +103,9 @@ describe('PUT /api/users/[id]', () => {
     const zelador = await createUser(condo, 'zelador')
 
     await loginAs(admin)
-    expect((await updateUser(jsonRequest('PUT', { role: 'sindico' }), routeCtx(porteiro._id))).status).toBe(200)
+    expect((await updateUser(jsonRequest('PUT', { roles: ['sindico'] }), routeCtx(porteiro._id))).status).toBe(200)
 
-    await loginAs(porteiro) // token antigo, ainda com role porteiro
+    await loginAs(porteiro) // token antigo, ainda com a role porteiro
     expect(await getSession()).toBeNull()
 
     const zeladorToken = await loginAs(zelador)
@@ -123,11 +129,24 @@ describe('PUT /api/users/[id]', () => {
     expect(other.email).toBe('ocupado@teste.com')
   })
 
-  it('admin não rebaixa o próprio role', async () => {
+  it('admin não tira o próprio admin, mas pode somar outras roles a si mesmo', async () => {
     const admin = await createUser(await createCondo())
     await loginAs(admin)
-    expect((await updateUser(jsonRequest('PUT', { role: 'porteiro' }), routeCtx(admin._id))).status).toBe(400)
-    expect((await updateUser(jsonRequest('PUT', { role: 'admin', name: 'Novo Nome' }), routeCtx(admin._id))).status).toBe(200)
+    expect((await updateUser(jsonRequest('PUT', { roles: ['porteiro'] }), routeCtx(admin._id))).status).toBe(400)
+    expect((await updateUser(jsonRequest('PUT', { roles: ['admin', 'porteiro'], name: 'Novo Nome' }), routeCtx(admin._id))).status).toBe(200)
+
+    const doc = (await (await users()).findOne({ _id: admin._id }))!
+    expect(doc.name).toBe('Novo Nome')
+    expect(await userRoleNames(doc)).toEqual(['admin', 'porteiro'])
+  })
+
+  it('roles repetidas no pedido viram uma só', async () => {
+    const condo = await createCondo()
+    const target = await createUser(condo, 'porteiro')
+    await loginAs(await createUser(condo, 'admin'))
+
+    await updateUser(jsonRequest('PUT', { roles: ['zelador', 'zelador', 'sindico'] }), routeCtx(target._id))
+    expect((await (await users()).findOne({ _id: target._id }))!.role_ids).toHaveLength(2)
   })
 })
 
@@ -189,5 +208,35 @@ describe('PUT /api/users/me/password', () => {
 
     for (let i = 0; i < 5; i++) expect((await attempt('errada')).status).toBe(400)
     expect((await attempt(PASSWORD)).status).toBe(429)
+  })
+})
+
+describe('permissões se somam', () => {
+  it('zelador + porteiro faz o que cada role permite, e nada além', async () => {
+    const condo = await createCondo()
+    const both = await createUser(condo, ['zelador', 'porteiro'])
+    const resident = await createResident(condo)
+    await loginAs(both)
+
+    // de zelador: cadastrar morador
+    const created = await createResidentRoute(jsonRequest('POST', { name: 'Ana', apartment: '12', whatsapp: '+5511999990000' }))
+    expect(created.status).toBe(201)
+    // de porteiro: registrar chegada
+    const arrived = await createPackageRoute(jsonRequest('POST', { resident_id: resident._id.toString(), photo_url: photoUrl(condo) }))
+    expect(arrived.status).toBe(201)
+    // de nenhuma das duas: gerir usuários e exportar relatório
+    expect((await listUsers()).status).toBe(403)
+    expect((await exportReport(jsonRequest('GET', undefined, {}, 'http://localhost/api/reports/export'))).status).toBe(403)
+  })
+
+  it('criar usuário já com duas roles', async () => {
+    const condo = await createCondo()
+    await loginAs(await createUser(condo, 'admin'))
+
+    const res = await createUserRoute(jsonRequest('POST', { ...newUser, roles: ['sindico', 'porteiro'] }))
+    expect(res.status).toBe(201)
+    const created = (await (await users()).findOne({ email: 'ze@teste.com' }))!
+    expect((await userRoleNames(created)).sort()).toEqual(['porteiro', 'sindico'])
+    expect(await (await auditLogs()).findOne({ entity_id: created._id })).toMatchObject({ after: { roles: ['sindico', 'porteiro'] } })
   })
 })

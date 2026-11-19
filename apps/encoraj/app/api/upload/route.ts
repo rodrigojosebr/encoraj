@@ -3,12 +3,14 @@ import { randomUUID } from 'crypto'
 import { uploadToS3 } from '@/lib/s3/upload'
 import { getSession } from '@/lib/auth/session'
 import { readImageUpload } from '@/lib/upload/image'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 export async function POST(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'porteiro' && session.role !== 'admin') {
+    if (!can(session, 'packages.register')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url })
   } catch (err) {
-    console.error('[POST /api/upload]', err)
+    await reportError('[POST /api/upload]', err)
     return NextResponse.json({ error: 'Erro ao fazer upload' }, { status: 500 })
   }
 }

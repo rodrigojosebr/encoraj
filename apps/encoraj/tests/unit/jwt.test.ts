@@ -5,7 +5,7 @@ import { signToken, verifyToken } from '@/lib/auth/jwt'
 const payload = {
   sub: '507f1f77bcf86cd799439011',
   name: 'José',
-  role: 'admin',
+  roles: ['admin'],
   condo_id: '507f1f77bcf86cd799439012',
   condo_name: 'Condomínio Demo',
 }
@@ -21,7 +21,7 @@ describe('jwt', () => {
   it('recusa token adulterado', async () => {
     const token = await signToken(payload)
     const [header, body, signature] = token.split('.')
-    const forged = Buffer.from(JSON.stringify({ ...payload, role: 'admin', condo_id: 'outro' })).toString('base64url')
+    const forged = Buffer.from(JSON.stringify({ ...payload, roles: ['admin', 'superadmin'], condo_id: 'outro' })).toString('base64url')
     await expect(verifyToken(`${header}.${forged}.${signature}`)).rejects.toThrow()
     expect(body).not.toBe(forged)
   })

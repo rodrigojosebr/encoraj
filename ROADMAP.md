@@ -65,10 +65,10 @@
 
 ## Fase 8 — Onboarding de Condomínio ✅
 
-- [x] Página pública `/register`
-- [x] `POST /api/register` — cria condo + admin + login automático
-- [x] Slug auto-gerado com sufixo numérico se duplicado
-- [x] Link "Criar conta" no login / "Já tem conta?" no register
+> **Substituído em 19/nov/2026**: o cadastro público (`/register`, `POST /api/register`, link "Criar conta") foi
+> removido. Condomínio só nasce pelas mãos do super admin — ver "Plataforma: condomínios e super admin".
+
+- [x] Slug auto-gerado com sufixo numérico se duplicado (hoje em `lib/condos/create.ts`)
 
 ---
 
@@ -149,7 +149,6 @@
 - [x] `prebuild` script: `panda codegen` roda antes do `next build` na Vercel
 - [x] Next.js 15.5.12 (backport com fix do CVE-2025-66478)
 - [x] Deploy na Vercel + variáveis de ambiente de produção
-- [ ] Descomentar link "Esqueci minha senha" após configurar SMTP → movido para Fase 10
 
 ---
 
@@ -224,7 +223,6 @@
 - [x] Criar projeto na Vercel + conectar repositório
 - [x] Configurar variáveis de ambiente de produção (MongoDB, JWT, S3, Gemini, SMTP)
 - [x] Definir `APP_URL` com URL real da Vercel
-- [ ] Descomentar link "Esqueci minha senha" no login (quando SMTP configurado)
 - [x] Testar fluxo completo em produção (registro → notificação → retirada)
 - [ ] Configurar domínio customizado (opcional)
 
@@ -241,12 +239,12 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] OCR ainda responde? O fallback é silencioso — testar uma etiqueta em produção. Se o modelo foi aposentado, definir `GEMINI_MODEL` na Vercel (não precisa de deploy de código)
 - [ ] Migrar o OCR para o SDK `@google/genai` — fazer junto, com a chave em mãos para testar
 - [x] Foto de celular acima de ~4,5 MB: agora é reduzida no navegador (máx. 1600 px, JPEG) antes do OCR e do upload — **conferir no celular**
-- [ ] **Publicar o Next 15.5.29** — a 15.5.12 em produção tem 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. Upgrade comitado no branch `dash+pwa` (typecheck, lint e 429 testes verdes); **falta teste manual, merge na `main` e deploy**
+- [ ] **Publicar o branch `dash+pwa`** — produção ainda roda o Next 15.5.12, com 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. O branch já está no Next 16 (typecheck, lint, 645 testes e build verdes em 19/nov/2026); **falta teste manual em preview, merge na `main` e deploy**
 - [ ] Majors pendentes — ver **Fase 11** (plano passo a passo, um por vez)
 
 **Vazamento de dados**
 - [x] **Vazamento entre condomínios nas páginas**: `/residents` listava moradores de todos os condomínios; `/residents/[id]/edit` e `/users/[id]/edit` abriam registro de qualquer condomínio (faltava `condo_id` no filtro)
-- [ ] Links `/p/` de encomendas anteriores ao token continuam aceitando o ObjectId enquanto não forem retiradas (compatibilidade com mensagens já enviadas)
+- [x] Link público só por token: a aceitação do link antigo por ObjectId foi removida
 - [x] `/p/[id]` usa ObjectId como segredo: quem tem um link consegue enumerar vizinhos e ver nome, foto da etiqueta e PIN de outros moradores (inclusive de outros condomínios). Trocar por token aleatório (`crypto.randomBytes`) em campo próprio + rate limit na rota
 - [x] `GET /api/users` devolve `password_hash` (sem projeção) e inclui usuários excluídos
 - [x] `GET /api/packages` e `/api/packages/[id]` devolvem `delivery_pin`; PIN gerado com `Math.random` → usar `crypto.randomInt`
@@ -258,18 +256,19 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [x] Open redirect no login: `?next=//evil.com` passa em `startsWith('/')`
 - [x] Recuperação de senha — backend: link usa `APP_URL`, só conta ativa recebe, pedido novo invalida o anterior, token consumido de forma atômica, limite por email e por IP, audit log
 - [ ] Recuperação de senha — ligar: configurar SMTP na Vercel e descomentar o link "Esqueci minha senha" em `app/(auth)/login/page.tsx`
-- [x] Normalizar email para minúsculas em register/login/users + índice único parcial em `users.email`
-- [ ] Conferir no banco se há email ativo duplicado entre condomínios (legado): se houver, o índice único não é criado (aparece `[indexes]` no log) e o login usa a conta mais recente cuja senha confere. Desativar a conta antiga resolve
-- [x] `/api/register` com rate limit por IP (5/h)
+- [x] Normalizar email para minúsculas em login/users + índice único parcial em `users.email`
+- [x] Email único entre usuários ativos garantido pelo índice no banco; o tratamento para duplicados antigos foi removido (a base será recriada)
+- [x] Cadastro público removido: não existe mais rota aberta que crie condomínio ou usuário
 - [x] Rate limit de login é só por IP e conta login bem-sucedido: portaria atrás do mesmo IP trava com 5 logins em 15 min; e não há limite por email. Contar só falhas, chave IP+email
-- [x] Política de senha única (hoje mínimo 6 em register/users e 8 em reset/troca)
+- [x] Política de senha única (era mínimo 6 em cadastro/users e 8 em reset/troca)
 
 **LGPD (dados pessoais de moradores: nome, apartamento, WhatsApp, foto de etiqueta)**
-- [x] Política de Privacidade (`/privacidade`) e Termos de Uso (`/termos`), com aceite obrigatório no `/register` (grava data e versão aceita)
+- [x] Política de Privacidade (`/privacidade`) e Termos de Uso (`/termos`), públicas. O aceite no cadastro saiu junto com o cadastro público: quem contrata é atendido pelo operador da plataforma
 - [ ] Definir na Vercel `LEGAL_COMPANY_NAME`, `LEGAL_COMPANY_DOC` e `LEGAL_CONTACT_EMAIL` — sem o email, os documentos não mostram canal de contato para pedidos de dados
 - [ ] Passar os dois textos por revisão jurídica antes de divulgar o produto
 - Retenção: **não há prazo automático** (decisão de 17/nov/2026). Dado só é removido a pedido do titular ou do condomínio, pelas rotas de remoção definitiva
 - [x] Remoção definitiva a pedido do titular: `DELETE /api/residents/[id]/erase`, `/api/users/[id]/erase` e `/api/condo/erase` — só admin, sem botão na interface (ver CLAUDE.md)
+- [x] Morador com encomenda aguardando retirada não pode ser removido (409); com isso a retirada exige PIN sempre, sem caso especial
 
 ### P1 — primeira semana
 
@@ -281,6 +280,14 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] CSP: já enviada em modo relatório (`Content-Security-Policy-Report-Only`). Navegar pelo app com o console aberto; sem avisos, trocar o nome do header no `next.config.ts` para ativar
 - [x] Índices no MongoDB em `lib/db/indexes.ts`, criados uma vez por processo (saíram de dentro dos helpers de collection)
 - [x] Paginação em `/packages`, `/reports`, `/residents` (25 por página); export CSV virou rota (`/api/reports/export`) e exporta todas as páginas do filtro
+- [x] Monitoramento de erro: `reportError()` em todas as rotas, no OCR, na renderização (`instrumentation.ts`) e nas telas de erro; erros guardados agrupados e mascarados
+- [x] **Permissões por roles somadas**: usuário tem um conjunto de roles (`role_ids`), checadas com `hasRole()`; tela de usuários com várias roles; sem compatibilidade com o formato antigo de role única
+- [x] Mapa único de permissões (`lib/auth/permissions.ts`): rotas, proxy e menu autorizam por `can(session, 'permissão')`; tela `/admin/permissions` mostra a matriz, só para consulta
+- [x] Role `superadmin` com duas telas: `/admin/errors` (erros do sistema, resolver/reabrir) e `/admin/ai` (uso de IA: chamadas, resultado, tokens, tempo, custo estimado, por condomínio e por modelo). Atribuída só por alteração direta no banco — sem tela, rota ou script
+- [x] Sem envio de dados para fora: o webhook de alerta foi removido; erros ficam no log e no banco
+- [ ] **Recriar a base** (ou regravar os usuários): quem foi cadastrado antes das roles somadas não tem `role_ids` e não consegue entrar. `yarn preflight` acusa
+- [ ] Dar a si mesmo a role `superadmin` no banco (comandos no CLAUDE.md → Super admin) e entrar de novo. Para ver custo de IA, definir `AI_PRICE_INPUT_USD_PER_MTOK` e `AI_PRICE_OUTPUT_USD_PER_MTOK` no `.env.local` e na Vercel
+- Limite conhecido: se o próprio banco cair, o erro não tem onde ser guardado — fica só no log da Vercel
 - [ ] Backup do MongoDB (Atlas free não tem) e teste de restauração
 - [x] Testes de unidade e de integração das rotas (etapas 1 a 3 do plano abaixo) — 339 testes, 100% das linhas de `lib/`, `app/api/` e `middleware.ts`
 - [x] CI (`.github/workflows/ci.yml`): typecheck + lint + `test:coverage` em PR e push na `main` — **ainda não rodou no GitHub**
@@ -308,7 +315,7 @@ Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco r
    - **Matriz de isolamento**: para cada rota, sessão do condomínio A não lê nem altera nada do B
    - **Matriz de role**: para cada rota × role, 200/403 esperado
    - login: senha errada, limite por IP+email só em falha, sucesso zera, email com maiúscula, mesmo email ativo em dois condomínios
-   - register: cria condo + admin, email duplicado, slug repetido, rate limit
+   - condomínios (`condos.test.ts`): só super admin cria, email duplicado, slug repetido, entrar em condomínio, isolamento de quem não é super admin
    - users: unicidade de email entre condomínios, admin não se rebaixa nem se desativa, troca de senha derruba sessão, resposta sem `password_hash`
    - residents: CRUD, soft-delete, restore, busca com caractere de regex
    - packages: foto de outro bucket/condo recusada, morador inativo recusado, resposta sem PIN/token; deliver (PIN errado, limite, entrega dupla → 409, audit log); notify não "desentrega"
@@ -319,6 +326,92 @@ Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco r
 Sem teste ponta a ponta (decisão de 17/nov/2026: não haverá Playwright). Páginas e `/p/[id]` são validadas por teste manual.
 
 **Milestone**: um condomínio real pode se cadastrar sozinho sem que dados de moradores fiquem expostos e sem depender de suporte manual para recuperar acesso.
+
+---
+
+## Plataforma: condomínios e super admin ✅ (19/nov/2026)
+
+- [x] Só o super admin cria condomínio autogerido (`/admin/condos` → `POST /api/admin/condos`), já com o administrador dele
+- [x] Daí em diante o admin do condomínio cuida da própria equipe (zelador, síndico, porteiros)
+- [x] Super admin pode tudo (`can()`), em qualquer condomínio: entra nele por `/admin/condos` → "Entrar"
+      (`POST /api/condos/{id}/enter` troca o condomínio da sessão); o que fizer fica no audit log do condomínio, no nome dele
+- [x] Cadastro público removido (página, rota, link no login, aceite de termos no cadastro)
+
+### Entrada de usuários ✅ (19/nov/2026)
+
+- [x] Ninguém se cadastra sozinho: quem está acima cadastra, já dentro do condomínio (decisão: sem autocadastro e sem lista de usuários soltos)
+- [x] Senha definida por outra pessoa obriga a troca no primeiro acesso (`must_change_password` + `/change-password`); vale para
+      cadastro, redefinição feita por admin e admin criado junto com condomínio/administradora
+- [ ] Ideia, se fizer falta: expirar a senha inicial de conta cadastrada e nunca acessada
+
+### Administradora (um admin para vários condomínios) ✅ (19/nov/2026)
+
+- [x] Coleção `organizations` e `condominiums.org_id` **opcional**. Condomínio sem `org_id` é **autogerido** (rótulo na tela:
+      "Autogerido") e tem o próprio `admin`. Não se cria administradora de fachada — o dado não pode mentir.
+- [x] Role própria `administradora` (+ `users.org_id`): pode tudo que o `admin` pode, em todos os condomínios dela, e mais
+      `org.condos` (criar condomínio nela, entrar em qualquer um dela). Não é atribuída pela tela de usuários.
+- [x] Super admin cria a administradora com o primeiro condomínio e o admin dela (`POST /api/admin/organizations`)
+- [x] Admin da administradora cria condomínios nela (`/condos` → `POST /api/org/condos`) e troca de condomínio
+      (`POST /api/condos/{id}/enter`, o mesmo do super admin, limitado aos dela)
+- [x] Admin de condomínio não edita, não desativa nem remove o admin da administradora
+- [x] Remoção definitiva de condomínio: o admin da administradora vai para outro condomínio dela; se era o último, a
+      administradora sai junto
+
+Mapeado, fica para depois:
+
+- [ ] `sindico` atendendo mais de um condomínio (lista de condomínios no usuário + o mesmo "entrar")
+- [ ] Adicionar outros admins a uma administradora que já existe (hoje só nasce o primeiro; os demais, direto no banco)
+- [ ] Vincular/desvincular um condomínio existente a uma administradora
+- [ ] Listar o admin da administradora na tela de usuários de todos os condomínios dela (hoje só aparece no condomínio onde "mora")
+- [ ] Relatórios consolidados por administradora
+- [ ] Cobrança: como fica quando a administradora cria condomínios sozinha
+
+---
+
+## Dívida de padrão — auditoria de 19/nov/2026 🔜
+
+Corrigido na hora (regra de segurança ou de idioma quebrada):
+
+- [x] Páginas do dashboard não conferiam `can()` (só o proxy barrava) — agora toda página de condomínio confere
+- [x] `GET /api/packages`, `GET /api/packages/[id]` e `POST /api/packages` devolviam `photo_url`/`qrcode_url` sem assinar
+- [x] Buscas de morador por `_id` sem `condo_id` (painel, encomendas, relatórios, export, `/p`)
+- [x] `lib/gemini/ocr.ts` gravava no log a resposta do modelo (texto lido da etiqueta)
+- [x] Chaves em português no código (`caminho`, `condomínio`, `usuário`, `método` em `error_logs.extra`)
+
+Aberto — segurança/regra (fazer primeiro):
+
+- [ ] `GET /api/residents`, `/api/users`, `/api/packages*` não são usados pela interface e não paginam: remover (e tirar de `tests/helpers/routes.ts`) ou paginar
+- [ ] `/users` (página) lista sem paginação
+- [ ] `GET /api/condo` atende qualquer logado: confirmar que é de propósito (está documentado como exceção no CLAUDE.md)
+- [ ] JSON inválido vira 500 em 10 rotas (`request.json()` sem `.catch`): helper único `parseBody(request, schema)`
+- [ ] Login usa schema de email próprio em vez de `emailSchema`
+- [ ] Custo do bcrypt 10 em quatro rotas e 12 em `lib/condos/create.ts`: um `hashPassword()` único
+
+Aberto — duplicação / lugar das coisas:
+
+- [ ] Reassinar o JWT repetido em 7 lugares → `refreshSessionCookie()` em `lib/auth/`; `photo_url`/`condo_photo_url` no JWT não são lidos por ninguém (o layout relê do banco) — tirar do token elimina a maior parte
+- [ ] `PasswordField` (campo com olho) triplicado em login, reset e perfil, com SVG à mão → um componente em `@encoraj/ui` com `lucide-react`; usar também em `/change-password`
+- [ ] Moldura das telas de `(auth)` copiada em 4 páginas → `app/(auth)/layout.tsx`
+- [ ] `mutedCss`/`cardCss`/`thCss`/`tdCss` repetidos em 6 páginas; `Card` e `Text` de `@encoraj/ui` não são usados (o `Card` não tem dark mode) → corrigir o `Card` e usar, ou recipes no Panda
+- [ ] Contagens do painel e opções de filtro de status duplicadas entre `/` e `/reports` → `lib/packages/`
+- [ ] Rótulo da unidade ("Bloco X, Apto Y") formatado à mão em ~12 lugares, com formatos diferentes → `formatUnit()`
+- [ ] Mapa de moradores por id repetido em 4 lugares → `getResidentMap(condoId, ids)`
+- [ ] Regra de criação de encomenda dentro de `app/api/packages/route.ts` → `lib/packages/create.ts`
+- [ ] Upload de foto duplicado entre `/settings` e perfil → hook `usePhotoUpload`
+- [ ] Conferência de senha com limite duplicada (`condo/erase`, `users/me/password`) → `verifyPasswordWithLimit()`
+- [ ] 401/403/500 e mensagens escritos à mão em cada rota, com e sem ponto final → helpers `unauthorized()`/`forbidden()`/`serverError()`
+
+Aberto — nomes e limpeza:
+
+- [ ] Campo de banco `bloco` em português → `block` (a base será recriada, então é só renomear em código, testes e docs)
+- [ ] Corpo dos requests mistura camelCase (`condoName`, `adminEmail`) e snake_case (`resident_id`, `current_password`): padronizar em snake_case, que é o do banco
+- [ ] `lib/auth/rateLimit.ts` → `rate-limit.ts` (o resto de `lib/` é kebab-case); janelas de limite como constantes nomeadas
+- [ ] Rótulos do `reportError` fora do formato `[MÉTODO /api/...]`: `[me/password]`, `[reset]`, `[forgot]`, `[tela]`
+- [ ] Arquivos grandes: `NewPackageForm.tsx` (486), `reports/management/page.tsx` (375), `ProfileClient.tsx` (372), `SidebarShell.tsx` (340), `reports/page.tsx` (339)
+- [ ] `users/page.tsx`: `UserRow`/`UserCard` declarados dentro da página, casts `as unknown as` desnecessários, rótulo "Ativo" fixo no código
+- [ ] Prop morta `role` em `DashboardShell`/`SidebarShell`; `console.error` duplicado em `(dashboard)/error.tsx`; mínimo de senha "8" fixo no cliente
+- [ ] Busca de moradores com `<form>` próprio em vez do `SearchInput`
+- [ ] Árvore de pastas do `CLAUDE.md` incompleta (faltam `profile/`, `forgot-password`, `reset-password`, `lib/date`, `lib/legal`, `lib/pagination.ts`, componentes compartilhados)
 
 ---
 
@@ -374,7 +467,7 @@ Panda 2 e o SDK novo do Gemini exigem Node 22. O CI já usa 22; a máquina local
 
 - [x] API usada conferida contra os tipos do driver 7.9 (nada removido); o uso aqui é básico: `find`, `findOne`, `findOneAndUpdate`, `updateOne/Many`, `deleteOne/Many`, `countDocuments`, `createIndex`, `aggregate` só no `preflight`
 - [x] `mongodb-memory-server` traz o próprio driver; não depende do do app
-- [ ] `yarn typecheck && yarn test:coverage` — se passar, está validado
+- [x] `yarn typecheck && yarn test:coverage` — verdes em 19/nov/2026
 - [ ] Manual: `yarn preflight` e `yarn seed` contra o banco local (únicos usos de `dotenv`)
 - **Volta atrás**: reverter o PR; nada muda no banco
 
@@ -424,7 +517,7 @@ Passos:
 - [x] `middleware.ts` → `proxy.ts` (função `proxy`); teste e cobertura apontam para o arquivo novo
 - [x] `FlatCompat` trocado pela config nativa do `eslint-config-next`; `eslint` na 10.15 (três plugins ainda avisam peer dependency de ESLint 9 — previsto na doc do Next)
 - [x] Imagens do S3 com `<Image unoptimized>`: o link assinado muda a cada render e não deve passar pelo otimizador
-- [ ] `yarn typecheck && yarn lint && yarn test:coverage && yarn build`
+- [x] `yarn typecheck && yarn lint && yarn test:coverage && yarn build` — verdes em 19/nov/2026
 - [ ] Manual, em preview da Vercel — o roteiro completo:
   - login, logout, `?next=` depois de escanear QR, sessão revogada (desativar usuário logado)
   - cada role vê só o que pode (`/users`, `/residents`, `/packages`, `/reports`)

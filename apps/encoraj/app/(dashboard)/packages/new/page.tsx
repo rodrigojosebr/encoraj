@@ -1,14 +1,16 @@
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
+import { can } from '@/lib/auth/permissions'
 import NewPackageForm from './_components/NewPackageForm'
 
 export default async function NewPackagePage() {
   const session = await readSession()
   if (!session) redirect('/api/auth/logout')
+  if (!can(session, 'packages.register')) notFound()
   const condoId = session.condoId
 
   const activeStatus = await getStatus('active')

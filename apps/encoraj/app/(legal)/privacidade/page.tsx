@@ -77,7 +77,8 @@ export default function PrivacyPage() {
             'banco de dados (MongoDB Atlas);',
             'armazenamento das fotos (Amazon Web Services — S3);',
             'leitura automática da etiqueta (Google Gemini), que recebe a foto e a lista de moradores do próprio condomínio para sugerir o destinatário;',
-            'envio de email de redefinição de senha, quando solicitado.',
+            'envio de email de redefinição de senha, quando solicitado;',
+            'alerta de falhas técnicas à equipe do Encoraj, que recebe apenas a descrição do erro — sem nome, telefone, email ou foto de morador.',
           ]}
         />
         <p>
@@ -117,7 +118,8 @@ export default function PrivacyPage() {
           ) : null}
         </p>
         <p>
-          Na exclusão definitiva de um morador são apagados o cadastro, as fotos de etiqueta e os códigos das
+          A exclusão definitiva de um morador só é feita depois que todas as encomendas dele tiverem sido
+          retiradas. Nela são apagados o cadastro, as fotos de etiqueta e os códigos das
           encomendas dele e as observações. O registro de que uma encomenda existiu é mantido sem identificação,
           apenas para estatística do condomínio. Você também pode reclamar à Autoridade Nacional de Proteção de
           Dados (ANPD).

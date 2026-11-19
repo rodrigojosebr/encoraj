@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { packages } from '@/lib/db/collections'
 import { getSession } from '@/lib/auth/session'
+import { signS3Url } from '@/lib/s3/sign'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -12,7 +15,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const { id } = await params
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (!['admin', 'porteiro', 'sindico'].includes(session.role)) {
+    if (!can(session, 'packages.read')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -30,9 +33,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Encomenda não encontrada' }, { status: 404 })
     }
 
-    return NextResponse.json(doc)
+    // URL de imagem só sai assinada
+    return NextResponse.json({
+      ...doc,
+      photo_url: await signS3Url(doc.photo_url),
+      qrcode_url: await signS3Url(doc.qrcode_url),
+    })
   } catch (err) {
-    console.error('[GET /api/packages/[id]]', err)
+    await reportError('[GET /api/packages/[id]]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

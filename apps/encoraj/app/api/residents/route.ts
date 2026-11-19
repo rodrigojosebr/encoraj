@@ -6,6 +6,8 @@ import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 const CreateResidentSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    if (!['admin', 'zelador', 'porteiro'].includes(session.role)) {
+    if (!can(session, 'residents.read')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
     const { condoId } = session
@@ -42,7 +44,7 @@ export async function GET(request: Request) {
     const docs = await col.find(filter).sort({ name: 1 }).toArray()
     return NextResponse.json(docs)
   } catch (err) {
-    console.error('[GET /api/residents]', err)
+    await reportError('[GET /api/residents]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -53,9 +55,9 @@ export async function POST(request: Request) {
     if (!session) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
-    const { role, userId: actorId, userName: actorName, condoId } = session
+    const { userId: actorId, userName: actorName, condoId } = session
 
-    if (role !== 'admin' && role !== 'zelador') {
+    if (!can(session, 'residents.write')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ _id: result.insertedId }, { status: 201 })
   } catch (err) {
-    console.error('[POST /api/residents]', err)
+    await reportError('[POST /api/residents]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

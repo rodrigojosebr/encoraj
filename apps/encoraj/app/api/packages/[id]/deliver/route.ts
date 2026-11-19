@@ -6,6 +6,8 @@ import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { checkRateLimit, isRateLimited } from '@/lib/auth/rateLimit'
 import { logAction } from '@/lib/audit/log'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -25,7 +27,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const { id } = await params
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'admin' && session.role !== 'porteiro') {
+    if (!can(session, 'packages.deliver')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -49,22 +51,25 @@ export async function POST(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Encomenda já foi entregue' }, { status: 409 })
     }
 
-    // Valida PIN apenas se a encomenda tem delivery_pin cadastrado (pacotes legados não têm)
-    if (doc.delivery_pin) {
-      const rlKey = `pin:${id}`
-      if (await isRateLimited(rlKey, MAX_PIN_ATTEMPTS)) {
-        return NextResponse.json(
-          { error: 'Muitas tentativas de código. Aguarde alguns minutos.' },
-          { status: 429 },
-        )
-      }
-      if (!pin) {
-        return NextResponse.json({ error: 'Código de retirada obrigatório.' }, { status: 400 })
-      }
-      if (!samePin(pin, doc.delivery_pin)) {
-        await checkRateLimit(rlKey, MAX_PIN_ATTEMPTS, PIN_WINDOW_MS)
-        return NextResponse.json({ error: 'Código de retirada incorreto.' }, { status: 400 })
-      }
+    // Retirada exige o PIN, sempre. Encomenda em aberto sem PIN não deveria existir (o PIN
+    // só é apagado na remoção definitiva do morador, que exige tudo já retirado) — se
+    // aparecer uma, é dado inconsistente e ela não é entregue por aqui.
+    if (!doc.delivery_pin) {
+      return NextResponse.json({ error: 'Encomenda sem código de retirada.' }, { status: 409 })
+    }
+    const rlKey = `pin:${id}`
+    if (await isRateLimited(rlKey, MAX_PIN_ATTEMPTS)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de código. Aguarde alguns minutos.' },
+        { status: 429 },
+      )
+    }
+    if (!pin) {
+      return NextResponse.json({ error: 'Código de retirada obrigatório.' }, { status: 400 })
+    }
+    if (!samePin(pin, doc.delivery_pin)) {
+      await checkRateLimit(rlKey, MAX_PIN_ATTEMPTS, PIN_WINDOW_MS)
+      return NextResponse.json({ error: 'Código de retirada incorreto.' }, { status: 400 })
     }
 
     // Atômico: só entrega se ainda não estiver entregue (dois cliques / dois porteiros)
@@ -90,7 +95,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[POST /api/packages/[id]/deliver]', err)
+    await reportError('[POST /api/packages/[id]/deliver]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

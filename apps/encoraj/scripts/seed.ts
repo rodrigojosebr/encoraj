@@ -33,6 +33,10 @@ const ROLES = [
   { name: 'porteiro', label: 'Porteiro' },
   { name: 'sindico',  label: 'Síndico' },
   { name: 'morador',  label: 'Morador' },
+  // operador da plataforma — atribuída só por alteração direta no banco (ver CLAUDE.md)
+  { name: 'superadmin', label: 'Super admin' },
+  // admin de uma administradora — nasce junto com ela, criada pelo super admin
+  { name: 'administradora', label: 'Administradora' },
 ]
 
 async function seed() {
@@ -89,48 +93,16 @@ async function seed() {
     condo = { _id: result.insertedId, ...CONDO, status_id: activeStatusId, created_at: new Date() }
     console.log(`✅ Condomínio criado: ${CONDO.name} (slug: ${CONDO.slug})`)
   } else {
-    // Migrate active:boolean → status_id if needed
-    if ('active' in condo) {
-      await condos.updateOne(
-        { _id: condo._id },
-        { $set: { status_id: activeStatusId }, $unset: { active: '' } },
-      )
-      console.log('✅ Condomínio migrado: active → status_id')
-    } else {
-      console.log(`⚠️  Condomínio "${CONDO.slug}" já existe — usando existente.`)
-    }
+    console.log(`⚠️  Condomínio "${CONDO.slug}" já existe — usando existente.`)
   }
 
   const condoId = condo._id as ObjectId
 
   // ── Admin ───────────────────────────────────────────────────────────────
   const col = db.collection('users')
-  await col.createIndex({ email: 1 })
 
-  const existing = await col.findOne({ email: ADMIN.email })
-
-  if (existing) {
-    const updates: Record<string, unknown> = {}
-    if (!existing.condo_id) updates.condo_id = condoId
-    if (!existing.role_id) updates.role_id = adminRoleId
-    if (!existing.status_id) updates.status_id = activeStatusId
-
-    if (Object.keys(updates).length > 0) {
-      const unsets: Record<string, ''> = {}
-      if ('role' in existing) unsets.role = ''
-      if ('active' in existing) unsets.active = ''
-
-      await col.updateOne(
-        { email: ADMIN.email },
-        {
-          $set: updates,
-          ...(Object.keys(unsets).length > 0 ? { $unset: unsets } : {}),
-        },
-      )
-      console.log('✅ Admin atualizado:', Object.keys(updates).join(', '))
-    } else {
-      console.log('⚠️  Usuário admin já existe e está atualizado — pulando.')
-    }
+  if (await col.findOne({ email: ADMIN.email })) {
+    console.log('⚠️  Usuário admin já existe — pulando.')
   } else {
     const password_hash = await bcrypt.hash(ADMIN.password, 12)
     await col.insertOne({
@@ -138,7 +110,8 @@ async function seed() {
       name: ADMIN.name,
       email: ADMIN.email,
       password_hash,
-      role_id: adminRoleId,
+      // roles se somam; para virar super admin, acrescente a role direto no banco
+      role_ids: [adminRoleId],
       status_id: activeStatusId,
       created_at: new Date(),
     })
@@ -146,31 +119,6 @@ async function seed() {
     console.log(`   Email: ${ADMIN.email}`)
     console.log(`   Senha: ${ADMIN.password}`)
     console.log('   ⚠️  Altere a senha após o primeiro acesso.')
-  }
-
-  // ── Migrar residents existentes ──────────────────────────────────────────
-  const deletedDoc = await statusesCol.findOne({ name: 'deleted' })
-  const deletedStatusId = deletedDoc!._id as ObjectId
-
-  const residentsCol = db.collection('residents')
-
-  const activeResidents = await residentsCol.countDocuments({ active: true })
-  const inactiveResidents = await residentsCol.countDocuments({ active: false })
-
-  if (activeResidents > 0) {
-    await residentsCol.updateMany(
-      { active: true },
-      { $set: { status_id: activeStatusId }, $unset: { active: '' } },
-    )
-    console.log(`✅ ${activeResidents} morador(es) migrado(s): active:true → status_id:active`)
-  }
-
-  if (inactiveResidents > 0) {
-    await residentsCol.updateMany(
-      { active: false },
-      { $set: { status_id: deletedStatusId }, $unset: { active: '' } },
-    )
-    console.log(`✅ ${inactiveResidents} morador(es) migrado(s): active:false → status_id:deleted`)
   }
 
   await client.close()

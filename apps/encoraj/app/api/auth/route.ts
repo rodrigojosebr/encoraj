@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { users, roles, condominiums } from '@/lib/db/collections'
+import { users, condominiums } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { signToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { checkRateLimit, isRateLimited, clearRateLimit, clientIp } from '@/lib/auth/rateLimit'
-import { EMAIL_COLLATION } from '@/lib/auth/email'
+import { userRoleNames } from '@/lib/auth/user-roles'
+import { reportError } from '@/lib/observability/report'
 
 const LoginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -42,21 +43,10 @@ export async function POST(request: NextRequest) {
     const col = await users()
     const { _id: activeStatusId } = await getStatus('active')
 
-    // Só contas ATIVAS entram. Se dados antigos tiverem o mesmo email ativo em mais de
-    // um condomínio, vale a conta mais recente cuja senha confere — nunca "a primeira
-    // que o banco devolver".
-    const candidates = await col
-      .find({ email, status_id: activeStatusId }, { collation: EMAIL_COLLATION })
-      .sort({ created_at: -1 })
-      .toArray()
-
-    let user = null
-    for (const candidate of candidates) {
-      if (await bcrypt.compare(password, candidate.password_hash)) {
-        user = candidate
-        break
-      }
-    }
+    // Só conta ATIVA entra. Email é único entre os ativos (índice no banco), então há
+    // no máximo uma: quem saiu de um condomínio e entrou em outro cai sempre no atual.
+    const found = await col.findOne({ email, status_id: activeStatusId })
+    const user = found && (await bcrypt.compare(password, found.password_hash)) ? found : null
 
     if (!user) {
       await Promise.all([
@@ -70,9 +60,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Usuário sem condomínio vinculado.' }, { status: 403 })
     }
 
-    const rolesCol = await roles()
-    const roleDoc = await rolesCol.findOne({ _id: user.role_id })
-    if (!roleDoc) {
+    const roleNames = await userRoleNames(user)
+    if (roleNames.length === 0) {
       return NextResponse.json({ error: 'Role do usuário não encontrada.' }, { status: 500 })
     }
 
@@ -87,7 +76,7 @@ export async function POST(request: NextRequest) {
     const token = await signToken({
       sub: user._id!.toString(),
       name: user.name,
-      role: roleDoc.name,
+      roles: roleNames,
       condo_id: user.condo_id.toString(),
       condo_name: condo.name,
       ...(user.photo_url ? { photo_url: user.photo_url } : {}),
@@ -98,7 +87,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set(AUTH_COOKIE, token, COOKIE_OPTIONS)
     return response
   } catch (err) {
-    console.error('[POST /api/auth]', err)
+    await reportError('[POST /api/auth]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

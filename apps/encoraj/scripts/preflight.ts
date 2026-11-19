@@ -44,7 +44,7 @@ async function main() {
   // 1. Admin do seed
   const seedAdmin = await db
     .collection('users')
-    .findOne({ email: SEED_EMAIL }, { collation: { locale: 'en', strength: 2 } })
+    .findOne({ email: SEED_EMAIL })
   if (!seedAdmin) {
     ok(`Não existe usuário ${SEED_EMAIL}.`)
   } else if (!active._id.equals(seedAdmin.status_id)) {
@@ -85,14 +85,32 @@ async function main() {
   if (mixedCase === 0) ok('Todos os emails estão em minúsculas.')
   else warn(`${mixedCase} usuário(s) com maiúscula no email (login funciona; "esqueci minha senha" também).`)
 
-  // 5. Links públicos antigos
-  const legacyOpen = await db
-    .collection('packages')
-    .countDocuments({ public_token: { $exists: false }, status_id: { $ne: delivered._id } })
-  if (legacyOpen === 0) ok('Nenhuma encomenda em aberto usando o link público antigo (por ObjectId).')
-  else warn(`${legacyOpen} encomenda(s) em aberto ainda aceitam o link antigo /p/{id}; some conforme forem retiradas.`)
+  // 5. Encomenda em aberto sempre tem link público e PIN. Sem eles (base anterior ao
+  //    token), o morador não abre o link e a portaria não consegue confirmar a retirada.
+  const brokenOpen = await db.collection('packages').countDocuments({
+    status_id: { $ne: delivered._id },
+    $or: [{ public_token: { $exists: false } }, { delivery_pin: { $exists: false } }],
+  })
+  if (brokenOpen === 0) ok('Toda encomenda em aberto tem link público e PIN.')
+  else fail(`${brokenOpen} encomenda(s) em aberto sem link público ou sem PIN — não podem ser retiradas. Recrie a base.`)
 
-  // 6. Volume
+  // 6. Usuários sem roles (cadastro anterior ao modelo de roles somadas) não conseguem entrar
+  const withoutRoles = await db.collection('users').countDocuments({ status_id: active._id, 'role_ids.0': { $exists: false } })
+  if (withoutRoles === 0) ok('Todos os usuários ativos têm roles.')
+  else fail(`${withoutRoles} usuário(s) ativo(s) sem \`role_ids\` — não conseguem entrar. Recrie a base ou regrave esses usuários.`)
+
+  // 6b. Super admins
+  const superRole = await db.collection('roles').findOne({ name: 'superadmin' })
+  const superAdmins = superRole
+    ? await db.collection('users').find({ role_ids: superRole._id, status_id: active._id }, { projection: { email: 1 } }).toArray()
+    : []
+  if (superAdmins.length === 0) {
+    warn('Nenhum super admin: ninguém cria condomínio nem administradora, e /admin/* fica inacessível. Acrescente a role ao usuário direto no banco (ver CLAUDE.md → Super admin).')
+  } else {
+    ok(`${superAdmins.length} super admin(s): ${superAdmins.map((u) => u.email).join(', ')}`)
+  }
+
+  // 7. Volume
   const [condos, users, residents, packages] = await Promise.all([
     db.collection('condominiums').countDocuments({}),
     db.collection('users').countDocuments({ status_id: active._id }),
@@ -101,7 +119,7 @@ async function main() {
   ])
   console.log(`\nVolume: ${condos} condomínio(s), ${users} usuário(s) ativo(s), ${residents} morador(es) ativo(s), ${packages} encomenda(s).`)
 
-  // 7. Variáveis de ambiente deste processo (só presença, nunca o valor)
+  // 8. Variáveis de ambiente deste processo (só presença, nunca o valor)
   console.log('\nVariáveis de ambiente (as deste terminal — confira também na Vercel):')
   for (const name of ['JWT_SECRET', 'APP_URL', 'AWS_S3_BUCKET', 'GEMINI_API_KEY', 'SMTP_HOST', 'SMTP_FROM', 'LEGAL_COMPANY_NAME', 'LEGAL_CONTACT_EMAIL']) {
     console.log(`  ${process.env[name] ? '✅' : '⚠️ '} ${name}${process.env[name] ? '' : ' não definida'}`)

@@ -7,6 +7,7 @@ import { DELETE as eraseCondoRoute } from '@/app/api/condo/erase/route'
 import { GET as getCondo } from '@/app/api/condo/route'
 import { s3 } from '@/lib/s3/client'
 import { ERASE_CONFIRMATION, ERASED_ACTOR_NAME } from '@/lib/lgpd/erase'
+import { getStatus } from '@/lib/db/status-map'
 import { logAction } from '@/lib/audit/log'
 import {
   auditLogs,
@@ -66,6 +67,13 @@ async function packageWithData(condo: TestCondo, residentId: ObjectId, n: number
   return pkg
 }
 
+async function markDelivered(...ids: ObjectId[]) {
+  await (await packages()).updateMany(
+    { _id: { $in: ids } },
+    { $set: { status_id: (await getStatus('delivered'))._id, delivered_at: new Date() } },
+  )
+}
+
 describe('DELETE /api/residents/[id]/erase', () => {
   it('apaga o morador, as fotos no S3 e todo dado pessoal — e preserva o resto', async () => {
     const condo = await createCondo()
@@ -73,6 +81,7 @@ describe('DELETE /api/residents/[id]/erase', () => {
     const ana = await createResident(condo, 'Ana Souza')
     const bia = await createResident(condo, 'Bia Lima')
     const [a1, a2] = [await packageWithData(condo, ana._id, 1), await packageWithData(condo, ana._id, 2)]
+    await markDelivered(a1._id, a2._id) // só se remove quem não tem nada pendente
     const b1 = await packageWithData(condo, bia._id, 3)
     await logAction({
       condo_id: condo._id,
@@ -127,6 +136,37 @@ describe('DELETE /api/residents/[id]/erase', () => {
       photo_url: expect.stringContaining('foto-3.jpg'),
     })
     expect(JSON.stringify(logs)).toContain('foto-3')
+  })
+
+  it('recusa enquanto houver encomenda aguardando retirada — e não apaga nada', async () => {
+    const condo = await createCondo()
+    const ana = await createResident(condo, 'Ana Souza')
+    const delivered = await packageWithData(condo, ana._id, 1)
+    const arrived = await packageWithData(condo, ana._id, 2)
+    const notified = await packageWithData(condo, ana._id, 3)
+    await markDelivered(delivered._id)
+    await (await packages()).updateOne({ _id: notified._id }, { $set: { status_id: (await getStatus('notified'))._id } })
+    await loginAs(await createUser(condo, 'admin'))
+    const erase = () => eraseResidentRoute(jsonRequest('DELETE', CONFIRM), routeCtx(ana._id))
+
+    const blocked = await erase()
+    expect(blocked.status).toBe(409)
+    expect(await blocked.json()).toMatchObject({ pending: 2, error: expect.stringContaining('2 encomenda(s)') })
+
+    // nada foi tocado: cadastro, PIN, fotos e S3 intactos
+    expect((await (await residents()).findOne({ _id: ana._id }))!.name).toBe('Ana Souza')
+    for (const pkg of [delivered, arrived, notified]) {
+      expect(await (await packages()).findOne({ _id: pkg._id })).toMatchObject({ delivery_pin: '123456', notes: 'Deixar com a filha' })
+    }
+    expect(send).not.toHaveBeenCalled()
+    expect(await (await auditLogs()).countDocuments({ action: 'deleted' })).toBe(0)
+
+    // retiradas concluídas → agora remove
+    await markDelivered(arrived._id, notified._id)
+    const done = await erase()
+    expect(done.status).toBe(200)
+    expect(await done.json()).toMatchObject({ ok: true, packages: 3 })
+    expect(await (await residents()).findOne({ _id: ana._id })).toBeNull()
   })
 
   it('também remove morador que já estava excluído (soft-delete)', async () => {

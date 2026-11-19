@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
+import { ObjectId } from 'mongodb'
 import { packages, residents } from '@/lib/db/collections'
 import { getStatusById } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { buildPackageFilter, EXPORT_MAX_ROWS } from '@/lib/packages/filter'
 import { csvCell } from '@/lib/text/csv'
 import { fmtDateTime } from '@/lib/date/tz'
+import { reportError } from '@/lib/observability/report'
+import { can } from '@/lib/auth/permissions'
 
 const COLUMNS = ['Código', 'Morador', 'Apartamento', 'Status', 'Chegada', 'Notificado', 'Retirado']
 
@@ -13,7 +16,7 @@ export async function GET(request: Request) {
   try {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (session.role !== 'admin' && session.role !== 'sindico') {
+    if (!can(session, 'reports.view')) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
@@ -41,7 +44,10 @@ export async function GET(request: Request) {
     const residentIds = [...new Map(docs.map((d) => [d.resident_id.toString(), d.resident_id])).values()]
     const residentDocs = residentIds.length
       ? await (await residents())
-          .find({ _id: { $in: residentIds } }, { projection: { name: 1, apartment: 1, bloco: 1 } })
+          .find(
+            { _id: { $in: residentIds }, condo_id: new ObjectId(session.condoId) },
+            { projection: { name: 1, apartment: 1, bloco: 1 } },
+          )
           .toArray()
       : []
     const residentById = new Map(residentDocs.map((r) => [r._id.toString(), r]))
@@ -74,7 +80,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (err) {
-    console.error('[GET /api/reports/export]', err)
+    await reportError('[GET /api/reports/export]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

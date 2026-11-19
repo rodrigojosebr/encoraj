@@ -9,6 +9,7 @@ import { readImageUpload } from '@/lib/upload/image'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { signS3Url } from '@/lib/s3/sign'
+import { reportError } from '@/lib/observability/report'
 
 export async function DELETE() {
   try {
@@ -47,7 +48,7 @@ export async function DELETE() {
 
     return response
   } catch (err) {
-    console.error('[DELETE /api/users/me/photo]', err)
+    await reportError('[DELETE /api/users/me/photo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
@@ -63,10 +64,13 @@ export async function POST(request: Request) {
     const image = await readImageUpload(request)
     if ('error' in image) return NextResponse.json({ error: image.error }, { status: 400 })
 
-    const key = `condos/${condoId}/users/${userId}/avatar.${image.ext}`
+    const col = await users()
+    // Pasta do condomínio do próprio usuário: o super admin pode estar "dentro" de outro,
+    // e a foto dele não pode sumir se aquele condomínio for apagado
+    const me = await col.findOne({ _id: new ObjectId(userId) }, { projection: { condo_id: 1 } })
+    const key = `condos/${me?.condo_id.toString() ?? condoId}/users/${userId}/avatar.${image.ext}`
     const photo_url = await uploadToS3(image.buffer, key, image.contentType)
 
-    const col = await users()
     await col.updateOne({ _id: new ObjectId(userId) }, { $set: { photo_url } })
 
     await logAction({
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
 
     return response
   } catch (err) {
-    console.error('[POST /api/users/me/photo]', err)
+    await reportError('[POST /api/users/me/photo]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
