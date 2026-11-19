@@ -76,6 +76,8 @@ describe('middleware', () => {
     ['/settings', 'sindico', false],
     ['/reports', 'sindico', true],
     ['/reports', 'porteiro', false],
+    ['/reports/management', 'sindico', true],
+    ['/reports/management', 'zelador', false],
     ['/residents', 'zelador', true],
     ['/residents', 'porteiro', false],
     ['/packages', 'porteiro', true],

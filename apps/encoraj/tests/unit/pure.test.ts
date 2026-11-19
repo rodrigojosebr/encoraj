@@ -4,7 +4,7 @@ import { emailSchema, passwordSchema, PASSWORD_MIN } from '@/lib/auth/email'
 import { safeNextPath } from '@/lib/auth/safe-next'
 import { formatTermsVersion, legalInfo, TERMS_VERSION } from '@/lib/legal/terms'
 import { toSlug } from '@/lib/text/slug'
-import { csvCell } from '@/lib/text/csv'
+import { csvCell, csvDocument, csvResponse } from '@/lib/text/csv'
 import { clientIp } from '@/lib/auth/rateLimit'
 import { fmtDate, fmtDateTime, getTodayRange, parseDateAsTZ } from '@/lib/date/tz'
 import { MAX_IMAGE_BYTES, readImageUpload } from '@/lib/upload/image'
@@ -79,6 +79,21 @@ describe('toSlug', () => {
     expect(toSlug('Condomínio São José!')).toBe('condominio-sao-jose')
     expect(toSlug('  --Bloco  A--  ')).toBe('bloco-a')
     expect(toSlug('日本')).toBe('')
+  })
+})
+
+describe('csvDocument / csvResponse', () => {
+  it('monta o arquivo com BOM, separador ; e células protegidas', () => {
+    expect(csvDocument(['Nome', 'Qtd'], [['Ana "A"', 3], ['=1+1', 0]])).toBe(
+      `﻿"Nome";"Qtd"\n"Ana ""A""";"3"\n"'=1+1";"0"`,
+    )
+  })
+
+  it('resposta de download não é guardada em cache', async () => {
+    const res = csvResponse('arquivo.csv', 'conteúdo')
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="arquivo.csv"')
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
+    expect(await res.text()).toBe('conteúdo')
   })
 })
 

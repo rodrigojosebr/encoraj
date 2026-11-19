@@ -242,7 +242,7 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] Migrar o OCR para o SDK `@google/genai` — fazer junto, com a chave em mãos para testar
 - [x] Foto de celular acima de ~4,5 MB: agora é reduzida no navegador (máx. 1600 px, JPEG) antes do OCR e do upload — **conferir no celular**
 - [ ] **Publicar o Next 15.5.29** — a 15.5.12 em produção tem 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. Upgrade comitado no branch `dash+pwa` (typecheck, lint e 429 testes verdes); **falta teste manual, merge na `main` e deploy**
-- [ ] Majors pendentes, um por vez e com a suíte de testes verde: Next 16 (o `@ducanh2912/next-pwa` está sem manutenção desde 2024 e depende de webpack — decidir substituto antes), Panda CSS 2, driver `mongodb` 7, ESLint 10, TypeScript 7, `lucide-react` 1, `dotenv` 18, `@types/node` 26
+- [ ] Majors pendentes — ver **Fase 11** (plano passo a passo, um por vez)
 
 **Vazamento de dados**
 - [x] **Vazamento entre condomínios nas páginas**: `/residents` listava moradores de todos os condomínios; `/residents/[id]/edit` e `/users/[id]/edit` abriam registro de qualquer condomínio (faltava `condo_id` no filtro)
@@ -319,6 +319,150 @@ Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco r
 Sem teste ponta a ponta (decisão de 17/nov/2026: não haverá Playwright). Páginas e `/p/[id]` são validadas por teste manual.
 
 **Milestone**: um condomínio real pode se cadastrar sozinho sem que dados de moradores fiquem expostos e sem depender de suporte manual para recuperar acesso.
+
+---
+
+## Relatórios gerenciais ✅ (primeira versão em 18/nov/2026)
+
+**Objetivo**: síndico e admin tiram números para decidir — não só a lista de encomendas.
+
+Página `/reports/management` (admin e síndico), com período livre (padrão: últimos 30 dias; atalhos de 7, 30, 90 dias e 12 meses) e export CSV por seção. Cálculo em `lib/reports/management.ts`.
+
+- [x] **Indicadores**: chegadas, retiradas, em aberto agora, tempo médio e mediano até a retirada, % retiradas em 24h, % de moradores avisados, tempo médio até o aviso, retiradas sem aviso registrado
+- [x] **Encomendas paradas**: tudo que está na portaria agora, por faixa de dias (até 2, 3–6, 7–14, 15+) e lista das mais antigas — é o que mais gera reclamação
+- [x] **Volume por dia**: chegadas × retiradas
+- [x] **Picos**: chegadas por dia da semana e por hora — para dimensionar a portaria
+- [x] **Unidades e blocos**: quem mais recebe e quem tem encomenda acumulada (dois moradores do mesmo apto contam como uma unidade)
+- [x] **Equipe**: chegadas registradas e retiradas confirmadas por usuário
+- [x] Export CSV: volume diário, unidades, equipe e paradas (`GET /api/reports/management/export?section=`)
+
+Ideias para depois (não implementadas — cada uma precisa de algo que hoje não existe):
+
+- [ ] Comparação com o período anterior (↑↓ ao lado de cada indicador)
+- [ ] Acerto do OCR (sugeriu certo × porteiro corrigiu) — exige gravar na encomenda o que o OCR sugeriu
+- [ ] Envio mensal automático por email ao síndico — exige SMTP configurado e um agendador
+- [ ] Versão para impressão / PDF para levar à assembleia
+
+**Milestone**: síndico abre o relatório do mês, vê quantas encomendas chegaram, quanto tempo ficam na portaria e quais estão paradas — e leva a planilha para a assembleia.
+
+---
+
+## Fase 11 — Atualização dos majors 🔜
+
+Levantamento de 18/nov/2026 (versões do registro npm). **Só começar depois que a 15.5.29 estiver estável em produção e o CI verde na `main`.** Um major por branch/PR; nunca dois juntos — se algo quebrar, tem que dar para saber qual foi.
+
+Rede de proteção: 436+ testes cobrem `lib/`, `app/api/` e o middleware. **Páginas, visual, PWA e build não têm teste** — cada etapa abaixo lista o que conferir à mão.
+
+| Pacote | Hoje | Alvo | Exige |
+|---|---|---|---|
+| `mongodb` | 6.22 | 7.9 | Node ≥ 20.19 |
+| `lucide-react` | 0.577 | 1.75 | — |
+| `@ducanh2912/next-pwa` | 10.2.9 (parado desde set/2024) | remover | — |
+| `next` + `eslint-config-next` | 15.5.29 | 16.4 | Node ≥ 20.9 |
+| `eslint` | 9.39 | 10.15 | Node ≥ 20.19 / 22.13 |
+| `@pandacss/dev` | 1.12 | 2.5 | **Node ≥ 22** |
+| `typescript` | 5.9 | 7.0 | — |
+| `dotenv` | 16.6 | 18.0 | — |
+| `@types/node` | 24.x | **22.x** (alinhar ao Node de produção, não subir para 26) | — |
+
+### Etapa 0 — Fixar o Node 22 (pré-requisito de tudo)
+
+Panda 2 e o SDK novo do Gemini exigem Node 22. O CI já usa 22; a máquina local está na 22.21.
+
+- [ ] Conferir em Vercel → Settings → Build & Deployment que o projeto usa Node 22.x
+- [ ] Declarar `"engines": { "node": ">=22" }` no `package.json` da raiz e criar `.nvmrc` com `22`
+- [ ] Alinhar `@types/node` para `^22` (hoje os tipos são de uma versão mais nova que o runtime)
+
+### Etapa 1 — `mongodb` 7 + `dotenv` 18 (risco baixo)
+
+É o major mais bem coberto: os testes de integração rodam contra MongoDB de verdade.
+
+- [ ] Ler as notas de migração do driver 7 (opções e métodos removidos); o uso aqui é básico: `find`, `findOne`, `findOneAndUpdate`, `updateOne/Many`, `deleteOne/Many`, `countDocuments`, `createIndex`, `aggregate` só no `preflight`
+- [ ] Conferir se o `mongodb-memory-server` instalado aceita o driver 7 (senão, subir junto)
+- [ ] `yarn typecheck && yarn test:coverage` — se passar, está validado
+- [ ] Manual: `yarn preflight` e `yarn seed` contra o banco local (únicos usos de `dotenv`)
+- **Volta atrás**: reverter o PR; nada muda no banco
+
+### Etapa 2 — `lucide-react` 1 (risco baixo)
+
+20 arquivos importam ícones. O risco conhecido de um 1.0 é nome de ícone renomeado ou alias removido.
+
+- [ ] `yarn typecheck` acusa todo ícone que mudou de nome — corrigir um a um
+- [ ] Manual: passar por sidebar, botões de ação das tabelas, formulário de nova encomenda e timeline dos relatórios
+- **Volta atrás**: reverter o PR
+
+### Etapa 3 — Sair do `next-pwa` (fazer ainda no Next 15)
+
+É o que destrava o Next 16: o `next-pwa` é um plugin de webpack sem manutenção, e o Next 16 usa Turbopack por padrão também no build.
+
+Além disso, a configuração atual (`cacheOnFrontEndNav` + `aggressiveFrontEndNavCaching`) guarda no aparelho as páginas navegadas por quem está logado. Em celular de portaria compartilhado, isso é dado de morador em cache depois do logout — motivo extra para trocar.
+
+Opções:
+
+1. **Service worker mínimo escrito à mão** em `public/sw.js` (recomendado): só o necessário para o app ser instalável e mostrar uma tela "sem conexão"; nenhum cache de página autenticada. Zero dependência.
+2. **Serwist** (`@serwist/next` 9.5 ou `@serwist/turbopack`): sucessor mantido do next-pwa, com precache. Mais uma dependência e mais configuração.
+3. Manter o next-pwa e buildar com webpack no Next 16: só adia o problema.
+
+- [ ] Decidir entre 1 e 2
+- [ ] Remover `@ducanh2912/next-pwa` do `next.config.ts` e do `package.json`; tirar `sw.js`/`workbox-*` gerados
+- [ ] Garantir que o service worker novo **desregistra o antigo e limpa os caches dele** (quem já instalou o app tem o SW velho)
+- [ ] Rever a linha `worker-src` da CSP
+- [ ] Manual, em produção ou preview: instalar no Android (Chrome) e no iPhone (Safari → Adicionar à Tela de Início), abrir pelo ícone, fazer login, registrar encomenda; modo avião → tela de sem conexão; logout → páginas antigas não aparecem
+- **Volta atrás**: reverter o PR (o SW antigo volta a ser servido)
+
+### Etapa 4 — Next 16 + `eslint-config-next` 16 + ESLint 10 (risco médio-alto)
+
+O que muda e afeta este projeto:
+
+- **`middleware.ts` vira `proxy.ts`** (função `proxy`), rodando em Node em vez de Edge. O arquivo só usa `jose` e `NextResponse` — deve portar direto. O teste `tests/unit/middleware.test.ts` precisa apontar para o novo arquivo
+- **Turbopack no build**: sem o next-pwa (etapa 3) não há mais plugin de webpack; conferir que o Panda (PostCSS) continua gerando CSS
+- **`next/image`**: os padrões mudaram (qualidades aceitas, cache mínimo, bloqueio de IP local). As imagens vêm de links assinados do S3, com query string que muda a cada render — conferir que continuam aparecendo e avaliar `unoptimized` para elas
+- **APIs assíncronas** (`params`, `searchParams`, `cookies()`, `headers()`): o projeto já usa todas com `await`
+- **ESLint 10** não lê mais o formato antigo: o `eslint.config.mjs` usa `FlatCompat` para carregar a config do Next — trocar pela config flat nativa do `eslint-config-next` 16
+- React continua na 19.x
+
+Passos:
+
+- [ ] Ler o guia oficial de upgrade para a 16 (em `node_modules/next/dist/docs/` depois de instalar, ou no site) — **antes de escrever código**
+- [ ] Rodar o codemod oficial (`npx @next/codemod@latest upgrade`) e revisar o diff
+- [ ] Renomear middleware → proxy e ajustar o teste
+- [ ] Trocar `FlatCompat` pela config nativa; subir `eslint` para 10
+- [ ] `yarn typecheck && yarn lint && yarn test:coverage && yarn build`
+- [ ] Manual, em preview da Vercel — o roteiro completo:
+  - login, logout, `?next=` depois de escanear QR, sessão revogada (desativar usuário logado)
+  - cada role vê só o que pode (`/users`, `/residents`, `/packages`, `/reports`)
+  - nova encomenda pelo celular: foto, OCR, registro, aviso por WhatsApp, link `/p/…`, retirada com PIN
+  - imagens: foto da etiqueta, QR code, avatar, logo (sidebar, perfil, configurações, página pública)
+  - paginação, busca, filtros, export CSV, relatório gerencial
+  - dark mode, sidebar recolhida, mobile
+  - headers de segurança e CSP no navegador
+- **Volta atrás**: reverter o PR; na Vercel, "Promote" do deploy anterior resolve em segundos
+
+### Etapa 5 — Panda CSS 2 (risco médio, 100% visual)
+
+Nenhum teste pega regressão de estilo. Fazer sozinho, depois do Next 16 estabilizado.
+
+- [ ] Ler o guia de migração para a v2 (não conheço as mudanças — não assumir nada)
+- [ ] Atualizar `@pandacss/dev` no app e no `@encoraj/panda-config`; rodar `yarn panda`; conferir se `staticCss`, as recipes (`button`, `badge`, `input`, `text`) e o preset continuam válidos
+- [ ] `yarn typecheck` (o `styled-system/` gerado muda de tipos) e `yarn build`
+- [ ] Manual: **todas** as telas, claro e escuro, mobile e desktop, comparando com produção lado a lado. Atenção a: badges de status, botões (todas as variantes), toasts, ConfirmDialog, skeletons, tabelas × cards
+- [ ] Atualizar `STYLES.md` se alguma convenção mudar
+- **Volta atrás**: reverter o PR
+
+### Etapa 6 — TypeScript 7 (por último)
+
+A 7 é o compilador reescrito. Só o `tsc --noEmit` e o editor dependem dele aqui, mas três ferramentas dependem da API do TypeScript: `typescript-eslint` (via `eslint-config-next`), o plugin de TS do Next e o Panda (extração de estilos).
+
+- [ ] Só começar quando as três declararem suporte à 7 — conferir os `peerDependencies` de cada uma na hora
+- [ ] `yarn typecheck` (pode acusar erros novos, mais estritos), `yarn lint`, `yarn panda`, `yarn build`, `yarn test:coverage`
+- **Volta atrás**: reverter o PR; não afeta o que roda em produção
+
+### Fora desta fase
+
+- `react` / `react-dom`: já na última 19.x
+- `@google/generative-ai` → `@google/genai`: é migração de SDK, não bump — item próprio na Fase 10
+
+**Milestone**: nenhuma dependência direta a mais de um major atrás, sem plugin abandonado no build.
 
 ---
 

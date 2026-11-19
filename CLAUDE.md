@@ -8,7 +8,7 @@ Sistema web de gestão de encomendas para condomínios. Next.js 15, App Router, 
 
 Docs do repo — quando ler:
 - `PROJECT.md` — personas, fluxos e modelos de dados completos (antes de mexer em regra de negócio)
-- `ROADMAP.md` — fases e o que falta; **Fase 10 = pendências de lançamento (segurança, LGPD, operação)**
+- `ROADMAP.md` — fases e o que falta; **Fase 10 = pendências de lançamento**; **Fase 11 = plano de atualização dos majors** (ler antes de subir qualquer dependência de major)
 - `STYLES.md` — design system, tokens e convenções Panda CSS (antes de mexer em UI)
 
 ## Estado atual e dívidas conhecidas
@@ -34,6 +34,7 @@ Docs do repo — quando ler:
 - **Limite que conta só falha** (login, PIN, senha atual): `isRateLimited()` antes, `checkRateLimit()` na falha.
 - **Listagem é paginada**: `paginate()` / `parsePage()` de `lib/pagination.ts` + `<Pagination>`; nada de `find().toArray()` sem `limit`. Componente que muda filtro apaga o `page` da URL.
 - **Filtro de encomendas é um só**: `buildPackageFilter()` em `lib/packages/filter.ts` serve `/packages`, `/reports` e o export CSV (`GET /api/reports/export`, todas as páginas, teto de 10 mil linhas).
+- **Relatório gerencial** (`/reports/management`): todo número sai de `getManagementReport()` em `lib/reports/management.ts` — página e export CSV usam a mesma função. Datas, dia da semana e hora sempre via `tzParts()` (fuso de São Paulo). Indicador novo entra lá, com teste.
 - Índices ficam em `lib/db/indexes.ts` (criados uma vez por processo no `getDb()`), não dentro dos helpers de collection.
 
 ## Commands
@@ -174,6 +175,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             _components/        ← UserForm, DeleteUserButton
           settings/page.tsx     ← Client; edita nome do condo
           reports/page.tsx      ← indicadores, filtros, timeline, export CSV
+          reports/management/page.tsx ← relatório gerencial (período, picos, unidades, equipe, paradas)
         api/
           auth/route.ts         ← POST login, DELETE logout
           auth/logout/route.ts  ← GET limpa cookie + redirect /login (sessão revogada)
@@ -194,6 +196,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           ocr/route.ts          ← POST imagem → Gemini → morador sugerido
           condo/photo/route.ts  ← POST foto do condo → S3 + DB + re-sign JWT
           reports/export/route.ts ← GET CSV das encomendas (mesmos filtros de /reports)
+          reports/management/export/route.ts ← GET CSV de uma seção do gerencial (?section=daily|units|staff|stalled)
           residents/[id]/erase, users/[id]/erase, condo/erase ← DELETE remoção definitiva (LGPD), só admin
           users/me/photo/route.ts ← POST foto de perfil → S3 + DB + re-sign JWT
       lib/
@@ -206,6 +209,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         s3/         ← client.ts, upload.ts (uploadToS3 → URL canônica), sign.ts (signS3Url), delete.ts
         lgpd/       ← erase.ts → eraseResident / eraseUser / eraseCondo
         packages/   ← filter.ts → buildPackageFilter()
+        reports/    ← management.ts → resolvePeriod() / getManagementReport()
         qrcode/     ← generate.ts (gera PNG + sobe para S3 → URL)
         gemini/     ← ocr.ts → analyzePackageLabel()
       scripts/

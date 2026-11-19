@@ -57,6 +57,33 @@ export function fmtDateTime(date: Date | string | null | undefined): string {
   return new Date(date).toLocaleString('pt-BR', { timeZone: APP_TZ })
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const partsFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: APP_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  hourCycle: 'h23',
+  weekday: 'short',
+})
+
+/** Data ('YYYY-MM-DD'), dia da semana (0 = domingo) e hora (0–23) de um instante, no fuso do app. */
+export function tzParts(date: Date): { date: string; weekday: number; hour: number } {
+  const parts = Object.fromEntries(partsFormatter.formatToParts(date).map((p) => [p.type, p.value]))
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    weekday: WEEKDAYS.indexOf(parts.weekday),
+    hour: Number(parts.hour),
+  }
+}
+
+/** Soma dias a uma data 'YYYY-MM-DD' (também normaliza datas como 31 de fevereiro). */
+export function addDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10)
+}
+
 // ---------------------------------------------------------------------------
 // Interno
 // ---------------------------------------------------------------------------

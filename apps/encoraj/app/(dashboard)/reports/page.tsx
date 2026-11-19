@@ -6,7 +6,7 @@ import { packages, residents } from '@/lib/db/collections'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
-import { Eye, Package, Bell, CheckCircle2 } from 'lucide-react'
+import { Eye, Package, Bell, CheckCircle2, BarChart3 } from 'lucide-react'
 import ExportCSV from './_components/ExportCSV'
 import ReportsFilterBar from './_components/ReportsFilterBar'
 import SearchInput from '../_components/SearchInput'
@@ -97,7 +97,12 @@ export default async function ReportsPage({
         <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
           Relatórios
         </h1>
-        <ExportCSV href={exportHref} />
+        <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '2' })}>
+          <Link href="/reports/management">
+            <Button variant="outline" intent="secondary" leftIcon={<BarChart3 size={16} />}>Relatório gerencial</Button>
+          </Link>
+          <ExportCSV href={exportHref} />
+        </div>
       </div>
 
       {/* Stat cards */}

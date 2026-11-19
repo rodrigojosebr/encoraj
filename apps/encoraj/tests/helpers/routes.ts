@@ -14,6 +14,7 @@ import * as ocrRoute from '@/app/api/ocr/route'
 import * as condoRoute from '@/app/api/condo/route'
 import * as condoPhoto from '@/app/api/condo/photo/route'
 import * as reportsExport from '@/app/api/reports/export/route'
+import * as managementExport from '@/app/api/reports/management/export/route'
 import * as eraseResident from '@/app/api/residents/[id]/erase/route'
 import * as eraseUser from '@/app/api/users/[id]/erase/route'
 import * as eraseCondo from '@/app/api/condo/erase/route'
@@ -56,6 +57,7 @@ export const PROTECTED_ROUTES: Array<{ name: string; call: () => Promise<Respons
   { name: 'DELETE /api/condo/photo', call: () => condoPhoto.DELETE(), roles: ['admin'] },
 
   { name: 'GET /api/reports/export', call: () => reportsExport.GET(req('GET')), roles: ['admin', 'sindico'] },
+  { name: 'GET /api/reports/management/export', call: () => managementExport.GET(req('GET')), roles: ['admin', 'sindico'] },
 
   // Remoção definitiva (LGPD): só admin — nem síndico. Corpo vazio nunca apaga nada.
   { name: 'DELETE /api/residents/[id]/erase', call: () => eraseResident.DELETE(req('DELETE'), id()), roles: ['admin'] },
