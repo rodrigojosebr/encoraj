@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useLocalStorage } from '../_lib/use-local-storage'
 import {
   LayoutDashboard,
   Package,
@@ -59,7 +60,8 @@ export default function SidebarShell({
   onMobileClose,
 }: SidebarShellProps) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
+  const [savedCollapsed, setSavedCollapsed] = useLocalStorage('sidebar-collapsed')
+  const collapsed = savedCollapsed === 'true'
   const [userPhoto, setUserPhoto] = useState(initialUserPhoto)
   const [condoPhoto, setCondoPhoto] = useState(initialCondoPhoto)
 
@@ -74,11 +76,6 @@ export default function SidebarShell({
     }
   }, [])
 
-  useEffect(() => {
-    const saved = localStorage.getItem('sidebar-collapsed')
-    if (saved === 'true') setCollapsed(true)
-  }, [])
-
   // Fecha sidebar mobile ao navegar
   useEffect(() => {
     onMobileClose()
@@ -86,9 +83,7 @@ export default function SidebarShell({
   }, [pathname])
 
   function toggleCollapsed() {
-    const next = !collapsed
-    setCollapsed(next)
-    localStorage.setItem('sidebar-collapsed', String(next))
+    setSavedCollapsed(String(!collapsed))
   }
 
   const w = collapsed ? '64px' : '220px'

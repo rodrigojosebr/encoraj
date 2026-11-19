@@ -84,7 +84,7 @@ export default async function PublicPackagePage({ params }: RouteContext) {
         {/* Header */}
         <div className={css({ textAlign: 'center', mb: '2' })}>
           {condoPhotoUrl ? (
-            <Image
+            <Image unoptimized
               src={condoPhotoUrl}
               alt={condo?.name ?? 'Condomínio'}
               width={56}
@@ -120,7 +120,7 @@ export default async function PublicPackagePage({ params }: RouteContext) {
           {/* Foto da etiqueta */}
           {photoUrl && (
             <div className={css({ w: 'full', bg: 'gray.100', _dark: { bg: 'gray.800' } })}>
-              <Image
+              <Image unoptimized
                 src={photoUrl}
                 alt="Foto da encomenda"
                 width={440}
@@ -194,7 +194,7 @@ export default async function PublicPackagePage({ params }: RouteContext) {
                   ou apresente o QR Code na portaria
                 </p>
                 <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700', filter: 'invert(1)' } })}>
-                  <Image src={qrcodeUrl} alt="QR Code" width={180} height={180} />
+                  <Image unoptimized src={qrcodeUrl} alt="QR Code" width={180} height={180} />
                 </div>
               </div>
             )}

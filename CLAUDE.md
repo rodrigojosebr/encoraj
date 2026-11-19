@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # encoraj
 
-Sistema web de gestão de encomendas para condomínios. Next.js 15, App Router, MongoDB, JWT, OCR com Gemini Flash, notificação por WhatsApp (link `wa.me`), fotos no S3, QR Code. Em produção na Vercel.
+Sistema web de gestão de encomendas para condomínios. Next.js 16, App Router, MongoDB, JWT, OCR com Gemini Flash, notificação por WhatsApp (link `wa.me`), fotos no S3, QR Code. Em produção na Vercel.
 
 Docs do repo — quando ler:
 - `PROJECT.md` — personas, fluxos e modelos de dados completos (antes de mexer em regra de negócio)
-- `ROADMAP.md` — fases e o que falta; **Fase 10 = pendências de lançamento**; **Fase 11 = plano de atualização dos majors** (ler antes de subir qualquer dependência de major)
+- `ROADMAP.md` — fases e o que falta; **Fase 10 = pendências de lançamento**; **Fase 11 = plano de atualização dos majors** (ler antes de subir qualquer dependência de major). **O Next instalado é o 16: antes de mexer em roteamento, proxy, cache ou imagens, ler o guia em `node_modules/next/dist/docs/`**
 - `STYLES.md` — design system, tokens e convenções Panda CSS (antes de mexer em UI)
 
 ## Estado atual e dívidas conhecidas
@@ -58,7 +58,7 @@ yarn typecheck    # tsc --noEmit do app + dos testes (tsconfig.test.json)
 yarn test                                        # vitest run (suíte inteira)
 yarn vitest run tests/integration/users.test.ts  # um arquivo
 yarn vitest run -t "rate limit"                  # por nome do teste
-yarn test:coverage                               # cobertura de lib/, app/api/ e middleware.ts
+yarn test:coverage                               # cobertura de lib/, app/api/ e proxy.ts
 ```
 
 Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mongodb-memory-server`, mock de `next/headers` e do cliente S3); `helpers/factory.ts` cria condomínio/usuário/morador/encomenda e faz `loginAs(user)`. Rotas são chamadas direto (`POST(jsonRequest(...), routeCtx(id))`). **Rota protegida nova entra na tabela de `tests/helpers/routes.ts`** — ela alimenta `guards.test.ts` (401 sem sessão, 403 por role) e `errors.test.ts` (erro interno vira 500 sem vazar detalhe). `yarn test:coverage` falha abaixo do piso definido em `vitest.config.mts`. O CI (`.github/workflows/ci.yml`) roda typecheck, lint e `test:coverage` em todo PR e em push na `main`. `tests/` fica fora do `tsconfig.json` principal para não entrar no `next build`.
@@ -86,18 +86,18 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 
 ## Como o request flui (auth)
 
-1. `middleware.ts` (Edge, sem banco) é só a primeira barreira: valida o cookie `encoraj_token` (JWT, `jose`), aplica role por prefixo de **página** (`ROLE_ROUTES`), devolve 401 JSON para `/api/*` sem token e redirect para `/login?next=` nas páginas. **Não injeta identidade em header** — e apaga qualquer `x-user-*`/`x-condo-*` que o cliente mande.
+1. `proxy.ts` (o antigo `middleware.ts`; no Next 16 roda em Node, sem banco) é só a primeira barreira: valida o cookie `encoraj_token` (JWT, `jose`), aplica role por prefixo de **página** (`ROLE_ROUTES`), devolve 401 JSON para `/api/*` sem token e redirect para `/login?next=` nas páginas. **Não injeta identidade em header** — e apaga qualquer `x-user-*`/`x-condo-*` que o cliente mande.
 2. A identidade vem sempre do cookie, verificado em `lib/auth/session.ts`:
    - `getSession()` — verifica o JWT **e** confere no MongoDB se o usuário está ativo, no mesmo condomínio, com o mesmo role, e se o token é posterior a `password_changed_at`. É o que torna a sessão revogável. Usado por toda rota de API e pelo layout do dashboard (que manda para `/api/auth/logout` quando falha).
    - `readSession()` — só verifica o JWT, sem banco. Para Server Components de página, que rodam sob o layout já validado.
-3. Nada depende do middleware para segurança: se ele for contornado (o Next já teve CVE disso), rota e página continuam exigindo cookie válido.
-4. O middleware só protege role de páginas; **cada rota de API checa role por conta própria**.
+3. Nada depende do proxy para segurança: se ele for contornado (o Next já teve CVE disso), rota e página continuam exigindo cookie válido.
+4. O proxy só protege role de páginas; **cada rota de API checa role por conta própria**.
 5. Multi-tenancy é por filtro: não existe isolamento no banco. Email é único entre usuários **ativos de todos os condomínios** — a pessoa só entra em outro condomínio depois de desativada no anterior; `/register` sempre cria condomínio novo.
 6. Páginas do dashboard leem o MongoDB direto (Server Components); as rotas `GET /api/*` quase não são consumidas pela UI.
 
 ## Stack
 
-- **Framework**: Next.js 15 (App Router), React 19
+- **Framework**: Next.js 16 (App Router, Turbopack), React 19
 - **Database**: MongoDB Atlas (`mongodb` driver 7)
 - **Runtime**: Node 22 (`engines` + `.nvmrc`)
 - **Auth**: JWT (`jose`) + password hashing (`bcryptjs`)
@@ -116,7 +116,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - Prefer Server Components; mark client components with `'use client'`
 - Validate all external input with Zod at API/server boundaries
 - Keep secrets in environment variables, never hardcode
-- Images from `**.amazonaws.com` are allowed via `next/image`
+- Imagens do S3 usam `<Image unoptimized>`: o link assinado muda a cada render e não deve passar pelo otimizador do Next
 - Role-based access: validate role in every protected API route and page
 - Soft-delete pattern: `status_id = deleted` + `deleted_at` + `deleted_by`; listagens filtram `{ status_id: (await getStatus('active'))._id }`
 - Audit log: toda escrita (create/update/delete) gera documento em `audit_logs` via `lib/audit/log.ts`

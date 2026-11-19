@@ -14,7 +14,7 @@ export default defineConfig({
     hookTimeout: 120_000, // primeira execução baixa o binário do MongoDB
     coverage: {
       provider: 'v8',
-      include: ['lib/**/*.ts', 'app/api/**/*.ts', 'middleware.ts'],
+      include: ['lib/**/*.ts', 'app/api/**/*.ts', 'proxy.ts'],
       reporter: ['text', 'html'],
       // Piso de cobertura. Só sobe: não pode cair sem alguém mexer aqui de propósito.
       // Medido em 17/nov/2026: 100% linhas, 99,8% statements, 97,5% branches, 98,9% funções.

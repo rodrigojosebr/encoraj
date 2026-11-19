@@ -120,7 +120,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
             <div className={css({ display: 'flex', flexDir: 'column', gap: '2' })}>
               <span className={labelCss}>Foto da etiqueta</span>
               <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700' } })}>
-                <Image
+                <Image unoptimized
                   src={photoUrl}
                   alt="Foto da etiqueta"
                   width={400}
@@ -134,7 +134,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
             <div className={css({ display: 'flex', flexDir: 'column', gap: '2', alignItems: { base: 'flex-start', md: 'center' } })}>
               <span className={labelCss}>QR Code</span>
               <div className={css({ borderRadius: 'lg', overflow: 'hidden', border: '1px solid', borderColor: 'gray.200', _dark: { borderColor: 'gray.700', filter: 'invert(1)' } })}>
-                <Image
+                <Image unoptimized
                   src={qrcodeUrl}
                   alt="QR Code da encomenda"
                   width={200}

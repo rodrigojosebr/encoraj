@@ -31,7 +31,11 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
 
-export async function middleware(request: NextRequest) {
+/**
+ * Primeira barreira de acesso (Next 16: `proxy`, roda em Node). Não é a única:
+ * rotas e páginas verificam o cookie por conta própria em lib/auth/session.ts.
+ */
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Nunca confiar em header de identidade vindo do cliente
@@ -94,7 +98,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Identidade NÃO vai por header: rotas e páginas verificam o cookie por conta própria
-  // (lib/auth/session.ts). O middleware só barra cedo e aplica role de página.
+  // (lib/auth/session.ts). O proxy só barra cedo e aplica role de página.
   return NextResponse.next({ request: { headers: requestHeaders } })
 }
 

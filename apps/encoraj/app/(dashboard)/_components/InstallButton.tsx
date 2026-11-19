@@ -3,8 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Download, Share, X } from 'lucide-react'
 import { css } from '@/styled-system/css'
+import { useClientValue, useLocalStorage } from '../_lib/use-local-storage'
 
 type Platform = 'android' | 'android-manual' | 'ios' | 'none'
+
+/** O que dá para saber só olhando o navegador, antes de qualquer evento */
+function detectPlatform(): Platform {
+  if (window.matchMedia('(display-mode: standalone)').matches) return 'none' // já instalado
+  const ua = navigator.userAgent
+  if (/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream) return 'ios'
+  return /Android/.test(ua) ? 'android-manual' : 'none'
+}
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -14,35 +23,28 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISSED_KEY = 'encoraj-install-dismissed'
 
 export default function InstallButton({ collapsed }: { collapsed: boolean }) {
-  const [platform, setPlatform] = useState<Platform>('none')
+  const detected = useClientValue(detectPlatform, 'none')
+  const [dismissed, setDismissed] = useLocalStorage(DISMISSED_KEY)
+  const [promptReady, setPromptReady] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
   const hintRef = useRef<HTMLDivElement>(null)
 
+  // O Chrome avisa por evento quando o app pode ser instalado com um toque
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches) return
-    if (localStorage.getItem(DISMISSED_KEY)) return
-
-    const ua = navigator.userAgent
-
-    const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream
-    if (isIOS) {
-      setPlatform('ios')
-      return
-    }
-
-    const isAndroid = /Android/.test(ua)
-    if (isAndroid) setPlatform('android-manual')
-
     function handlePrompt(e: Event) {
       e.preventDefault()
       deferredPrompt.current = e as BeforeInstallPromptEvent
-      setPlatform('android')
+      setPromptReady(true)
     }
 
     window.addEventListener('beforeinstallprompt', handlePrompt)
     return () => window.removeEventListener('beforeinstallprompt', handlePrompt)
   }, [])
+
+  let platform: Platform = detected
+  if (promptReady && detected !== 'ios') platform = 'android'
+  if (dismissed) platform = 'none'
 
   // Fecha hint ao clicar fora
   useEffect(() => {
@@ -57,8 +59,7 @@ export default function InstallButton({ collapsed }: { collapsed: boolean }) {
   }, [showHint])
 
   function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, '1')
-    setPlatform('none')
+    setDismissed('1')
     setShowHint(false)
   }
 

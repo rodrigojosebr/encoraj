@@ -26,6 +26,8 @@ const cspReportOnly = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@encoraj/ui'],
+  // Imagens do S3 chegam por link assinado, que muda a cada render: os <Image> delas usam
+  // `unoptimized` para ir direto ao navegador, sem passar (e gerar cache novo) no otimizador.
   images: { remotePatterns: [{ protocol: 'https', hostname: '**.amazonaws.com' }] },
   async headers() {
     return [

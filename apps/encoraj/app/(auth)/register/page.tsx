@@ -39,6 +39,8 @@ export default function RegisterPage() {
         return
       }
 
+      // Recarga completa de propósito: garante que o layout leia o cookie de sessão novo
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = '/'
     } catch {
       setError('Erro de conexão. Tente novamente.')

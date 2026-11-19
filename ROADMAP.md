@@ -406,7 +406,7 @@ Opções:
 - [ ] Manual, em produção ou preview: instalar no Android (Chrome) e no iPhone (Safari → Adicionar à Tela de Início), abrir pelo ícone, fazer login, registrar encomenda; modo avião → tela de sem conexão; logout → páginas antigas não aparecem
 - **Volta atrás**: reverter o PR (o SW antigo volta a ser servido)
 
-### Etapa 4 — Next 16 + `eslint-config-next` 16 + ESLint 10 (risco médio-alto)
+### Etapa 4 — Next 16 + `eslint-config-next` 16 + ESLint 10 (risco médio-alto) — instalado em 19/nov/2026, falta validar
 
 O que muda e afeta este projeto:
 
@@ -419,10 +419,11 @@ O que muda e afeta este projeto:
 
 Passos:
 
-- [ ] Ler o guia oficial de upgrade para a 16 (em `node_modules/next/dist/docs/` depois de instalar, ou no site) — **antes de escrever código**
-- [ ] Rodar o codemod oficial (`npx @next/codemod@latest upgrade`) e revisar o diff
-- [ ] Renomear middleware → proxy e ajustar o teste
-- [ ] Trocar `FlatCompat` pela config nativa; subir `eslint` para 10
+- [x] Ler o guia oficial de upgrade para a 16 (em `node_modules/next/dist/docs/` depois de instalar, ou no site) — **antes de escrever código**
+- [x] Codemod dispensado: as únicas mudanças aplicáveis eram o rename do middleware e a config do ESLint, feitas à mão (APIs assíncronas e `next lint` já estavam migrados)
+- [x] `middleware.ts` → `proxy.ts` (função `proxy`); teste e cobertura apontam para o arquivo novo
+- [x] `FlatCompat` trocado pela config nativa do `eslint-config-next`; `eslint` na 10.15 (três plugins ainda avisam peer dependency de ESLint 9 — previsto na doc do Next)
+- [x] Imagens do S3 com `<Image unoptimized>`: o link assinado muda a cada render e não deve passar pelo otimizador
 - [ ] `yarn typecheck && yarn lint && yarn test:coverage && yarn build`
 - [ ] Manual, em preview da Vercel — o roteiro completo:
   - login, logout, `?next=` depois de escanear QR, sessão revogada (desativar usuário logado)

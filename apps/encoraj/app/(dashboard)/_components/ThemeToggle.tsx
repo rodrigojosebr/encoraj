@@ -1,23 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useLocalStorage } from '../_lib/use-local-storage'
 import { css } from '@/styled-system/css'
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(false)
+  const [theme, setTheme] = useLocalStorage('theme')
+  const dark = theme === 'dark'
 
+  // Reflete a preferência no <html>, de onde o Panda lê o modo escuro
   useEffect(() => {
-    const saved = localStorage.getItem('theme')
-    const isDark = saved === 'dark'
-    setDark(isDark)
-    document.documentElement.classList.toggle('dark', isDark)
-  }, [])
+    document.documentElement.classList.toggle('dark', dark)
+  }, [dark])
 
   function toggle() {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    localStorage.setItem('theme', next ? 'dark' : 'light')
+    setTheme(dark ? 'light' : 'dark')
   }
 
   return (
