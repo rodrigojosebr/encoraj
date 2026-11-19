@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from './Providers'
+import { ServiceWorker } from './_components/ServiceWorker'
 
 export const metadata: Metadata = {
   title: 'Encoraj',
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR">
       <body>
         <Providers>{children}</Providers>
+        <ServiceWorker />
       </body>
     </html>
   )

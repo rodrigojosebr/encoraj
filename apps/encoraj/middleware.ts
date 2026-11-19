@@ -24,6 +24,9 @@ const IDENTITY_HEADERS = [
   'x-token-iat',
 ]
 
+// Arquivos do PWA: o navegador busca sem cookie (manifest, ícones) ou antes do login (service worker)
+const PUBLIC_ASSET = /^\/(sw\.js|offline\.html|manifest\.webmanifest|icon|apple-icon|icon-[\w-]+\.png)$/
+
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
@@ -37,6 +40,7 @@ export async function middleware(request: NextRequest) {
 
   // Rotas públicas — deixa passar (sem identidade)
   if (
+    PUBLIC_ASSET.test(pathname) ||
     matchesPrefix(pathname, '/login') ||
     matchesPrefix(pathname, '/register') ||
     matchesPrefix(pathname, '/forgot-password') ||

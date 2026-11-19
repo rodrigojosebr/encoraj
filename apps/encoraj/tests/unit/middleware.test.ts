@@ -31,6 +31,20 @@ describe('middleware', () => {
     },
   )
 
+  it.each(['/sw.js', '/offline.html', '/manifest.webmanifest', '/icon', '/apple-icon', '/icon-192.png', '/icon-maskable-512.png'])(
+    'arquivo do PWA %s é público (o navegador busca sem cookie)',
+    async (path) => {
+      expect(passed(await middleware(await request(path)))).toBe(true)
+    },
+  )
+
+  it.each(['/icon/outra-coisa', '/sw.js.map', '/icons', '/offline.html/x', '/icon-192.png.exe'])(
+    'mas %s continua exigindo login',
+    async (path) => {
+      expect(passed(await middleware(await request(path)))).toBe(false)
+    },
+  )
+
   it('não trata como pública uma rota que só começa igual', async () => {
     const res = await middleware(await request('/loginfalso'))
     expect(passed(res)).toBe(false)

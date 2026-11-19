@@ -336,12 +336,7 @@ Página `/reports/management` (admin e síndico), com período livre (padrão: �
 - [x] **Equipe**: chegadas registradas e retiradas confirmadas por usuário
 - [x] Export CSV: volume diário, unidades, equipe e paradas (`GET /api/reports/management/export?section=`)
 
-Ideias para depois (não implementadas — cada uma precisa de algo que hoje não existe):
-
-- [ ] Comparação com o período anterior (↑↓ ao lado de cada indicador)
-- [ ] Acerto do OCR (sugeriu certo × porteiro corrigiu) — exige gravar na encomenda o que o OCR sugeriu
-- [ ] Envio mensal automático por email ao síndico — exige SMTP configurado e um agendador
-- [ ] Versão para impressão / PDF para levar à assembleia
+Fora do escopo (decisão de 19/nov/2026): comparação com período anterior, taxa de acerto do OCR, envio mensal por email e versão em PDF.
 
 **Milestone**: síndico abre o relatório do mês, vê quantas encomendas chegaram, quanto tempo ficam na portaria e quais estão paradas — e leva a planilha para a assembleia.
 
@@ -365,33 +360,33 @@ Rede de proteção: 436+ testes cobrem `lib/`, `app/api/` e o middleware. **Pág
 | `dotenv` | 16.6 | 18.0 | — |
 | `@types/node` | 24.x | **22.x** (alinhar ao Node de produção, não subir para 26) | — |
 
-### Etapa 0 — Fixar o Node 22 (pré-requisito de tudo)
+### Etapa 0 — Fixar o Node 22 (pré-requisito de tudo) — feito no repo em 19/nov/2026
 
 Panda 2 e o SDK novo do Gemini exigem Node 22. O CI já usa 22; a máquina local está na 22.21.
 
 - [ ] Conferir em Vercel → Settings → Build & Deployment que o projeto usa Node 22.x
-- [ ] Declarar `"engines": { "node": ">=22" }` no `package.json` da raiz e criar `.nvmrc` com `22`
-- [ ] Alinhar `@types/node` para `^22` (hoje os tipos são de uma versão mais nova que o runtime)
+- [x] Declarar `"engines": { "node": ">=22" }` no `package.json` da raiz e criar `.nvmrc` com `22`
+- [x] Alinhar `@types/node` para `^22` (hoje os tipos são de uma versão mais nova que o runtime)
 
-### Etapa 1 — `mongodb` 7 + `dotenv` 18 (risco baixo)
+### Etapa 1 — `mongodb` 7 + `dotenv` 18 (risco baixo) — instalado em 19/nov/2026, falta validar
 
 É o major mais bem coberto: os testes de integração rodam contra MongoDB de verdade.
 
-- [ ] Ler as notas de migração do driver 7 (opções e métodos removidos); o uso aqui é básico: `find`, `findOne`, `findOneAndUpdate`, `updateOne/Many`, `deleteOne/Many`, `countDocuments`, `createIndex`, `aggregate` só no `preflight`
-- [ ] Conferir se o `mongodb-memory-server` instalado aceita o driver 7 (senão, subir junto)
+- [x] API usada conferida contra os tipos do driver 7.9 (nada removido); o uso aqui é básico: `find`, `findOne`, `findOneAndUpdate`, `updateOne/Many`, `deleteOne/Many`, `countDocuments`, `createIndex`, `aggregate` só no `preflight`
+- [x] `mongodb-memory-server` traz o próprio driver; não depende do do app
 - [ ] `yarn typecheck && yarn test:coverage` — se passar, está validado
 - [ ] Manual: `yarn preflight` e `yarn seed` contra o banco local (únicos usos de `dotenv`)
 - **Volta atrás**: reverter o PR; nada muda no banco
 
-### Etapa 2 — `lucide-react` 1 (risco baixo)
+### Etapa 2 — `lucide-react` 1 (risco baixo) — instalado em 19/nov/2026, falta validar
 
 20 arquivos importam ícones. O risco conhecido de um 1.0 é nome de ícone renomeado ou alias removido.
 
-- [ ] `yarn typecheck` acusa todo ícone que mudou de nome — corrigir um a um
+- [x] Os 32 ícones importados existem na 1.76 com o mesmo nome (conferido nos tipos); `yarn typecheck` confirma
 - [ ] Manual: passar por sidebar, botões de ação das tabelas, formulário de nova encomenda e timeline dos relatórios
 - **Volta atrás**: reverter o PR
 
-### Etapa 3 — Sair do `next-pwa` (fazer ainda no Next 15)
+### Etapa 3 — Sair do `next-pwa` (fazer ainda no Next 15) — feito em 19/nov/2026, falta validar no aparelho
 
 É o que destrava o Next 16: o `next-pwa` é um plugin de webpack sem manutenção, e o Next 16 usa Turbopack por padrão também no build.
 
@@ -403,10 +398,11 @@ Opções:
 2. **Serwist** (`@serwist/next` 9.5 ou `@serwist/turbopack`): sucessor mantido do next-pwa, com precache. Mais uma dependência e mais configuração.
 3. Manter o next-pwa e buildar com webpack no Next 16: só adia o problema.
 
-- [ ] Decidir entre 1 e 2
-- [ ] Remover `@ducanh2912/next-pwa` do `next.config.ts` e do `package.json`; tirar `sw.js`/`workbox-*` gerados
-- [ ] Garantir que o service worker novo **desregistra o antigo e limpa os caches dele** (quem já instalou o app tem o SW velho)
-- [ ] Rever a linha `worker-src` da CSP
+- [x] Decidido: opção 1 — `public/sw.js` escrito à mão + `public/offline.html`, registrado por `app/_components/ServiceWorker.tsx` (só em produção)
+- [x] `@ducanh2912/next-pwa` removido do `next.config.ts` e do `package.json`; `sw.js` agora é versionado
+- [x] Middleware libera sem login os arquivos do PWA (`/sw.js`, `/offline.html`, manifest e ícones) — o navegador os busca sem cookie
+- [x] O service worker novo é servido no mesmo endereço do antigo (substitui) e apaga, ao ativar, todo cache que não é o dele
+- [x] `worker-src 'self'` na CSP continua valendo; `/sw.js` é servido sem cache
 - [ ] Manual, em produção ou preview: instalar no Android (Chrome) e no iPhone (Safari → Adicionar à Tela de Início), abrir pelo ícone, fazer login, registrar encomenda; modo avião → tela de sem conexão; logout → páginas antigas não aparecem
 - **Volta atrás**: reverter o PR (o SW antigo volta a ser servido)
 

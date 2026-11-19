@@ -35,6 +35,7 @@ Docs do repo — quando ler:
 - **Listagem é paginada**: `paginate()` / `parsePage()` de `lib/pagination.ts` + `<Pagination>`; nada de `find().toArray()` sem `limit`. Componente que muda filtro apaga o `page` da URL.
 - **Filtro de encomendas é um só**: `buildPackageFilter()` em `lib/packages/filter.ts` serve `/packages`, `/reports` e o export CSV (`GET /api/reports/export`, todas as páginas, teto de 10 mil linhas).
 - **Relatório gerencial** (`/reports/management`): todo número sai de `getManagementReport()` em `lib/reports/management.ts` — página e export CSV usam a mesma função. Datas, dia da semana e hora sempre via `tzParts()` (fuso de São Paulo). Indicador novo entra lá, com teste.
+- **PWA sem cache de página**: `public/sw.js` é escrito à mão (sem build) e só serve `/offline.html` quando a navegação falha. Não adicionar cache de página, API ou imagem — aparelho de portaria é compartilhado. Mudou o arquivo? Trocar `VERSION` dentro dele.
 - Índices ficam em `lib/db/indexes.ts` (criados uma vez por processo no `getDb()`), não dentro dos helpers de collection.
 
 ## Commands
@@ -97,7 +98,8 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 ## Stack
 
 - **Framework**: Next.js 15 (App Router), React 19
-- **Database**: MongoDB Atlas (`mongodb` driver)
+- **Database**: MongoDB Atlas (`mongodb` driver 7)
+- **Runtime**: Node 22 (`engines` + `.nvmrc`)
 - **Auth**: JWT (`jose`) + password hashing (`bcryptjs`)
 - **Validation**: Zod v4
 - **Styling**: Panda CSS
@@ -148,6 +150,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           register/page.tsx ← self-service onboarding (exige aceite dos termos)
         (legal)/
           termos/page.tsx, privacidade/page.tsx ← públicas
+        _components/ServiceWorker.tsx ← Client; registra public/sw.js em produção
         (dashboard)/
           layout.tsx        ← Server Component; passa props para DashboardShell
           page.tsx
