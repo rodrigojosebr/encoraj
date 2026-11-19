@@ -102,7 +102,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - **Runtime**: Node 22 (`engines` + `.nvmrc`)
 - **Auth**: JWT (`jose`) + password hashing (`bcryptjs`)
 - **Validation**: Zod v4
-- **Styling**: Panda CSS
+- **Styling**: Panda CSS 1.x — **não subir para a 2 sem ler a Etapa 5 da Fase 11** (quebra em silêncio)
 - **Icons**: `lucide-react`
 - **Storage**: AWS S3 (photos + QR code images)
 - **OCR / AI**: Google Gemini Flash (`@google/generative-ai`) — modelo `gemini-2.0-flash` em `lib/gemini/ocr.ts`

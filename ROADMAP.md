@@ -355,8 +355,8 @@ Rede de proteção: 436+ testes cobrem `lib/`, `app/api/` e o middleware. **Pág
 | `@ducanh2912/next-pwa` | 10.2.9 (parado desde set/2024) | remover | — |
 | `next` + `eslint-config-next` | 15.5.29 | 16.4 | Node ≥ 20.9 |
 | `eslint` | 9.39 | 10.15 | Node ≥ 20.19 / 22.13 |
-| `@pandacss/dev` | 1.12 | 2.5 | **Node ≥ 22** |
-| `typescript` | 5.9 | 7.0 | — |
+| `@pandacss/dev` | 1.12 | 2.5 — adiado | **Node ≥ 22** + projeto ESM |
+| `typescript` | 5.9 | 7.0 — bloqueado | `typescript-eslint` com suporte |
 | `dotenv` | 16.6 | 18.0 | — |
 | `@types/node` | 24.x | **22.x** (alinhar ao Node de produção, não subir para 26) | — |
 
@@ -435,29 +435,42 @@ Passos:
   - headers de segurança e CSP no navegador
 - **Volta atrás**: reverter o PR; na Vercel, "Promote" do deploy anterior resolve em segundos
 
-### Etapa 5 — Panda CSS 2 (risco médio, 100% visual)
+### Etapa 5 — Panda CSS 2 — ADIADA (avaliada em 19/nov/2026)
 
-Nenhum teste pega regressão de estilo. Fazer sozinho, depois do Next 16 estabilizado.
+Instalei a 2.5.0, li o que muda e **voltei para a 1.12**. Não é um bump: é outra arquitetura (compilador novo), com mudanças que quebram em silêncio — e nada aqui detecta regressão visual.
 
-- [ ] Ler o guia de migração para a v2 (não conheço as mudanças — não assumir nada)
-- [ ] Atualizar `@pandacss/dev` no app e no `@encoraj/panda-config`; rodar `yarn panda`; conferir se `staticCss`, as recipes (`button`, `badge`, `input`, `text`) e o preset continuam válidos
-- [ ] `yarn typecheck` (o `styled-system/` gerado muda de tipos) e `yarn build`
-- [ ] Manual: **todas** as telas, claro e escuro, mobile e desktop, comparando com produção lado a lado. Atenção a: badges de status, botões (todas as variantes), toasts, ConfirmDialog, skeletons, tabelas × cards
-- [ ] Atualizar `STYLES.md` se alguma convenção mudar
-- **Volta atrás**: reverter o PR
+O que afeta este projeto, pelo levantamento (relatos de quem migrou e a issue chakra-ui/panda#3886, que lista mudanças fora do guia oficial):
 
-### Etapa 6 — TypeScript 7 (por último)
+- **Presets deixaram de ser injetados.** O `panda.config.ts` usa `presets: ['@pandacss/dev/presets', encorajPreset]`, e esse subpath não existe mais na v2. Sem `@pandacss/preset-base` + `@pandacss/preset-panda` declarados à mão, somem utilitários e condições (`_dark`, `_hover`) — e o build passa mesmo assim, só com aviso
+- **Exige projeto ESM.** O app não tem `"type": "module"`; ligar isso mexe em `next.config.ts`, scripts e configs
+- **Extração só reconhece import de `styled-system`.** O `@encoraj/ui` importa por alias (`@encoraj/styled-system/css`). Se a v2 não seguir o alias, Button, Badge, Input e cia. ficam **sem CSS, sem erro**
+- **`compoundVariants` mudou de comportamento** — o `button.recipe.ts` usa (variant × intent), ou seja, todos os botões do app
+- **Ordem das regras de mesma especificidade não segue mais a ordem escrita** — pode mudar qual estilo vence em casos hoje corretos
 
-A 7 é o compilador reescrito. Só o `tsc --noEmit` e o editor dependem dele aqui, mas três ferramentas dependem da API do TypeScript: `typescript-eslint` (via `eslint-config-next`), o plugin de TS do Next e o Panda (extração de estilos).
+Para fazer com segurança precisa de alguém olhando a tela a cada passo. Quando for:
 
-- [ ] Só começar quando as três declararem suporte à 7 — conferir os `peerDependencies` de cada uma na hora
-- [ ] `yarn typecheck` (pode acusar erros novos, mais estritos), `yarn lint`, `yarn panda`, `yarn build`, `yarn test:coverage`
+- [ ] Fazer em branch isolado, com o app rodando local lado a lado com produção
+- [ ] Declarar os presets base explicitamente; resolver ESM; confirmar a extração do `@encoraj/ui` (ou configurar o mapeamento de import)
+- [ ] Conferir **todas** as telas, claro e escuro, mobile e desktop: badges de status, botões (todas as variantes × intents), toasts, ConfirmDialog, skeletons, tabelas × cards
+- [ ] Atualizar `STYLES.md`
+
+Não há urgência: a linha 1.x segue funcionando com o Next 16 + Turbopack (validado no build de 19/nov/2026) e não tem alerta de segurança.
+
+### Etapa 6 — TypeScript 7 — BLOQUEADA pelo ecossistema (conferido em 19/nov/2026)
+
+O `typescript-eslint` mais recente (8.73.0, usado pelo `eslint-config-next`) declara suporte a `typescript >=4.8.4 <6.1.0`. Com a 7 o lint deixa de ser confiável.
+
+- [ ] Reavaliar quando o `typescript-eslint` aceitar a 7 (`npm view typescript-eslint peerDependencies`)
+- [ ] Passo intermediário possível: TypeScript 6.0 (dentro da faixa suportada). Atenção ao `baseUrl` do `tsconfig.json`, que a linha 6 trata como depreciado
+- [ ] Na hora: `yarn typecheck`, `yarn lint`, `yarn panda`, `yarn build`, `yarn test:coverage`
 - **Volta atrás**: reverter o PR; não afeta o que roda em produção
 
 ### Fora desta fase
 
 - `react` / `react-dom`: já na última 19.x
 - `@google/generative-ai` → `@google/genai`: é migração de SDK, não bump — item próprio na Fase 10
+
+**Situação em 19/nov/2026**: etapas 0 a 4 concluídas e validadas (Node 22, mongodb 7, dotenv 18, lucide 1, next-pwa removido, Next 16, ESLint 10). Ficam para trás só Panda (adiado, risco visual) e TypeScript (bloqueado pelo lint).
 
 **Milestone**: nenhuma dependência direta a mais de um major atrás, sem plugin abandonado no build.
 
