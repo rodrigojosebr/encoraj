@@ -28,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/errors',      label: 'Erros do sistema', permission: 'platform.admin' },
   { href: '/admin/ai',          label: 'Uso de IA',        permission: 'platform.admin' },
   { href: '/admin/permissions', label: 'Permissões',       permission: 'platform.admin' },
+  { href: '/admin/releases',    label: 'Releases',         permission: 'platform.admin' },
 ]
 
 export default async function DashboardLayout({

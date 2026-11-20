@@ -368,7 +368,16 @@ Mapeado, fica para depois:
 
 ---
 
-## Dívida de padrão — auditoria de 19/nov/2026 🔜
+## Releases — histórico do app ✅ (20/nov/2026)
+
+Tela `/admin/releases`, só para o super admin: como o app chegou até aqui (v0.1.0 a v0.14.0, montadas a partir do git) e o que está no ar (variáveis de sistema da Vercel). Histórico em `lib/releases/history.ts`, atualizado no mesmo commit de cada mudança média ou grande (regra no CLAUDE.md; o teste confere a versão do `package.json`).
+
+- [ ] Conferir na Vercel se "Automatically expose System Environment Variables" está ligado — sem isso, "No ar agora" mostra `local`
+- [ ] Teste manual: só o super admin vê o item "Releases" no menu; outro perfil que digita `/admin/releases` cai na página não encontrada
+
+---
+
+## Dívida de padrão — auditoria de 19/nov/2026 (código fechado em 20/nov; falta o teste manual) 🔜
 
 Corrigido na hora (regra de segurança ou de idioma quebrada):
 

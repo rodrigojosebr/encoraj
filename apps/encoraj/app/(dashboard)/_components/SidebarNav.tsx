@@ -15,6 +15,7 @@ import {
   Bug,
   Sparkles,
   ShieldCheck,
+  History,
 } from 'lucide-react'
 import { css } from '@/styled-system/css'
 
@@ -31,6 +32,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?
   '/admin/errors': Bug,
   '/admin/ai':     Sparkles,
   '/admin/permissions': ShieldCheck,
+  '/admin/releases': History,
 }
 
 export interface NavItem {

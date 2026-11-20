@@ -125,6 +125,8 @@ describe('proxy', () => {
     ['/admin/ai', 'sindico', false],
     ['/admin/permissions', 'superadmin', true],
     ['/admin/permissions', 'admin', false],
+    ['/admin/releases', 'superadmin', true],
+    ['/admin/releases', 'administradora', false],
     ['/admin', 'porteiro', false],
     ['/', 'zelador', true],
     ['/profile', 'sindico', true],

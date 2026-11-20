@@ -8,7 +8,7 @@ Sistema web de gestão de encomendas para condomínios. Next.js 16, App Router, 
 
 Docs do repo — quando ler:
 - `PROJECT.md` — personas, fluxos e modelos de dados completos (antes de mexer em regra de negócio)
-- `ROADMAP.md` — fases e o que falta; **"Dívida de padrão" = o que a auditoria de 19/nov/2026 deixou aberto**; **Fase 10 = pendências de lançamento**; **Fase 11 = plano de atualização dos majors** (ler antes de subir qualquer dependência de major). **O Next instalado é o 16: antes de mexer em roteamento, proxy, cache ou imagens, ler o guia em `node_modules/next/dist/docs/`**
+- `ROADMAP.md` — fases e o que falta; **"Dívida de padrão" = auditoria de 19/nov/2026: código fechado; o que falta é o roteiro de "Teste manual pendente" no navegador**; **Fase 10 = pendências de lançamento**; **Fase 11 = plano de atualização dos majors** (ler antes de subir qualquer dependência de major). **O Next instalado é o 16: antes de mexer em roteamento, proxy, cache ou imagens, ler o guia em `node_modules/next/dist/docs/`**
 - `STYLES.md` — design system, tokens e convenções Panda CSS (antes de mexer em UI)
 
 ## Estado atual e dívidas conhecidas
@@ -98,10 +98,18 @@ Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mo
   Depois, sair e entrar de novo no app. O documento da role é criado sozinho na subida do app (`lib/db/indexes.ts`); criar o documento não dá acesso a ninguém.
 - **Ninguém mexe em quem está acima** — `canManageUserWith()` em `lib/auth/roles.ts`, usada no PUT/DELETE/erase de usuários e na tela de edição: super admin só por outro super admin; admin de administradora só por outro admin dela ou super admin.
 - Quem tem `superadmin` só é editado, desativado ou removido por outro super admin (403 para os demais) — senão bastaria trocar a senha dele para assumir a plataforma.
-- Telas em `app/(dashboard)/admin/`: `/admin/condos` (criar condomínio, entrar em qualquer um), `/admin/errors` (erros do sistema), `/admin/ai` (uso de IA) e `/admin/permissions` (consulta do que cada role pode). Página e rota começam por `getSuperAdminSession()`; o proxy redireciona quem não é.
+- Telas em `app/(dashboard)/admin/`: `/admin/condos` (criar condomínio, entrar em qualquer um), `/admin/errors` (erros do sistema), `/admin/ai` (uso de IA), `/admin/permissions` (consulta do que cada role pode) e `/admin/releases` (histórico de versões). Página e rota começam por `getSuperAdminSession()`; o proxy redireciona quem não é.
 - **São a única exceção à regra de filtrar por `condo_id`**: mostram dados de todos os condomínios, de propósito. Não copiar esse padrão para tela de condomínio.
 - `error_logs` e `ai_usage` têm prazo de vida no banco (90 e 400 dias, índice TTL). São dado técnico, não dado de morador — por isso não conflitam com a regra de retenção abaixo.
 - Custo de IA é estimativa: preço vem de `AI_PRICE_INPUT_USD_PER_MTOK` / `AI_PRICE_OUTPUT_USD_PER_MTOK`. Não fixar preço no código.
+
+## Releases (histórico do app)
+
+- **Toda mudança média ou grande ganha entrada em `lib/releases/history.ts`, no mesmo commit** — funcionalidade nova, correção que o usuário sente, segurança, refactor amplo, major de dependência. Typo, kaizen pequeno e ajuste de doc não entram.
+- Entrada nova vai **no topo**. Versão `0.MINOR.0` para funcionalidade ou mudança significativa; `0.x.PATCH` para correção. Se a release mais nova ainda não foi commitada, acrescenta nela em vez de abrir outra.
+- **`version` do `apps/encoraj/package.json` acompanha a release mais nova** — `tests/unit/releases.test.ts` falha se divergir, se a ordem estiver errada ou se faltar campo.
+- Texto para quem usa, em PT-BR, dizendo o efeito ("O QR code leva o porteiro direto à encomenda"), não o arquivo mexido. Hash do commit entra na release anterior quando a próxima abrir.
+- A tela `/admin/releases` (só super admin) mostra o histórico e o que está no ar, lido das variáveis de sistema da Vercel (`VERCEL_ENV`, `VERCEL_GIT_COMMIT_SHA`, `VERCEL_GIT_COMMIT_MESSAGE`, `VERCEL_GIT_COMMIT_REF`). Fica no código de propósito, como o mapa de permissões: nada de tela, rota ou coleção para editar.
 
 ## Administradora e condomínio autogerido
 
@@ -245,6 +253,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           admin/errors/page.tsx ← super admin: erros do sistema, de todos os condomínios
           admin/ai/page.tsx     ← super admin: uso de IA (chamadas, tokens, custo estimado)
           admin/permissions/page.tsx ← super admin: matriz roles × permissões (só consulta)
+          admin/releases/page.tsx ← super admin: histórico de versões + o que está no ar
         api/
           auth/route.ts         ← POST login, DELETE logout
           auth/logout/route.ts  ← GET limpa cookie + redirect /login (sessão revogada)
@@ -289,6 +298,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         packages/   ← filter.ts → buildPackageFilter() / packageStatusOptions(); stats.ts → getPackageStats()
         residents/  ← lookup.ts → getResidentMap() / formatUnit() / residentLabel()
         reports/    ← management.ts → resolvePeriod() / getManagementReport()
+        releases/   ← history.ts → RELEASES, APP_VERSION, currentDeploy()
         observability/ ← report.ts → reportError()
         ai/         ← usage.ts → recordAiUsage() / getAiUsageReport()
         qrcode/     ← generate.ts (gera PNG + sobe para S3 → URL)

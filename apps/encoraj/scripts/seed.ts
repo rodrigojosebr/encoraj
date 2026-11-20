@@ -1,7 +1,7 @@
 import { config } from 'dotenv'
 config({ path: '.env.local' })
-import bcrypt from 'bcryptjs'
 import { MongoClient, ObjectId } from 'mongodb'
+import { hashPassword } from '../lib/auth/password'
 
 const uri = process.env.MONGODB_URI
 if (!uri) {
@@ -104,7 +104,7 @@ async function seed() {
   if (await col.findOne({ email: ADMIN.email })) {
     console.log('⚠️  Usuário admin já existe — pulando.')
   } else {
-    const password_hash = await bcrypt.hash(ADMIN.password, 12)
+    const password_hash = await hashPassword(ADMIN.password)
     await col.insertOne({
       condo_id: condoId,
       name: ADMIN.name,
@@ -112,13 +112,15 @@ async function seed() {
       password_hash,
       // roles se somam; para virar super admin, acrescente a role direto no banco
       role_ids: [adminRoleId],
+      // senha padrão conhecida: o sistema obriga a troca no primeiro acesso
+      must_change_password: true,
       status_id: activeStatusId,
       created_at: new Date(),
     })
     console.log('✅ Admin criado!')
     console.log(`   Email: ${ADMIN.email}`)
     console.log(`   Senha: ${ADMIN.password}`)
-    console.log('   ⚠️  Altere a senha após o primeiro acesso.')
+    console.log('   ⚠️  No primeiro acesso o sistema exige trocar a senha.')
   }
 
   await client.close()
