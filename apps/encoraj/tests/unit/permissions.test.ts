@@ -20,11 +20,9 @@ const withRoles = (...roles: string[]) => ({ roles })
  * junto, de propósito: é a revisão humana de "quem pode o quê".
  */
 const EXPECTED: Record<Permission, string[]> = {
-  'packages.read': ['administradora', 'admin', 'porteiro', 'sindico'],
   'packages.register': ['administradora', 'admin', 'porteiro'],
   'packages.notify': ['administradora', 'admin', 'porteiro'],
   'packages.deliver': ['administradora', 'admin', 'porteiro'],
-  'residents.read': ['administradora', 'admin', 'zelador', 'porteiro'],
   'residents.write': ['administradora', 'admin', 'zelador'],
   'reports.view': ['administradora', 'admin', 'sindico'],
   'users.manage': ['administradora', 'admin'],

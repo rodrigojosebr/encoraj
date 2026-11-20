@@ -69,7 +69,7 @@ describe('proxy', () => {
   it('API sem cookie → 401 JSON, não redirect', async () => {
     const res = await proxy(await request('/api/users'))
     expect(res.status).toBe(401)
-    expect(await res.json()).toEqual({ error: 'Não autenticado' })
+    expect(await res.json()).toEqual({ error: 'Não autenticado.' })
   })
 
   it('token inválido → limpa o cookie', async () => {

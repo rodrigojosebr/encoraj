@@ -3,10 +3,11 @@ import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth/session'
 import { can } from '@/lib/auth/permissions'
-import { emailSchema, passwordSchema } from '@/lib/auth/email'
+import { emailSchema } from '@/lib/auth/email'
+import { passwordSchema } from '@/lib/auth/password'
 import { createOrganizationWithAdmin } from '@/lib/condos/create'
 import { logAction } from '@/lib/audit/log'
-import { reportError } from '@/lib/observability/report'
+import { conflict, forbidden, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const schema = z.object({
   orgName: z.string().trim().min(3, 'Nome da administradora muito curto.').max(120),
@@ -23,17 +24,15 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (!can(session, 'platform.admin')) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    if (!session) return unauthorized()
+    if (!can(session, 'platform.admin')) return forbidden()
 
-    const parsed = schema.safeParse(await request.json().catch(() => null))
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }, { status: 400 })
-    }
+    const parsed = await parseBody(request, schema)
+    if (parsed.error) return parsed.error
 
     const result = await createOrganizationWithAdmin(parsed.data)
     if (!result.ok) {
-      return NextResponse.json({ error: 'Este email já está em uso.' }, { status: 409 })
+      return conflict('Este email já está em uso.')
     }
 
     await logAction({
@@ -48,7 +47,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ _id: result.orgId, condo_id: result.condoId }, { status: 201 })
   } catch (err) {
-    await reportError('[POST /api/admin/organizations]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[POST /api/admin/organizations]', err)
   }
 }

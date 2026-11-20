@@ -4,9 +4,10 @@ import { ObjectId } from 'mongodb'
 import { POST as createCondoRoute } from '@/app/api/admin/condos/route'
 import { POST as enterCondo } from '@/app/api/condos/[id]/enter/route'
 import { POST as login } from '@/app/api/auth/route'
-import { GET as listUsers, POST as createUserRoute } from '@/app/api/users/route'
+import { POST as createUserRoute } from '@/app/api/users/route'
 import { PUT as changePassword } from '@/app/api/users/me/password/route'
-import { GET as listResidents } from '@/app/api/residents/route'
+import { PUT as updateResident } from '@/app/api/residents/[id]/route'
+import { GET as getCondo } from '@/app/api/condo/route'
 import { getSession } from '@/lib/auth/session'
 import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
@@ -67,11 +68,12 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
     const session = await adopt(await login(jsonRequest('POST', { email: 'ana@teste.com', password: body.adminPassword })))
     expect(session.roles).toEqual(['admin'])
     // a senha foi definida pelo super admin: antes de trocar, nada abre
-    expect((await listUsers()).status).toBe(401)
+    expect((await getCondo()).status).toBe(401)
     await adopt(await changePassword(jsonRequest('PUT', { current_password: body.adminPassword, new_password: 'so-eu-sei-123' })))
 
-    const list = await (await listUsers()).json()
-    expect(list.map((u: { email: string }) => u.email)).toEqual(['ana@teste.com'])
+    const ana = (await (await users()).findOne({ email: 'ana@teste.com' }))!
+    expect((await getSession())!.condoId).toBe(ana.condo_id.toString())
+    expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(400) // passou pela permissão; só falta o corpo
     expect((await post({ ...body, adminEmail: 'outra@teste.com' })).status).toBe(403)
     expect((await enter(other._id)).status).toBe(403)
   })
@@ -127,9 +129,8 @@ describe('super admin dentro de um condomínio', () => {
   it('entra em qualquer condomínio e passa a ver e alterar só aquele', async () => {
     const { owner } = await asSuperAdmin()
     const banana = await createCondo('Banana')
-    await (await condominiums()).updateOne({ _id: banana._id }, { $set: { photo_url: 'https://x/banana.jpg' } })
     const resident = await createResident(banana, 'Morador da Banana')
-    await createResident(await createCondo('Outro'), 'Morador de fora')
+    const outsider = await createResident(await createCondo('Outro'), 'Morador de fora')
 
     const token = await adopt(await enter(banana._id))
     expect(token).toMatchObject({
@@ -137,12 +138,12 @@ describe('super admin dentro de um condomínio', () => {
       roles: ['superadmin'],
       condo_id: banana._id.toString(),
       condo_name: 'Banana',
-      condo_photo_url: 'https://x/banana.jpg',
     })
     expect(await getSession()).toMatchObject({ userId: owner._id.toString(), condoId: banana._id.toString() })
 
-    const names = (await (await listResidents(jsonRequest('GET'))).json()).map((r: { name: string }) => r.name)
-    expect(names).toEqual([resident.name])
+    const rename = (id: ObjectId) => updateResident(jsonRequest('PUT', { name: 'Nome Novo' }), routeCtx(id))
+    expect((await rename(resident._id)).status).toBe(200)
+    expect((await rename(outsider._id)).status).toBe(404) // de outro condomínio: não existe para ele aqui
   })
 
   it('coloca o João como porteiro do condomínio Banana, com o audit log no nome do super admin', async () => {
@@ -165,15 +166,13 @@ describe('super admin dentro de um condomínio', () => {
     })
   })
 
-  it('volta para o próprio condomínio e não carrega a foto do condomínio anterior', async () => {
+  it('volta para o próprio condomínio pela mesma rota', async () => {
     const { home } = await asSuperAdmin()
     const banana = await createCondo('Banana')
-    await (await condominiums()).updateOne({ _id: banana._id }, { $set: { photo_url: 'https://x/banana.jpg' } })
 
     await adopt(await enter(banana._id))
     const back = await adopt(await enter(home._id))
     expect(back).toMatchObject({ condo_id: home._id.toString(), condo_name: 'Plataforma' })
-    expect(back.condo_photo_url).toBeUndefined()
   })
 
   it('condomínio inexistente ou id inválido não troca a sessão', async () => {

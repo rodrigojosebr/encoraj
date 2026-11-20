@@ -7,7 +7,7 @@ import { PATCH as resolveError } from '@/app/api/admin/errors/[id]/route'
 import { POST as ocr } from '@/app/api/ocr/route'
 import { DELETE as eraseCondoRoute } from '@/app/api/condo/erase/route'
 import { analyzePackageLabel, type OcrUsage } from '@/lib/gemini/ocr'
-import { GET as listUsers, POST as createUserRoute } from '@/app/api/users/route'
+import { POST as createUserRoute } from '@/app/api/users/route'
 import { PUT as updateUser, DELETE as deleteUser } from '@/app/api/users/[id]/route'
 import { DELETE as eraseUserRoute } from '@/app/api/users/[id]/erase/route'
 import { getSuperAdminSession } from '@/lib/auth/super-admin'
@@ -51,14 +51,14 @@ describe('super admin', () => {
 
     expect(await getSuperAdminSession()).toMatchObject({ userId: owner._id.toString() })
     expect((await getSession())!.roles.sort()).toEqual(['admin', 'superadmin'])
-    expect((await listUsers()).status).toBe(200) // vem da role admin, que ele também tem
+    expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(400) // passou pela permissão (vem também da role admin)
   })
 
   it('superadmin sozinha já pode tudo no condomínio em que está, sem precisar da role admin', async () => {
     await loginAs(await createUser(await createCondo(), 'superadmin'))
 
     expect(await getSuperAdminSession()).not.toBeNull()
-    expect((await listUsers()).status).toBe(200)
+    expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(400) // passou pela permissão; só falta o corpo
   })
 
   it.each(ALL_ROLES)('role %s não é super admin', async (role) => {

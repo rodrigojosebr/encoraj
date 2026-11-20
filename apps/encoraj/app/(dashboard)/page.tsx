@@ -2,13 +2,15 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
-import { packages, residents } from '@/lib/db/collections'
-import { getStatus, getStatusById } from '@/lib/db/status-map'
+import { packages } from '@/lib/db/collections'
+import { formatUnit, getResidentMap } from '@/lib/residents/lookup'
+import { getStatusById } from '@/lib/db/status-map'
+import { getPackageStats } from '@/lib/packages/stats'
 import { roleLabels } from '@/lib/auth/user-roles'
 import { css } from '@/styled-system/css'
 import { Eye } from 'lucide-react'
 import { Badge, Button } from '@encoraj/ui'
-import { getTodayRange, fmtDate } from '@/lib/date/tz'
+import { fmtDate } from '@/lib/date/tz'
 
 export default async function DashboardPage() {
   const session = await readSession()
@@ -18,45 +20,24 @@ export default async function DashboardPage() {
 
   const roleLabel = await roleLabels(session.roles)
 
-  const col = await packages()
-  const condoOid = new ObjectId(condoId)
+  const stats = await getPackageStats(condoId)
 
-  const { today, tomorrow } = getTodayRange()
-
-  const [arrivedId, notifiedId, deliveredId] = await Promise.all([
-    getStatus('arrived').then(s => s._id),
-    getStatus('notified').then(s => s._id),
-    getStatus('delivered').then(s => s._id),
-  ])
-
-  const [arrivedToday, openCount, deliveredToday, totalCount] = await Promise.all([
-    col.countDocuments({ condo_id: condoOid, arrived_at: { $gte: today, $lt: tomorrow } }),
-    col.countDocuments({ condo_id: condoOid, status_id: { $in: [arrivedId, notifiedId] } }),
-    col.countDocuments({ condo_id: condoOid, status_id: deliveredId, delivered_at: { $gte: today, $lt: tomorrow } }),
-    col.countDocuments({ condo_id: condoOid }),
-  ])
-
-  // Recent packages (last 5)
-  const recentDocs = await col
-    .find({ condo_id: condoOid })
+  // Últimas 5 encomendas
+  const recentDocs = await (await packages())
+    .find({ condo_id: new ObjectId(condoId) })
     .sort({ arrived_at: -1 })
     .limit(5)
     .toArray()
 
-  const residentIds = [...new Set(recentDocs.map((d) => d.resident_id.toString()))]
-  const resCol = await residents()
-  const residentDocs = residentIds.length
-    ? await resCol.find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) }, condo_id: new ObjectId(condoId) }).toArray()
-    : []
-  const residentMap = Object.fromEntries(residentDocs.map((r) => [r._id!.toString(), r]))
+  const residentMap = await getResidentMap(condoId, recentDocs.map((d) => d.resident_id))
 
   const recentStatusInfos = await Promise.all(recentDocs.map((d) => getStatusById(d.status_id)))
 
   const statCards = [
-    { label: 'Chegadas hoje',  value: arrivedToday,   href: '/packages?status=arrived&period=today' },
-    { label: 'Em aberto',      value: openCount,      href: '/packages?status=open' },
-    { label: 'Retiradas hoje', value: deliveredToday, href: '/packages?status=delivered&period=today' },
-    { label: 'Total geral',    value: totalCount,     href: '/packages' },
+    { label: 'Chegadas hoje',  value: stats.arrivedToday,   href: '/packages?status=arrived&period=today' },
+    { label: 'Em aberto',      value: stats.open,           href: '/packages?status=open' },
+    { label: 'Retiradas hoje', value: stats.deliveredToday, href: '/packages?status=delivered&period=today' },
+    { label: 'Total geral',    value: stats.total,          href: '/packages' },
   ]
 
   return (
@@ -123,7 +104,7 @@ export default async function DashboardPage() {
               Nenhuma encomenda registrada ainda.
             </p>
           ) : recentDocs.map((pkg, i) => {
-            const resident = residentMap[pkg.resident_id.toString()]
+            const resident = residentMap.get(pkg.resident_id.toString())
             const { name: statusName, label: statusLabel } = recentStatusInfos[i]
             return (
               <Link key={pkg._id!.toString()} href={`/packages/${pkg._id!.toString()}`} className={css({ textDecoration: 'none' })}>
@@ -144,7 +125,7 @@ export default async function DashboardPage() {
                       {resident?.name ?? '—'}
                     </p>
                     <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                      {resident ? `${resident.bloco ? resident.bloco + ' · ' : ''}Apto ${resident.apartment}` : '—'}
+                      {resident ? formatUnit(resident) : '—'}
                       {' · '}chegou em {fmtDate(pkg.arrived_at)}
                     </p>
                   </div>
@@ -172,7 +153,7 @@ export default async function DashboardPage() {
               <table className={css({ w: 'full', minW: '600px', borderCollapse: 'collapse' })}>
                 <thead>
                   <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
-                    {['Código', 'Morador', 'Apartamento', 'Chegada', 'Status', ''].map((h) => (
+                    {['Código', 'Morador', 'Unidade', 'Chegada', 'Status', ''].map((h) => (
                       <th
                         key={h}
                         className={css({
@@ -189,7 +170,7 @@ export default async function DashboardPage() {
                 </thead>
                 <tbody>
                   {recentDocs.map((pkg, i) => {
-                    const resident = residentMap[pkg.resident_id.toString()]
+                    const resident = residentMap.get(pkg.resident_id.toString())
                     const { name: statusName, label: statusLabel } = recentStatusInfos[i]
                     return (
                       <tr
@@ -207,7 +188,7 @@ export default async function DashboardPage() {
                           {resident?.name ?? '—'}
                         </td>
                         <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                          {resident ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}` : '—'}
+                          {resident ? formatUnit(resident) : '—'}
                         </td>
                         <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
                           {fmtDate(pkg.arrived_at)}

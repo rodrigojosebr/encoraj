@@ -1,4 +1,5 @@
 import { residents } from '@/lib/db/collections'
+import { residentLabel } from '@/lib/residents/lookup'
 import { getStatus } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { notFound, redirect } from 'next/navigation'
@@ -22,9 +23,7 @@ export default async function NewPackagePage() {
 
   const options = docs.map((r) => ({
     value: r._id!.toString(),
-    label: r.bloco
-      ? `${r.name} — Bloco ${r.bloco}, Apto ${r.apartment}`
-      : `${r.name} — Apto ${r.apartment}`,
+    label: residentLabel(r),
   }))
 
   return (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import bcrypt from 'bcryptjs'
-import { GET as listUsers, POST as createUserRoute } from '@/app/api/users/route'
+import { POST as createUserRoute } from '@/app/api/users/route'
 import { PUT as updateUser, DELETE as deleteUser } from '@/app/api/users/[id]/route'
 import { PUT as changePassword } from '@/app/api/users/me/password/route'
 import { POST as createResidentRoute } from '@/app/api/residents/route'
@@ -15,23 +15,6 @@ import { createCondo, createResident, createUser, jsonRequest, loginAs, PASSWORD
 import { requestState } from '../helpers/request-state'
 
 const newUser = { name: 'Novo Zelador', email: 'Ze@Teste.com', password: 'senha-forte-123', roles: ['zelador'] }
-
-describe('GET /api/users', () => {
-  it('lista só usuários ativos do próprio condomínio, sem hash de senha', async () => {
-    const [a, b] = [await createCondo(), await createCondo()]
-    const admin = await createUser(a, 'admin')
-    const gone = await createUser(a, 'porteiro')
-    await createUser(b, 'admin')
-    await (await users()).updateOne({ _id: gone._id }, { $set: { status_id: (await getStatus('deleted'))._id } })
-
-    await loginAs(admin)
-    const res = await listUsers()
-    const body = (await res.json()) as Array<Record<string, unknown>>
-
-    expect(body.map((u) => u._id)).toEqual([admin._id.toString()])
-    expect(JSON.stringify(body)).not.toContain('password')
-  })
-})
 
 describe('POST /api/users', () => {
   it('admin cria usuário no próprio condomínio, com email normalizado e audit log', async () => {
@@ -225,7 +208,7 @@ describe('permissões se somam', () => {
     const arrived = await createPackageRoute(jsonRequest('POST', { resident_id: resident._id.toString(), photo_url: photoUrl(condo) }))
     expect(arrived.status).toBe(201)
     // de nenhuma das duas: gerir usuários e exportar relatório
-    expect((await listUsers()).status).toBe(403)
+    expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(403)
     expect((await exportReport(jsonRequest('GET', undefined, {}, 'http://localhost/api/reports/export'))).status).toBe(403)
   })
 

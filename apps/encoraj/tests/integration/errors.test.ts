@@ -9,10 +9,26 @@ vi.mock('@/lib/auth/session', () => {
   return { getSession: down, getSessionForPasswordChange: down }
 })
 
+// Rotas públicas não passam pela sessão: o primeiro acesso ao banco delas é o limite de
+// tentativas. Desligado por padrão; cada teste liga quando quer simular o banco fora do ar.
+const rateLimitState = vi.hoisted(() => ({ down: false }))
+vi.mock('@/lib/auth/rateLimit', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/auth/rateLimit')>()
+  const guard = () => {
+    if (rateLimitState.down) throw new Error('banco fora do ar')
+  }
+  return {
+    ...real,
+    isRateLimited: vi.fn(async (...args: Parameters<typeof real.isRateLimited>) => (guard(), real.isRateLimited(...args))),
+    checkRateLimit: vi.fn(async (...args: Parameters<typeof real.checkRateLimit>) => (guard(), real.checkRateLimit(...args))),
+  }
+})
+
 import { POST as login } from '@/app/api/auth/route'
 import { POST as forgot } from '@/app/api/auth/forgot/route'
 import { POST as reset } from '@/app/api/auth/reset/route'
 import { PROTECTED_ROUTES } from '../helpers/routes'
+import { jsonRequest } from '../helpers/factory'
 
 const brokenJson = () =>
   new NextRequest('http://localhost/api/test', {
@@ -44,15 +60,37 @@ describe('falha interna nunca vaza detalhe e sempre é registrada', () => {
     expect(JSON.stringify(body)).not.toContain('banco fora do ar')
     expect(console.error).toHaveBeenCalled()
   })
+})
 
+describe('corpo ilegível é erro de quem chamou, não do servidor', () => {
   it.each([
     ['POST /api/auth', login],
     ['POST /api/auth/forgot', forgot],
     ['POST /api/auth/reset', reset],
-  ])('%s com corpo ilegível', async (_name, handler) => {
+  ])('%s → 400, sem registrar erro', async (_name, handler) => {
     const res = await handler(brokenJson())
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'Dados inválidos.' })
+    expect(console.error).not.toHaveBeenCalled()
+  })
+})
+
+describe('rotas públicas: falha interna vira 500 sem detalhe e fica registrada', () => {
+  beforeEach(() => {
+    rateLimitState.down = true
+  })
+  afterEach(() => {
+    rateLimitState.down = false
+  })
+
+  it.each([
+    ['POST /api/auth', login, { email: 'ana@teste.com', password: 'qualquer-senha' }],
+    ['POST /api/auth/forgot', forgot, { email: 'ana@teste.com' }],
+    ['POST /api/auth/reset', reset, { token: 'um-token', password: 'senha-forte-123' }],
+  ])('%s', async (_name, handler, body) => {
+    const res = await handler(jsonRequest('POST', body))
     expect(res.status).toBe(500)
-    expect(Object.keys(await res.json())).toEqual(['error'])
+    expect(await res.json()).toEqual({ error: 'Erro interno.' })
     expect(console.error).toHaveBeenCalled()
   })
 })

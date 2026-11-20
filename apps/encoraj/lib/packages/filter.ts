@@ -23,6 +23,19 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
+ * Opções do filtro de status, na ordem das telas: "Todos", "Em aberto" e um por status
+ * de encomenda, com o rótulo vindo do banco. Os valores são os que buildPackageFilter() entende.
+ */
+export async function packageStatusOptions(): Promise<{ label: string; value: string }[]> {
+  const statuses = await Promise.all(PACKAGE_STATUSES.map((name) => getStatus(name)))
+  return [
+    { label: 'Todos', value: '' },
+    { label: 'Em aberto', value: 'open' },
+    ...statuses.map((s) => ({ label: s.label, value: s.name })),
+  ]
+}
+
+/**
  * Filtro do MongoDB para listagens de encomendas (/packages, /reports e export CSV).
  * Sempre restrito ao condomínio; parâmetro desconhecido ou malformado é ignorado.
  *

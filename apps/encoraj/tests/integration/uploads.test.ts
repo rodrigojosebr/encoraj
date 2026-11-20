@@ -9,7 +9,6 @@ import { POST as setMyPhoto, DELETE as removeMyPhoto } from '@/app/api/users/me/
 import { analyzePackageLabel } from '@/lib/gemini/ocr'
 import { s3 } from '@/lib/s3/client'
 import { condominiums, users } from '@/lib/db/collections'
-import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
 import { createCondo, createResident, createUser, formRequest, imageForm, jsonRequest, JPEG, loginAs, PNG } from '../helpers/factory'
 
@@ -46,24 +45,24 @@ describe('POST /api/upload', () => {
 })
 
 describe('fotos de perfil e do condomínio', () => {
-  it('foto do condomínio: grava, re-assina o cookie e remove', async () => {
+  it('foto do condomínio: grava e remove, sem mexer na sessão', async () => {
     const condo = await createCondo()
     await loginAs(await createUser(condo, 'admin'))
 
     const res = await setCondoPhoto(formRequest(imageForm(JPEG)))
     expect(res.status).toBe(200)
-    // Resposta: link assinado para exibir já. Banco e JWT: URL canônica, sem assinatura.
+    // Resposta: link assinado para exibir já. Banco: URL canônica, sem assinatura.
     const canonical = `https://test-bucket.s3.us-east-1.amazonaws.com/condos/${condo._id.toString()}/logo.jpg`
     expect((await res.json()).photo_url).toBe(`https://signed.test/condos/${condo._id.toString()}/logo.jpg?X-Amz-Signature=teste`)
     expect((await (await condominiums()).findOne({ _id: condo._id }))!.photo_url).toBe(canonical)
-    expect((await verifyToken(res.cookies.get(AUTH_COOKIE)!.value)).condo_photo_url).toBe(canonical)
+    expect(res.cookies.get(AUTH_COOKIE)).toBeUndefined() // foto não vai no token
 
     expect((await setCondoPhoto(formRequest(fakeImage()))).status).toBe(400)
 
     const removed = await removeCondoPhoto()
     expect(removed.status).toBe(200)
     expect((await (await condominiums()).findOne({ _id: condo._id }))!.photo_url).toBeUndefined()
-    expect((await verifyToken(removed.cookies.get(AUTH_COOKIE)!.value)).condo_photo_url).toBeUndefined()
+    expect(removed.cookies.get(AUTH_COOKIE)).toBeUndefined()
   })
 
   it('foto de perfil: cada um altera só a própria', async () => {
@@ -95,7 +94,7 @@ describe('POST /api/ocr', () => {
 
     const res = await ocr(formRequest(imageForm(JPEG)))
     expect(await res.json()).toEqual({
-      match: { value: ana._id.toString(), label: 'Ana — Bloco A, Apto 101' },
+      match: { value: ana._id.toString(), label: 'Ana — Bloco A · Apto 101' },
       confidence: 'high',
       extracted_text: 'Ana 101',
     })

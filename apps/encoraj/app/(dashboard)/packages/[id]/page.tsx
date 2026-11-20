@@ -1,9 +1,9 @@
-import { notFound } from 'next/navigation'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
 import { ObjectId } from 'mongodb'
 import Image from 'next/image'
 import { packages, residents } from '@/lib/db/collections'
+import { formatUnit } from '@/lib/residents/lookup'
 import { getStatus, getStatusById } from '@/lib/db/status-map'
 import { fmtDateTime } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
@@ -82,8 +82,8 @@ export default async function PackageDetailPage({ params }: RouteContext) {
           <span className={valueCss}>{resident?.name ?? '—'}</span>
         </div>
         <div className={rowCss}>
-          <span className={labelCss}>Apartamento</span>
-          <span className={valueCss}>{resident?.apartment ?? '—'}</span>
+          <span className={labelCss}>Unidade</span>
+          <span className={valueCss}>{resident ? formatUnit(resident) : '—'}</span>
         </div>
         <div className={rowCss}>
           <span className={labelCss}>Chegada</span>

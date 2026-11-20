@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getSession } from '@/lib/auth/session'
 import { checkRateLimit } from '@/lib/auth/rateLimit'
 import { reportError } from '@/lib/observability/report'
+import { parseBody, serverError, tooManyRequests, unauthorized } from '@/lib/api/http'
 
 const schema = z.object({
   message: z.string().trim().min(1).max(500),
@@ -18,13 +19,13 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!session) return unauthorized()
 
-    const parsed = schema.safeParse(await request.json().catch(() => null))
-    if (!parsed.success) return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
+    const parsed = await parseBody(request, schema)
+    if (parsed.error) return parsed.error
 
     const rl = await checkRateLimit(`client-error:${session.userId}`, 10, 10 * 60 * 1000)
-    if (rl.blocked) return NextResponse.json({ error: 'Muitos relatos' }, { status: 429 })
+    if (rl.blocked) return tooManyRequests('Muitos relatos.')
 
     const { message, digest, path } = parsed.data
     await reportError('[tela]', new Error(message), {
@@ -37,7 +38,6 @@ export async function POST(request: Request) {
 
     return new NextResponse(null, { status: 204 })
   } catch (err) {
-    await reportError('[POST /api/client-errors]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[POST /api/client-errors]', err)
   }
 }

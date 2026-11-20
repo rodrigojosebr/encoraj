@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { errorLogs } from '@/lib/db/collections'
 import { getSession } from '@/lib/auth/session'
 import { getSuperAdminSession } from '@/lib/auth/super-admin'
-import { reportError } from '@/lib/observability/report'
+import { badRequest, forbidden, notFound, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const schema = z.object({ resolved: z.boolean() })
 
@@ -16,13 +16,13 @@ interface RouteContext {
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const { id } = await params
-    if (!(await getSession())) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!(await getSession())) return unauthorized()
     const session = await getSuperAdminSession()
-    if (!session) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
-    if (!ObjectId.isValid(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+    if (!session) return forbidden()
+    if (!ObjectId.isValid(id)) return badRequest('ID inválido.')
 
-    const parsed = schema.safeParse(await request.json().catch(() => null))
-    if (!parsed.success) return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
+    const parsed = await parseBody(request, schema)
+    if (parsed.error) return parsed.error
 
     const result = await (await errorLogs()).updateOne(
       { _id: new ObjectId(id) },
@@ -30,11 +30,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ? { $set: { resolved_at: new Date(), resolved_by: new ObjectId(session.userId) } }
         : { $unset: { resolved_at: '', resolved_by: '' } },
     )
-    if (result.matchedCount === 0) return NextResponse.json({ error: 'Erro não encontrado' }, { status: 404 })
+    if (result.matchedCount === 0) return notFound('Erro não encontrado.')
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    await reportError('[PATCH /api/admin/errors/[id]]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[PATCH /api/admin/errors/[id]]', err)
   }
 }

@@ -380,26 +380,26 @@ Corrigido na hora (regra de segurança ou de idioma quebrada):
 
 Aberto — segurança/regra (fazer primeiro):
 
-- [ ] `GET /api/residents`, `/api/users`, `/api/packages*` não são usados pela interface e não paginam: remover (e tirar de `tests/helpers/routes.ts`) ou paginar
-- [ ] `/users` (página) lista sem paginação
-- [ ] `GET /api/condo` atende qualquer logado: confirmar que é de propósito (está documentado como exceção no CLAUDE.md)
-- [ ] JSON inválido vira 500 em 10 rotas (`request.json()` sem `.catch`): helper único `parseBody(request, schema)`
-- [ ] Login usa schema de email próprio em vez de `emailSchema`
-- [ ] Custo do bcrypt 10 em quatro rotas e 12 em `lib/condos/create.ts`: um `hashPassword()` único
+- [x] `GET /api/residents`, `/api/users`, `/api/packages` e `/api/packages/[id]` removidos (a interface não usava); com eles saíram as permissões mortas `packages.read` e `residents.read`
+- [x] `/users` paginada, com ativos/desativados no mesmo seletor da tela de moradores; linha e cartão em `users/_components/UserItems.tsx`
+- [x] `GET /api/condo` atende qualquer logado — de propósito (documentado como exceção no CLAUDE.md)
+- [x] `lib/api/http.ts`: `parseBody()` (JSON inválido → 400; mensagem padrão do Zod, em inglês, não chega à tela) e respostas padrão em todas as rotas
+- [x] Login usa `emailSchema` (que agora tem a mensagem "Email inválido.")
+- [x] `hashPassword()` único em `lib/auth/password.ts` (custo 12); `passwordSchema` mudou para lá
 
 Aberto — duplicação / lugar das coisas:
 
-- [ ] Reassinar o JWT repetido em 7 lugares → `refreshSessionCookie()` em `lib/auth/`; `photo_url`/`condo_photo_url` no JWT não são lidos por ninguém (o layout relê do banco) — tirar do token elimina a maior parte
+- [x] Fotos saíram do JWT (o layout lê do banco); as rotas de foto não mexem mais no cookie. Emissão e limpeza do cookie por `setSessionCookie()` / `clearSessionCookie()` em `lib/auth/cookies.ts`
 - [ ] `PasswordField` (campo com olho) triplicado em login, reset e perfil, com SVG à mão → um componente em `@encoraj/ui` com `lucide-react`; usar também em `/change-password`
 - [ ] Moldura das telas de `(auth)` copiada em 4 páginas → `app/(auth)/layout.tsx`
 - [ ] `mutedCss`/`cardCss`/`thCss`/`tdCss` repetidos em 6 páginas; `Card` e `Text` de `@encoraj/ui` não são usados (o `Card` não tem dark mode) → corrigir o `Card` e usar, ou recipes no Panda
-- [ ] Contagens do painel e opções de filtro de status duplicadas entre `/` e `/reports` → `lib/packages/`
-- [ ] Rótulo da unidade ("Bloco X, Apto Y") formatado à mão em ~12 lugares, com formatos diferentes → `formatUnit()`
-- [ ] Mapa de moradores por id repetido em 4 lugares → `getResidentMap(condoId, ids)`
-- [ ] Regra de criação de encomenda dentro de `app/api/packages/route.ts` → `lib/packages/create.ts`
+- [x] Contagens do painel → `getPackageStats()` (`lib/packages/stats.ts`); opções do filtro de status → `packageStatusOptions()` (`lib/packages/filter.ts`), em `/packages` e `/reports`
+- [x] Unidade num formato só ("Bloco A · Apto 101") por `formatUnit()` / `residentLabel()`; colunas viraram "Unidade" (inclusive no CSV). O detalhe da encomenda não mostrava o bloco
+- [x] Mapa de moradores por id → `getResidentMap(condoId, ids)` (`lib/residents/lookup.ts`), em 5 lugares
+- [x] ~~`lib/packages/create.ts`~~ descartado: só a rota cria encomenda, extrair seria mover código sem tirar duplicação
 - [ ] Upload de foto duplicado entre `/settings` e perfil → hook `usePhotoUpload`
-- [ ] Conferência de senha com limite duplicada (`condo/erase`, `users/me/password`) → `verifyPasswordWithLimit()`
-- [ ] 401/403/500 e mensagens escritos à mão em cada rota, com e sem ponto final → helpers `unauthorized()`/`forbidden()`/`serverError()`
+- [x] Senha atual com limite → `verifyCurrentPassword()` (`lib/auth/current-password.ts`), em `condo/erase` e `users/me/password`
+- [x] 401/403/500 e mensagens pelos helpers de `lib/api/http.ts`, todas com ponto final
 
 Aberto — nomes e limpeza:
 
@@ -408,7 +408,7 @@ Aberto — nomes e limpeza:
 - [ ] `lib/auth/rateLimit.ts` → `rate-limit.ts` (o resto de `lib/` é kebab-case); janelas de limite como constantes nomeadas
 - [ ] Rótulos do `reportError` fora do formato `[MÉTODO /api/...]`: `[me/password]`, `[reset]`, `[forgot]`, `[tela]`
 - [ ] Arquivos grandes: `NewPackageForm.tsx` (486), `reports/management/page.tsx` (375), `ProfileClient.tsx` (372), `SidebarShell.tsx` (340), `reports/page.tsx` (339)
-- [ ] `users/page.tsx`: `UserRow`/`UserCard` declarados dentro da página, casts `as unknown as` desnecessários, rótulo "Ativo" fixo no código
+- [x] `users/page.tsx`: `UserRow`/`UserCard` extraídos, casts removidos, rótulo "Ativo" vem do banco
 - [ ] Prop morta `role` em `DashboardShell`/`SidebarShell`; `console.error` duplicado em `(dashboard)/error.tsx`; mínimo de senha "8" fixo no cliente
 - [ ] Busca de moradores com `<form>` próprio em vez do `SearchInput`
 - [ ] Árvore de pastas do `CLAUDE.md` incompleta (faltam `profile/`, `forgot-password`, `reset-password`, `lib/date`, `lib/legal`, `lib/pagination.ts`, componentes compartilhados)

@@ -3,6 +3,7 @@ import { Pencil, UserPlus } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
+import { formatUnit } from '@/lib/residents/lookup'
 import { readSession } from '@/lib/auth/session'
 import { escapeRegex } from '@/lib/db/escape-regex'
 import { getStatus } from '@/lib/db/status-map'
@@ -10,7 +11,7 @@ import { css } from '@/styled-system/css'
 import { Button } from '@encoraj/ui'
 import DeleteButton from './_components/DeleteButton'
 import RestoreButton from './_components/RestoreButton'
-import DeletedToggle from './_components/DeletedToggle'
+import DeletedToggle from '../_components/DeletedToggle'
 import { fmtDate } from '@/lib/date/tz'
 import { paginate, parsePage } from '@/lib/pagination'
 import { can } from '@/lib/auth/permissions'
@@ -78,7 +79,7 @@ export default async function ResidentsPage({
           })}
         />
         </form>
-        <DeletedToggle />
+        <DeletedToggle pathname="/residents" />
       </div>
 
       {/* Mobile: cards */}
@@ -112,7 +113,7 @@ export default async function ResidentsPage({
                   {r.name}
                 </p>
                 <p className={css({ fontSize: 'xs', color: 'gray.500', mt: '0.5', _dark: { color: 'gray.400' } })}>
-                  {r.bloco ? `Bloco ${r.bloco}, Apto ${r.apartment}` : `Apto ${r.apartment}`}
+                  {formatUnit(r)}
                 </p>
                 <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
                   {r.whatsapp}
@@ -170,7 +171,7 @@ export default async function ResidentsPage({
           <table className={css({ w: 'full', minW: '600px', borderCollapse: 'collapse' })}>
             <thead>
               <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
-                {['Nome', 'Apartamento', 'WhatsApp', showDeleted ? 'Excluído em' : 'Ações'].map((h) => (
+                {['Nome', 'Unidade', 'WhatsApp', showDeleted ? 'Excluído em' : 'Ações'].map((h) => (
                   <th
                     key={h}
                     className={css({
@@ -200,7 +201,7 @@ export default async function ResidentsPage({
                     {r.name}
                   </td>
                   <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                    {r.bloco ? `Bloco ${r.bloco}, Apto ${r.apartment}` : `Apto ${r.apartment}`}
+                    {formatUnit(r)}
                   </td>
                   <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
                     {r.whatsapp}

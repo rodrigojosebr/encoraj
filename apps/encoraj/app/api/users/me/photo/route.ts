@@ -1,21 +1,18 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { ObjectId } from 'mongodb'
 import { users } from '@/lib/db/collections'
 import { uploadToS3 } from '@/lib/s3/upload'
-import { signToken, verifyToken } from '@/lib/auth/jwt'
-import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
 import { readImageUpload } from '@/lib/upload/image'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { signS3Url } from '@/lib/s3/sign'
-import { reportError } from '@/lib/observability/report'
+import { badRequest, serverError, unauthorized } from '@/lib/api/http'
 
 export async function DELETE() {
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     const { userId, userName, condoId } = session
 
@@ -32,24 +29,9 @@ export async function DELETE() {
       after: { photo_url: null },
     })
 
-    const cookieStore = await cookies()
-    const currentToken = cookieStore.get(AUTH_COOKIE)?.value
-    const response = NextResponse.json({ photo_url: null })
-
-    if (currentToken) {
-      try {
-        const payload = await verifyToken(currentToken)
-        const { photo_url: _removed, ...rest } = payload
-        void _removed
-        const newToken = await signToken(rest)
-        response.cookies.set(AUTH_COOKIE, newToken, COOKIE_OPTIONS)
-      } catch { /* token inválido */ }
-    }
-
-    return response
+    return NextResponse.json({ photo_url: null })
   } catch (err) {
-    await reportError('[DELETE /api/users/me/photo]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[DELETE /api/users/me/photo]', err)
   }
 }
 
@@ -57,12 +39,12 @@ export async function POST(request: Request) {
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     const { userId, userName, condoId } = session
 
     const image = await readImageUpload(request)
-    if ('error' in image) return NextResponse.json({ error: image.error }, { status: 400 })
+    if ('error' in image) return badRequest(image.error)
 
     const col = await users()
     // Pasta do condomínio do próprio usuário: o super admin pode estar "dentro" de outro,
@@ -83,23 +65,9 @@ export async function POST(request: Request) {
       after: { photo_url },
     })
 
-    // Re-assina JWT com photo_url atualizado
-    const cookieStore = await cookies()
-    const currentToken = cookieStore.get(AUTH_COOKIE)?.value
-    // No banco e no JWT fica a URL canônica; para o navegador vai o link assinado
-    const response = NextResponse.json({ photo_url: await signS3Url(photo_url) })
-
-    if (currentToken) {
-      try {
-        const payload = await verifyToken(currentToken)
-        const newToken = await signToken({ ...payload, photo_url })
-        response.cookies.set(AUTH_COOKIE, newToken, COOKIE_OPTIONS)
-      } catch { /* token inválido */ }
-    }
-
-    return response
+    // No banco fica a URL canônica; para o navegador vai o link assinado
+    return NextResponse.json({ photo_url: await signS3Url(photo_url) })
   } catch (err) {
-    await reportError('[POST /api/users/me/photo]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[POST /api/users/me/photo]', err)
   }
 }

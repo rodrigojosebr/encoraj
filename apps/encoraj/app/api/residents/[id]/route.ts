@@ -5,8 +5,8 @@ import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
-import { reportError } from '@/lib/observability/report'
 import { can } from '@/lib/auth/permissions'
+import { badRequest, forbidden, notFound, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const UpdateResidentSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
@@ -24,31 +24,27 @@ export async function PUT(request: Request, { params }: RouteContext) {
     const { id } = await params
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     const { userId: actorId, userName: actorName, condoId } = session
 
     if (!can(session, 'residents.write')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return forbidden()
     }
 
     if (!ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return badRequest('ID inválido.')
     }
 
-    const body = await request.json()
-    const parsed = UpdateResidentSchema.safeParse(body)
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.flatten() }, { status: 400 })
-    }
+    const parsed = await parseBody(request, UpdateResidentSchema)
+    if (parsed.error) return parsed.error
 
     const col = await residents()
     const { _id: activeStatusId } = await getStatus('active')
     const before = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: activeStatusId })
 
     if (!before) {
-      return NextResponse.json({ error: 'Morador não encontrado' }, { status: 404 })
+      return notFound('Morador não encontrado.')
     }
 
     const updateFields = { ...parsed.data }
@@ -68,8 +64,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    await reportError('[PUT /api/residents/[id]]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[PUT /api/residents/[id]]', err)
   }
 }
 
@@ -78,16 +73,16 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
     const { id } = await params
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     const { userId: actorId, userName: actorName, condoId } = session
 
     if (!can(session, 'residents.write')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return forbidden()
     }
 
     if (!ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return badRequest('ID inválido.')
     }
 
     const col = await residents()
@@ -98,7 +93,7 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
     const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: deletedStatusId })
 
     if (!doc) {
-      return NextResponse.json({ error: 'Morador não encontrado nos excluídos' }, { status: 404 })
+      return notFound('Morador não encontrado nos excluídos.')
     }
     await col.updateOne(
       { _id: new ObjectId(id), condo_id: new ObjectId(condoId) },
@@ -121,8 +116,7 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    await reportError('[PATCH /api/residents/[id]]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[PATCH /api/residents/[id]]', err)
   }
 }
 
@@ -131,16 +125,16 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     const { id } = await params
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     const { userId: actorId, userName: actorName, condoId } = session
 
     if (!can(session, 'residents.write')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return forbidden()
     }
 
     if (!ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return badRequest('ID inválido.')
     }
 
     const col = await residents()
@@ -151,7 +145,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     const doc = await col.findOne({ _id: new ObjectId(id), condo_id: new ObjectId(condoId), status_id: activeStatusId })
 
     if (!doc) {
-      return NextResponse.json({ error: 'Morador não encontrado' }, { status: 404 })
+      return notFound('Morador não encontrado.')
     }
 
     const now = new Date()
@@ -172,7 +166,6 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    await reportError('[DELETE /api/residents/[id]]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[DELETE /api/residents/[id]]', err)
   }
 }

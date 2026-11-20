@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb'
-import { packages, residents, users } from '@/lib/db/collections'
+import { packages, users } from '@/lib/db/collections'
+import { formatUnit, getResidentMap } from '@/lib/residents/lookup'
 import { getStatus } from '@/lib/db/status-map'
 import { addDays, parseDateAsTZ, tzParts } from '@/lib/date/tz'
 import { ERASED_ACTOR_NAME } from '@/lib/lgpd/erase'
@@ -186,17 +187,7 @@ export async function getManagementReport(
   const avgNotify = average(notifyMinutes)
 
   // ── Moradores e unidades ──────────────────────────────────────────────────
-  const residentIds = new Map<string, ObjectId>()
-  for (const pkg of [...arrivedDocs, ...openDocs]) residentIds.set(pkg.resident_id.toString(), pkg.resident_id)
-  const residentDocs = residentIds.size
-    ? await (await residents())
-        .find(
-          { _id: { $in: [...residentIds.values()] }, condo_id: condoOid },
-          { projection: { name: 1, apartment: 1, bloco: 1 } },
-        )
-        .toArray()
-    : []
-  const residentById = new Map(residentDocs.map((r) => [r._id.toString(), r]))
+  const residentById = await getResidentMap(condoOid, [...arrivedDocs, ...openDocs].map((pkg) => pkg.resident_id))
 
   const unitOf = (residentId: ObjectId) => {
     const resident = residentById.get(residentId.toString())
@@ -204,7 +195,7 @@ export async function getManagementReport(
     const block = resident.bloco?.trim() || NO_BLOCK_LABEL
     return {
       key: `${block}|${resident.apartment}`,
-      label: resident.bloco?.trim() ? `Bloco ${block} · Apto ${resident.apartment}` : `Apto ${resident.apartment}`,
+      label: formatUnit(resident),
       block,
       name: resident.name,
     }

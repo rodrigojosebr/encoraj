@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
-import { cookies } from 'next/headers'
 import { condominiums } from '@/lib/db/collections'
-import { signToken, verifyToken } from '@/lib/auth/jwt'
-import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { setSessionCookie } from '@/lib/auth/cookies'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { signS3Url } from '@/lib/s3/sign'
-import { reportError } from '@/lib/observability/report'
 import { can } from '@/lib/auth/permissions'
+import { forbidden, notFound, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const UpdateCondoSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -18,17 +16,16 @@ const UpdateCondoSchema = z.object({
 export async function GET() {
   try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!session) return unauthorized()
     const { condoId } = session
 
     const col = await condominiums()
     const condo = await col.findOne({ _id: new ObjectId(condoId) })
-    if (!condo) return NextResponse.json({ error: 'Condomínio não encontrado' }, { status: 404 })
+    if (!condo) return notFound('Condomínio não encontrado.')
 
     return NextResponse.json({ name: condo.name, slug: condo.slug, photo_url: await signS3Url(condo.photo_url) })
   } catch (err) {
-    await reportError('[GET /api/condo]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[GET /api/condo]', err)
   }
 }
 
@@ -36,22 +33,19 @@ export async function PUT(request: Request) {
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     const { userId: actorId, userName: actorName, condoId } = session
     if (!can(session, 'condo.manage')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return forbidden()
     }
 
-    const body = await request.json()
-    const parsed = UpdateCondoSchema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.flatten() }, { status: 400 })
-    }
+    const parsed = await parseBody(request, UpdateCondoSchema)
+    if (parsed.error) return parsed.error
 
     const col = await condominiums()
     const before = await col.findOne({ _id: new ObjectId(condoId) })
-    if (!before) return NextResponse.json({ error: 'Condomínio não encontrado' }, { status: 404 })
+    if (!before) return notFound('Condomínio não encontrado.')
 
     await col.updateOne({ _id: new ObjectId(condoId) }, { $set: { name: parsed.data.name } })
 
@@ -66,24 +60,11 @@ export async function PUT(request: Request) {
       after: { name: parsed.data.name },
     })
 
-    // Re-sign JWT with new condo_name so sidebar updates immediately
-    const cookieStore = await cookies()
-    const currentToken = cookieStore.get(AUTH_COOKIE)?.value
+    // O nome do condomínio vai no token: reemite para a barra lateral mostrar o novo
     const response = NextResponse.json({ ok: true })
-
-    if (currentToken) {
-      try {
-        const payload = await verifyToken(currentToken)
-        const newToken = await signToken({ ...payload, condo_name: parsed.data.name })
-        response.cookies.set(AUTH_COOKIE, newToken, COOKIE_OPTIONS)
-      } catch {
-        // Token inválido — não atualiza, usuário fará login novamente
-      }
-    }
-
+    await setSessionCookie(response, { ...session, condoName: parsed.data.name })
     return response
   } catch (err) {
-    await reportError('[PUT /api/condo]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[PUT /api/condo]', err)
   }
 }

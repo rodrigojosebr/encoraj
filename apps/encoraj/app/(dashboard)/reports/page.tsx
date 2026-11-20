@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
-import { ObjectId } from 'mongodb'
-import { packages, residents } from '@/lib/db/collections'
-import { getStatus, getStatusById } from '@/lib/db/status-map'
+import { packages } from '@/lib/db/collections'
+import { formatUnit, getResidentMap } from '@/lib/residents/lookup'
+import { getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Badge, Button } from '@encoraj/ui'
 import { Eye, Package, Bell, CheckCircle2, BarChart3 } from 'lucide-react'
@@ -11,7 +11,8 @@ import ExportCSV from './_components/ExportCSV'
 import ReportsFilterBar from './_components/ReportsFilterBar'
 import SearchInput from '../_components/SearchInput'
 import { getTodayRange, fmtDate } from '@/lib/date/tz'
-import { buildPackageFilter } from '@/lib/packages/filter'
+import { buildPackageFilter, packageStatusOptions } from '@/lib/packages/filter'
+import { getPackageStats } from '@/lib/packages/stats'
 import { pageHref, paginate, parsePage } from '@/lib/pagination'
 import { can } from '@/lib/auth/permissions'
 import Pagination from '../_components/Pagination'
@@ -33,39 +34,14 @@ export default async function ReportsPage({
   if (!can(session, 'reports.view')) notFound()
   const condoId = session.condoId
 
-  const [arrived, notified, delivered] = await Promise.all([
-    getStatus('arrived'),
-    getStatus('notified'),
-    getStatus('delivered'),
-  ])
-  const [arrivedId, notifiedId, deliveredId] = [arrived._id, notified._id, delivered._id]
-
-  const STATUS_OPTIONS = [
-    { label: 'Todos',            value: '' },
-    { label: 'Em aberto',        value: 'open' },
-    { label: arrived.label,      value: 'arrived' },
-    { label: notified.label,     value: 'notified' },
-    { label: delivered.label,    value: 'delivered' },
-  ]
+  const [statusOptions, stats] = await Promise.all([packageStatusOptions(), getPackageStats(condoId)])
+  const todayStr = getTodayRange().today.toISOString().slice(0, 10)
 
   const col = await packages()
-  const condoOid = new ObjectId(condoId)
-
-  const { today, tomorrow } = getTodayRange()
-  const todayStr = today.toISOString().slice(0, 10)
-
-  // Stats (parallel)
-  const [arrivedToday, openCount, deliveredToday, totalCount] = await Promise.all([
-    col.countDocuments({ condo_id: condoOid, arrived_at: { $gte: today, $lt: tomorrow } }),
-    col.countDocuments({ condo_id: condoOid, status_id: { $in: [arrivedId, notifiedId] } }),
-    col.countDocuments({ condo_id: condoOid, status_id: deliveredId, delivered_at: { $gte: today, $lt: tomorrow } }),
-    col.countDocuments({ condo_id: condoOid }),
-  ])
 
   // Listagem paginada — o export CSV (rota própria) usa os mesmos filtros, sem paginação
   const listParams = { status, period, from, to, q }
   const filter = await buildPackageFilter(condoId, listParams, { searchCode: false })
-  const resCol = await residents()
   const pagination = paginate(await col.countDocuments(filter), parsePage(pageParam))
   const docs = await col
     .find(filter)
@@ -74,22 +50,17 @@ export default async function ReportsPage({
     .limit(pagination.pageSize)
     .toArray()
 
-  // Resident map
-  const residentIds = [...new Set(docs.map((d) => d.resident_id.toString()))]
-  const residentDocs = residentIds.length
-    ? await resCol.find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) }, condo_id: new ObjectId(condoId) }).toArray()
-    : []
-  const residentMap = Object.fromEntries(residentDocs.map((r) => [r._id!.toString(), r]))
+  const residentMap = await getResidentMap(condoId, docs.map((d) => d.resident_id))
 
   const statusInfos = await Promise.all(docs.map((d) => getStatusById(d.status_id)))
 
   const exportHref = pageHref('/api/reports/export', listParams, 1)
 
   const statCards = [
-    { label: 'Chegadas hoje',   value: arrivedToday,  href: `/reports?from=${todayStr}&to=${todayStr}` },
-    { label: 'Em aberto',       value: openCount,     href: '/reports?status=open' },
-    { label: 'Retiradas hoje',  value: deliveredToday, href: `/reports?status=delivered&period=today` },
-    { label: 'Total geral',     value: totalCount,    href: '/reports' },
+    { label: 'Chegadas hoje',   value: stats.arrivedToday,   href: `/reports?from=${todayStr}&to=${todayStr}` },
+    { label: 'Em aberto',       value: stats.open,           href: '/reports?status=open' },
+    { label: 'Retiradas hoje',  value: stats.deliveredToday, href: '/reports?status=delivered&period=today' },
+    { label: 'Total geral',     value: stats.total,          href: '/reports' },
   ]
 
   return (
@@ -142,7 +113,7 @@ export default async function ReportsPage({
 
       {/* Filtros — status + datas, auto-aplicados */}
       <ReportsFilterBar
-        statusOptions={STATUS_OPTIONS}
+        statusOptions={statusOptions}
         status={status}
         from={from}
         to={to}
@@ -166,11 +137,9 @@ export default async function ReportsPage({
             {/* Mobile: cards */}
             <div className={css({ display: { base: 'flex', md: 'none' }, flexDir: 'column', gap: '3', p: '3' })}>
               {docs.map((pkg, i) => {
-                const resident = residentMap[pkg.resident_id.toString()]
+                const resident = residentMap.get(pkg.resident_id.toString())
                 const { name: statusName, label: statusLabel } = statusInfos[i]
-                const apt = resident
-                  ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}`
-                  : '—'
+                const apt = resident ? formatUnit(resident) : '—'
                 return (
                   <div
                     key={pkg._id!.toString()}
@@ -243,7 +212,7 @@ export default async function ReportsPage({
               <table className={css({ w: 'full', minW: '720px', borderCollapse: 'collapse' })}>
                 <thead>
                   <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
-                    {['Código', 'Morador', 'Apartamento', 'Chegada', 'Timeline', 'Status', ''].map((h) => (
+                    {['Código', 'Morador', 'Unidade', 'Chegada', 'Timeline', 'Status', ''].map((h) => (
                       <th
                         key={h}
                         className={css({
@@ -260,11 +229,9 @@ export default async function ReportsPage({
                 </thead>
                 <tbody>
                   {docs.map((pkg, i) => {
-                    const resident = residentMap[pkg.resident_id.toString()]
+                    const resident = residentMap.get(pkg.resident_id.toString())
                     const { name: statusName, label: statusLabel } = statusInfos[i]
-                    const apt = resident
-                      ? `${resident.bloco ? resident.bloco + ', ' : ''}Apto ${resident.apartment}`
-                      : '—'
+                    const apt = resident ? formatUnit(resident) : '—'
                     return (
                       <tr
                         key={pkg._id!.toString()}

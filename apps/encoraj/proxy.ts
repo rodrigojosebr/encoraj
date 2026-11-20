@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth/jwt'
-import { AUTH_COOKIE } from '@/lib/auth/cookies'
+import { AUTH_COOKIE, clearSessionCookie } from '@/lib/auth/cookies'
 import { tokenRoles } from '@/lib/auth/roles'
 import { can, PAGE_PERMISSIONS } from '@/lib/auth/permissions'
 
@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE)?.value
 
   if (!token) {
-    if (isApi) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (isApi) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
@@ -66,18 +66,18 @@ export async function proxy(request: NextRequest) {
     payload = await verifyToken(token)
   } catch {
     const response = isApi
-      ? NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      ? NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
       : NextResponse.redirect(new URL('/login', request.url))
-    response.cookies.set(AUTH_COOKIE, '', { maxAge: 0, path: '/' })
+    clearSessionCookie(response)
     return response
   }
 
   // JWT sem condo_id = token emitido antes do multi-tenancy → forçar novo login
   if (!payload.condo_id) {
     const response = isApi
-      ? NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      ? NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
       : NextResponse.redirect(new URL('/login', request.url))
-    response.cookies.set(AUTH_COOKIE, '', { maxAge: 0, path: '/' })
+    clearSessionCookie(response)
     return response
   }
 

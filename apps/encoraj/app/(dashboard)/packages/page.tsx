@@ -1,15 +1,15 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { readSession } from '@/lib/auth/session'
-import { ObjectId } from 'mongodb'
-import { packages, residents } from '@/lib/db/collections'
-import { getStatus, getStatusById } from '@/lib/db/status-map'
+import { packages } from '@/lib/db/collections'
+import { formatUnit, getResidentMap } from '@/lib/residents/lookup'
+import { getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
 import { Eye, PackagePlus } from 'lucide-react'
 import { Badge, Button } from '@encoraj/ui'
 import SearchInput from '../_components/SearchInput'
 import { fmtDate } from '@/lib/date/tz'
-import { buildPackageFilter } from '@/lib/packages/filter'
+import { buildPackageFilter, packageStatusOptions } from '@/lib/packages/filter'
 import { paginate, parsePage } from '@/lib/pagination'
 import { can } from '@/lib/auth/permissions'
 import Pagination from '../_components/Pagination'
@@ -25,24 +25,11 @@ export default async function PackagesPage({
   if (!can(session, 'packages.register')) notFound()
   const condoId = session.condoId
 
-  const [arrived, notified, delivered] = await Promise.all([
-    getStatus('arrived'),
-    getStatus('notified'),
-    getStatus('delivered'),
-  ])
-
-  const FILTERS = [
-    { label: 'Todos',            value: '' },
-    { label: 'Em aberto',        value: 'open' },
-    { label: arrived.label,      value: 'arrived' },
-    { label: notified.label,     value: 'notified' },
-    { label: delivered.label,    value: 'delivered' },
-  ]
+  const statusOptions = await packageStatusOptions()
 
   const filter = await buildPackageFilter(condoId, { status, period, q }, { searchCode: true })
 
   const col = await packages()
-  const resCol = await residents()
   const pagination = paginate(await col.countDocuments(filter), parsePage(pageParam))
   const docs = await col
     .find(filter)
@@ -54,12 +41,7 @@ export default async function PackagesPage({
   // Resolve status info (name for Badge, label for display) per package — single call each
   const statusInfos = await Promise.all(docs.map((d) => getStatusById(d.status_id)))
 
-  // Busca nomes dos moradores em lote
-  const residentIds = [...new Set(docs.map((d) => d.resident_id.toString()))]
-  const residentDocs = await resCol
-    .find({ _id: { $in: residentIds.map((id) => new ObjectId(id)) }, condo_id: new ObjectId(condoId) })
-    .toArray()
-  const residentMap = Object.fromEntries(residentDocs.map((r) => [r._id!.toString(), r]))
+  const residentMap = await getResidentMap(condoId, docs.map((d) => d.resident_id))
 
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6' })}>
@@ -78,7 +60,7 @@ export default async function PackagesPage({
 
       {/* Filtros de status */}
       <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '2' })}>
-        {FILTERS.map((f) => {
+        {statusOptions.map((f) => {
           const qParam = q ? `&q=${encodeURIComponent(q)}` : ''
           const href = f.value ? `/packages?status=${f.value}${qParam}` : `/packages${q ? `?q=${encodeURIComponent(q)}` : ''}`
           const isActive = status === f.value || (!status && !f.value)
@@ -118,7 +100,7 @@ export default async function PackagesPage({
             Nenhuma encomenda encontrada.
           </p>
         ) : docs.map((pkg, i) => {
-          const resident = residentMap[pkg.resident_id.toString()]
+          const resident = residentMap.get(pkg.resident_id.toString())
           const { name: statusName, label: statusLabel } = statusInfos[i]
           return (
             <Link key={pkg._id!.toString()} href={`/packages/${pkg._id!.toString()}`} className={css({ textDecoration: 'none' })}>
@@ -139,7 +121,7 @@ export default async function PackagesPage({
                     {resident?.name ?? '—'}
                   </p>
                   <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                    {resident?.apartment ? `Apto ${resident.apartment}` : '—'}{resident?.bloco ? ` · ${resident.bloco}` : ''}
+                    {resident ? formatUnit(resident) : '—'}
                     {' · '}chegou em {fmtDate(pkg.arrived_at)}
                   </p>
                 </div>
@@ -170,7 +152,7 @@ export default async function PackagesPage({
           <table className={css({ w: 'full', minW: '600px', borderCollapse: 'collapse' })}>
             <thead>
               <tr className={css({ bg: 'gray.50', borderBottom: '1px solid', borderColor: 'gray.200', _dark: { bg: 'gray.800', borderColor: 'gray.700' } })}>
-                {['Código', 'Morador', 'Apartamento', 'Chegada', 'Status', ''].map((h) => (
+                {['Código', 'Morador', 'Unidade', 'Chegada', 'Status', ''].map((h) => (
                   <th
                     key={h}
                     className={css({
@@ -192,7 +174,7 @@ export default async function PackagesPage({
             </thead>
             <tbody>
               {docs.map((pkg, i) => {
-                const resident = residentMap[pkg.resident_id.toString()]
+                const resident = residentMap.get(pkg.resident_id.toString())
                 const { name: statusName, label: statusLabel } = statusInfos[i]
                 return (
                   <tr
@@ -206,7 +188,7 @@ export default async function PackagesPage({
                       {resident?.name ?? '—'}
                     </td>
                     <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                      {resident?.apartment ?? '—'}
+                      {resident ? formatUnit(resident) : '—'}
                     </td>
                     <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
                       {fmtDate(pkg.arrived_at)}

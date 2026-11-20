@@ -22,18 +22,21 @@ Docs do repo — quando ler:
 
 ## Regras de segurança (não quebrar)
 
-- **Toda rota de API começa com `const session = await getSession()`** (`lib/auth/session.ts`), devolve 401 se vier `null` e 403 se `!can(session, 'permissão')`. Identidade nunca vem de header. Única exceção pública: `/api/auth/*`.
+- **Toda rota de API começa com `const session = await getSession()`** (`lib/auth/session.ts`), devolve `unauthorized()` se vier `null` e `forbidden()` se `!can(session, 'permissão')`.
+- **Resposta de rota sai pelos helpers de `lib/api/http.ts`**: `unauthorized`, `forbidden`, `badRequest`, `notFound`, `conflict`, `tooManyRequests`, `serverError(label, err)` (registra e responde 500). Corpo JSON entra por `parseBody(request, schema)` — JSON ilegível vira 400, nunca 500. Mensagem de erro é frase, com ponto final. Não escrever `NextResponse.json({ error … })` à mão.
+- **Rota existe porque a interface usa.** Páginas leem o banco direto (Server Components); não criar `GET /api/*` "para o futuro" — é porta aberta sem teste de uso. Identidade nunca vem de header. Única exceção pública: `/api/auth/*`.
 - **Toda query leva `condo_id`** — inclusive em Server Components e inclusive no `updateOne` depois de um `findOne` já filtrado. Página pega o `condoId` de `readSession()`.
 - **Nunca devolver documento inteiro**: projetar fora `password_hash`, `delivery_pin`, `public_token`.
 - **Texto do usuário em `$regex` passa por `escapeRegex()`** (`lib/db/escape-regex.ts`).
 - **Foto é reduzida no navegador antes de subir**: `compressImage()` em `app/(dashboard)/_lib/compress-image.ts` (a Vercel recusa corpo acima de ~4,5 MB).
 - **Upload de imagem passa por `readImageUpload()`** (`lib/upload/image.ts`): limite de tamanho e formato conferido pelos bytes.
-- **Email e senha usam `emailSchema` / `passwordSchema`** (`lib/auth/email.ts`): email sempre gravado e buscado em minúsculas, senha mínima única. Email é único entre usuários ativos (índice parcial no banco).
-- **URL de imagem só sai assinada**: no banco (e no JWT) fica a URL canônica; tudo que entrega imagem ao navegador passa por `signS3Url()` (`lib/s3/sign.ts`). Nunca mandar `photo_url`/`qrcode_url` cru para o cliente.
+- **Email e senha usam `emailSchema` (`lib/auth/email.ts`) / `passwordSchema` + `hashPassword()` (`lib/auth/password.ts`)**: email sempre gravado e buscado em minúsculas, senha mínima única, um só custo de bcrypt. Nunca chamar `bcrypt.hash` direto. Email é único entre usuários ativos (índice parcial no banco).
+- **URL de imagem só sai assinada**: no banco fica a URL canônica; tudo que entrega imagem ao navegador passa por `signS3Url()` (`lib/s3/sign.ts`). Nunca mandar `photo_url`/`qrcode_url` cru para o cliente.
 - **Link público é `/p/{public_token}`**, nunca o `_id` (ObjectId é sequencial, não é segredo). Não há mais aceitação de link antigo por id.
 - **Ninguém se cadastra sozinho**: usuário só nasce cadastrado por quem está acima (tela Usuários, ou junto com o condomínio/administradora), já dentro do condomínio. Não criar rota pública de cadastro nem lista de "usuários sem condomínio".
 - **Senha definida por outra pessoa obriga a troca** (`users.must_change_password`): ligada ao cadastrar e quando alguém redefine a senha de outro; desligada só quando o dono troca (`PUT /api/users/me/password`) ou redefine pelo link do email. Enquanto ligada, `getSession()` devolve `null` — nenhuma rota atende — e o layout manda para `/change-password`. Só essa tela, a rota de troca e o layout usam `getSessionForPasswordChange()`; **não usar essa função em mais nada**. Fluxo novo que define senha de terceiro tem que ligar a marca.
-- **Limite que conta só falha** (login, PIN, senha atual): `isRateLimited()` antes, `checkRateLimit()` na falha.
+- **Limite que conta só falha** (login, PIN): `isRateLimited()` antes, `checkRateLimit()` na falha. Senha atual de quem já está logado: `verifyCurrentPassword()` (`lib/auth/current-password.ts`), que já faz isso.
+- **Cookie de sessão só por `setSessionCookie()` / `clearSessionCookie()`** (`lib/auth/cookies.ts`). O token leva só identidade e condomínio (ver "JWT payload") — foto e o que mais mudar à toa ficam no banco.
 - **Listagem é paginada**: `paginate()` / `parsePage()` de `lib/pagination.ts` + `<Pagination>`; nada de `find().toArray()` sem `limit`. Componente que muda filtro apaga o `page` da URL.
 - **Filtro de encomendas é um só**: `buildPackageFilter()` em `lib/packages/filter.ts` serve `/packages`, `/reports` e o export CSV (`GET /api/reports/export`, todas as páginas, teto de 10 mil linhas).
 - **Relatório gerencial** (`/reports/management`): todo número sai de `getManagementReport()` em `lib/reports/management.ts` — página e export CSV usam a mesma função. Datas, dia da semana e hora sempre via `tzParts()` (fuso de São Paulo). Indicador novo entra lá, com teste.
@@ -58,7 +61,7 @@ yarn dev          # next dev
 yarn seed         # tsx scripts/seed.ts
 yarn panda        # panda codegen → regenerate styled-system/
 yarn preflight    # confere o banco antes de lançar (somente leitura; aceita MONGODB_URI=<produção>)
-yarn typecheck    # tsc --noEmit do app + dos testes (tsconfig.test.json)
+yarn typecheck    # next typegen (tipos das rotas, sem build) + tsc --noEmit do app e dos testes
 yarn test                                        # vitest run (suíte inteira)
 yarn vitest run tests/integration/users.test.ts  # um arquivo
 yarn vitest run -t "rate limit"                  # por nome do teste
@@ -77,7 +80,7 @@ Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mo
 - **O mapa fica no código de propósito** — não criar tela, rota ou coleção para editar permissão. Mudar quem pode o quê é mudança revisada, não configuração.
 - `hasRole()` (em `lib/auth/roles.ts`) é só para perguntas sobre a role em si, como "o alvo é super admin?".
 - No JWT vai a lista (`roles`). `getSession()` exige que o conjunto do token seja **igual** ao do banco: ganhou ou perdeu uma role, o token antigo deixa de valer e a pessoa entra de novo.
-- Roles do banco → nomes/rótulos: `userRoleNames()`, `userHasRole()`, `roleLabels()` em `lib/auth/user-roles.ts`.
+- Roles do banco → nomes/rótulos: `userRoleNames()`, `roleLabels()` em `lib/auth/user-roles.ts`.
 - A tela e a API de usuários só mexem em `ASSIGNABLE_ROLES` (`admin`, `zelador`, `porteiro`, `sindico`). `superadmin` e `administradora` nunca entram nem saem por ali. As demais (`UNASSIGNABLE_ROLES`) não entram nem saem por ali — ao editar, são preservadas como estão no banco.
 - Não há compatibilidade com o formato antigo de role única: usuário sem `role_ids` não entra.
 
@@ -138,7 +141,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 3. Nada depende do proxy para segurança: se ele for contornado (o Next já teve CVE disso), rota e página continuam exigindo cookie válido.
 4. O proxy só protege páginas; **cada rota de API checa a permissão por conta própria**.
 5. Roles se somam (ver "Permissões"). Multi-tenancy é por filtro: não existe isolamento no banco. Email é único entre usuários **ativos de todos os condomínios** — a pessoa só entra em outro condomínio depois de desativada no anterior; condomínio novo só nasce em `/admin/condos`.
-6. Páginas do dashboard leem o MongoDB direto (Server Components); as rotas `GET /api/*` quase não são consumidas pela UI.
+6. Páginas do dashboard leem o MongoDB direto (Server Components). As únicas rotas `GET /api/*` são `/api/condo` (tela de configurações), os exports CSV e o logout.
 
 ## Stack
 
@@ -165,6 +168,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - Acesso: toda rota e página protegida checa com `can(session, 'permissão')` — página de condomínio: `readSession()` e logo depois `if (!can(session, '...')) notFound()`. Exceções (qualquer logado): `/`, `/profile`, `users/me/*`, `GET /api/condo`, `POST /api/client-errors`
 - Soft-delete pattern: `status_id = deleted` + `deleted_at` + `deleted_by`; listagens filtram `{ status_id: (await getStatus('active'))._id }`
 - Audit log: toda escrita (create/update/delete) gera documento em `audit_logs` via `lib/audit/log.ts`
+- Unidade do morador sempre por `formatUnit()` ("Bloco A · Apto 101") e opção de seleção por `residentLabel()`; moradores de uma lista de encomendas por `getResidentMap()` — tudo em `lib/residents/lookup.ts`
 - Troca de sessão (login, primeiro acesso, entrar em outro condomínio): `window.location.href` (não `router.push`) — força o layout a renderizar de novo com o cookie novo. Com destino fixo o lint avisa: desligar a regra só nessa linha, com o motivo
 - Redirects pós-ação dentro do app (salvar form, confirmar entrega): usar `router.push(...)` — permite toast aparecer antes da navegação client-side
 - API auth pattern: `getSession()` de `lib/auth/session.ts` (ver "Regras de segurança")
@@ -208,6 +212,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             Avatar.tsx          ← iniciais com cor por hash; aceita photoUrl
             ThemeToggle.tsx     ← dark mode
             LogoutButton.tsx
+            DeletedToggle.tsx   ← ativos/excluídos (`?deleted=1`) em moradores e usuários
           packages/
             page.tsx
             new/page.tsx        ← câmera/upload → form → S3 + QR code
@@ -217,12 +222,12 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             page.tsx
             new/page.tsx
             [id]/edit/page.tsx
-            _components/        ← DeleteButton, RestoreButton, DeletedToggle, WhatsAppField
+            _components/        ← DeleteButton, RestoreButton, WhatsAppField, ResidentForm
           users/
             page.tsx
             new/page.tsx
             [id]/edit/page.tsx
-            _components/        ← UserForm, DeleteUserButton
+            _components/        ← UserForm, DeleteUserButton, UserItems (linha e cartão da lista)
           settings/page.tsx     ← Client; edita nome do condo
           reports/page.tsx      ← indicadores, filtros, timeline, export CSV
           reports/management/page.tsx ← relatório gerencial (período, picos, unidades, equipe, paradas)
@@ -237,18 +242,17 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           auth/forgot/route.ts  ← POST envia email de reset
           auth/reset/route.ts   ← POST valida token + redefine senha
           condo/route.ts        ← GET/PUT condo info
-          residents/route.ts    ← GET, POST
+          residents/route.ts    ← POST
           residents/[id]/route.ts ← PUT, DELETE (soft), PATCH (restore)
-          users/route.ts        ← GET, POST
+          users/route.ts        ← POST
           users/[id]/route.ts   ← PUT, DELETE (soft)
           users/me/password/route.ts ← PUT altera senha do usuário logado
-          packages/route.ts     ← GET (com busca por morador/código)
-          packages/[id]/route.ts ← GET
+          packages/route.ts     ← POST registra chegada (foto + QR code + PIN + link público)
           packages/[id]/deliver/route.ts ← POST confirmar entrega
           packages/[id]/notify/route.ts  ← POST marca notified_at + status notified
           upload/route.ts       ← POST recebe imagem → S3 → URL
           ocr/route.ts          ← POST imagem → Gemini → morador sugerido
-          condo/photo/route.ts  ← POST foto do condo → S3 + DB + re-sign JWT
+          condo/photo/route.ts  ← POST/DELETE foto do condo → S3 + DB
           reports/export/route.ts ← GET CSV das encomendas (mesmos filtros de /reports)
           client-errors/route.ts ← POST erro que estourou na tela (logado, com limite por usuário)
           admin/errors/[id]/route.ts ← PATCH resolver/reabrir erro (só super admin)
@@ -258,10 +262,11 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           condos/[id]/enter/route.ts ← POST troca o condomínio da sessão (super admin: qualquer um; administradora: os dela)
           reports/management/export/route.ts ← GET CSV de uma seção do gerencial (?section=daily|units|staff|stalled)
           residents/[id]/erase, users/[id]/erase, condo/erase ← DELETE remoção definitiva (LGPD), só admin
-          users/me/photo/route.ts ← POST foto de perfil → S3 + DB + re-sign JWT
+          users/me/photo/route.ts ← POST/DELETE foto de perfil → S3 + DB
       lib/
         db/         ← client.ts, collections.ts, status-map.ts, indexes.ts, escape-regex.ts
-        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rateLimit.ts, email.ts, safe-next.ts
+        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rateLimit.ts, email.ts, password.ts (passwordSchema/hashPassword), current-password.ts (verifyCurrentPassword), safe-next.ts
+        api/        ← http.ts → respostas padrão das rotas + parseBody()
         text/       ← slug.ts, csv.ts
         upload/     ← image.ts → readImageUpload()
         audit/      ← log.ts → logAction()
@@ -269,7 +274,8 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         s3/         ← client.ts, upload.ts (uploadToS3 → URL canônica), sign.ts (signS3Url), delete.ts
         lgpd/       ← erase.ts → eraseResident / eraseUser / eraseCondo
         condos/     ← create.ts → createCondoWithAdmin() / createOrganizationWithAdmin() / createCondoInOrganization()
-        packages/   ← filter.ts → buildPackageFilter()
+        packages/   ← filter.ts → buildPackageFilter() / packageStatusOptions(); stats.ts → getPackageStats()
+        residents/  ← lookup.ts → getResidentMap() / formatUnit() / residentLabel()
         reports/    ← management.ts → resolvePeriod() / getManagementReport()
         observability/ ← report.ts → reportError()
         ai/         ← usage.ts → recordAiUsage() / getAiUsageReport()
@@ -351,8 +357,6 @@ getRoleById(id)       // ObjectId → { _id, name, label }  (cacheado + cross-ca
   roles: string[]      // slugs — as permissões se somam: 'superadmin' | 'administradora' | 'admin' | 'zelador' | 'porteiro' | 'sindico'
   condo_id: string
   condo_name: string
-  photo_url?: string       // user photo (S3)
-  condo_photo_url?: string // condo photo (S3)
 }
 ```
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GET as listResidents, POST as createResidentRoute } from '@/app/api/residents/route'
+import { POST as createResidentRoute } from '@/app/api/residents/route'
 import { PUT as updateResident, PATCH as restoreResident, DELETE as deleteResident } from '@/app/api/residents/[id]/route'
 import { GET as getCondo, PUT as updateCondo } from '@/app/api/condo/route'
 import { auditLogs, condominiums, residents } from '@/lib/db/collections'
@@ -7,34 +7,6 @@ import { getStatus } from '@/lib/db/status-map'
 import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE } from '@/lib/auth/cookies'
 import { createCondo, createResident, createUser, jsonRequest, loginAs, routeCtx } from '../helpers/factory'
-
-const search = (q = '') => listResidents(jsonRequest('GET', undefined, {}, `http://localhost/api/residents?q=${encodeURIComponent(q)}`))
-const names = async (res: Response) => ((await res.json()) as Array<{ name: string }>).map((r) => r.name)
-
-describe('GET /api/residents', () => {
-  it('devolve só moradores ativos do próprio condomínio', async () => {
-    const [a, b] = [await createCondo(), await createCondo()]
-    await createResident(a, 'Ana')
-    const gone = await createResident(a, 'Bruno')
-    await createResident(b, 'Carla do outro condomínio')
-    await (await residents()).updateOne({ _id: gone._id }, { $set: { status_id: (await getStatus('deleted'))._id } })
-
-    await loginAs(await createUser(a, 'porteiro'))
-    expect(await names(await search())).toEqual(['Ana'])
-  })
-
-  it('busca por nome ou apartamento, tratando o texto como literal', async () => {
-    const condo = await createCondo()
-    await createResident(condo, 'Maria')
-    await createResident(condo, 'João (síndico)')
-    await loginAs(await createUser(condo, 'zelador'))
-
-    expect(await names(await search('mar'))).toEqual(['Maria'])
-    expect(await names(await search('101'))).toHaveLength(2)
-    expect(await names(await search('.*'))).toEqual([]) // regex não é interpretado
-    expect(await names(await search('(síndico)'))).toEqual(['João (síndico)']) // e não quebra a query
-  })
-})
 
 describe('POST /api/residents', () => {
   it('cria no condomínio da sessão, ignorando condo_id enviado no corpo', async () => {

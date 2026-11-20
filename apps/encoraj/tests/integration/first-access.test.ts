@@ -4,10 +4,9 @@ import { createHash } from 'crypto'
 import type { ObjectId } from 'mongodb'
 import { POST as login } from '@/app/api/auth/route'
 import { POST as reset } from '@/app/api/auth/reset/route'
-import { GET as listUsers, POST as createUserRoute } from '@/app/api/users/route'
+import { POST as createUserRoute } from '@/app/api/users/route'
 import { PUT as updateUser } from '@/app/api/users/[id]/route'
 import { PUT as changePassword } from '@/app/api/users/me/password/route'
-import { GET as listPackages } from '@/app/api/packages/route'
 import { GET as getCondo } from '@/app/api/condo/route'
 import { POST as createCondoRoute } from '@/app/api/admin/condos/route'
 import { POST as createOrgRoute } from '@/app/api/admin/organizations/route'
@@ -41,8 +40,8 @@ describe('senha definida por outra pessoa → troca obrigatória no primeiro ace
 
     // tem cookie válido, mas nenhuma rota o reconhece
     expect(await getSession()).toBeNull()
-    expect((await listPackages(jsonRequest('GET'))).status).toBe(401)
     expect((await getCondo()).status).toBe(401)
+    expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(401)
     // só a troca de senha enxerga a sessão
     expect(await getSessionForPasswordChange()).toMatchObject({ userName: 'João', mustChangePassword: true })
   })
@@ -65,7 +64,7 @@ describe('senha definida por outra pessoa → troca obrigatória no primeiro ace
     expect(await bcrypt.compare('so-eu-sei-123', doc.password_hash)).toBe(true)
     expect(await getSession()).toMatchObject({ userId: user._id.toString() })
     expect(await getSessionForPasswordChange()).toMatchObject({ mustChangePassword: false })
-    expect((await listPackages(jsonRequest('GET'))).status).toBe(200)
+    expect((await getCondo()).status).toBe(200)
   })
 
   it('admin redefine a senha de alguém → a pessoa troca de novo; editar a própria senha não marca', async () => {
@@ -112,7 +111,7 @@ describe('senha definida por outra pessoa → troca obrigatória no primeiro ace
     const admin = await createUser(await createCondo(), 'admin', { mustChangePassword: true })
     await loginAs(admin)
 
-    expect((await listUsers()).status).toBe(401)
+    expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(401)
     expect((await updateUser(jsonRequest('PUT', { password: 'atalho-123456' }), routeCtx(admin._id))).status).toBe(401)
     expect(await flagOf({ _id: admin._id })).toBe(true)
   })

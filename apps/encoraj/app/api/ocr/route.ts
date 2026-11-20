@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
+import { residentLabel } from '@/lib/residents/lookup'
 import { getStatus } from '@/lib/db/status-map'
 import { analyzePackageLabel, type OcrUsage, type ResidentContext } from '@/lib/gemini/ocr'
 import { recordAiUsage } from '@/lib/ai/usage'
@@ -8,21 +9,22 @@ import { getSession } from '@/lib/auth/session'
 import { readImageUpload } from '@/lib/upload/image'
 import { reportError } from '@/lib/observability/report'
 import { can } from '@/lib/auth/permissions'
+import { badRequest, forbidden, unauthorized } from '@/lib/api/http'
 
 export async function POST(request: Request) {
   try {
     const session = await getSession()
     if (!session) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return unauthorized()
     }
     if (!can(session, 'packages.register')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return forbidden()
     }
     const condoId = session.condoId
 
     const image = await readImageUpload(request)
     if ('error' in image) {
-      return NextResponse.json({ error: image.error }, { status: 400 })
+      return badRequest(image.error)
     }
 
     const base64 = image.buffer.toString('base64')
@@ -69,12 +71,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ match: null, confidence: 'low', extracted_text: result.extracted_text })
     }
 
-    const label = matched.bloco
-      ? `${matched.name} — Bloco ${matched.bloco}, Apto ${matched.apartment}`
-      : `${matched.name} — Apto ${matched.apartment}`
-
     return NextResponse.json({
-      match: { value: result.resident_id, label },
+      match: { value: result.resident_id, label: residentLabel(matched) },
       confidence: result.confidence,
       extracted_text: result.extracted_text,
     })

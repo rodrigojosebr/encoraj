@@ -1,9 +1,9 @@
-import bcrypt from 'bcryptjs'
 import type { ObjectId } from 'mongodb'
 import { condominiums, organizations, users } from '@/lib/db/collections'
 import { getRole, getStatus } from '@/lib/db/status-map'
 import { ORG_ADMIN_ROLE } from '@/lib/auth/roles'
 import { toSlug } from '@/lib/text/slug'
+import { hashPassword } from '@/lib/auth/password'
 
 /**
  * Como condomínios e administradoras passam a existir. Não há cadastro público:
@@ -54,7 +54,7 @@ async function insertAdmin(input: NewAdminInput, condoId: ObjectId, orgId?: Obje
     ...(orgId ? { org_id: orgId } : {}),
     name: input.adminName,
     email: input.adminEmail,
-    password_hash: await bcrypt.hash(input.adminPassword, 12),
+    password_hash: await hashPassword(input.adminPassword),
     role_ids: [role._id],
     // Quem criou conhece esta senha: o admin troca no primeiro acesso
     must_change_password: true,

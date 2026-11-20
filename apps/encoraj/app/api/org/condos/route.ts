@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth/session'
 import { can } from '@/lib/auth/permissions'
 import { createCondoInOrganization } from '@/lib/condos/create'
 import { logAction } from '@/lib/audit/log'
-import { reportError } from '@/lib/observability/report'
+import { conflict, forbidden, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const schema = z.object({
   condoName: z.string().trim().min(3, 'Nome do condomínio muito curto.').max(120),
@@ -21,20 +21,18 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    if (!can(session, 'org.condos')) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    if (!session) return unauthorized()
+    if (!can(session, 'org.condos')) return forbidden()
 
-    const parsed = schema.safeParse(await request.json().catch(() => null))
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }, { status: 400 })
-    }
+    const parsed = await parseBody(request, schema)
+    if (parsed.error) return parsed.error
 
     const current = await (await condominiums()).findOne(
       { _id: new ObjectId(session.condoId) },
       { projection: { org_id: 1 } },
     )
     if (!current?.org_id) {
-      return NextResponse.json({ error: 'Este condomínio é autogerido: não pertence a uma administradora.' }, { status: 409 })
+      return conflict('Este condomínio é autogerido: não pertence a uma administradora.')
     }
 
     const { condoId, slug } = await createCondoInOrganization(current.org_id, parsed.data.condoName)
@@ -51,7 +49,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ _id: condoId, slug }, { status: 201 })
   } catch (err) {
-    await reportError('[POST /api/org/condos]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[POST /api/org/condos]', err)
   }
 }

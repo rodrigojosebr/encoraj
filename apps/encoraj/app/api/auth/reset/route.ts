@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
-import { hash } from 'bcryptjs'
 import { z } from 'zod'
 import { users, passwordResetTokens } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
-import { passwordSchema } from '@/lib/auth/email'
+import { hashPassword, passwordSchema } from '@/lib/auth/password'
 import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
 import { logAction } from '@/lib/audit/log'
-import { reportError } from '@/lib/observability/report'
+import { badRequest, parseBody, serverError, tooManyRequests } from '@/lib/api/http'
 
 const schema = z.object({
   token: z.string().min(1),
@@ -21,17 +20,11 @@ export async function POST(request: NextRequest) {
     // Rate limit: 10 tentativas por IP a cada 15 min
     const rl = await checkRateLimit(`reset:${clientIp(request.headers)}`, 10, 15 * 60 * 1000)
     if (rl.blocked) {
-      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em alguns minutos.' }, { status: 429 })
+      return tooManyRequests()
     }
 
-    const body = await request.json()
-    const parsed = schema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? 'Dados inválidos.' },
-        { status: 400 }
-      )
-    }
+    const parsed = await parseBody(request, schema)
+    if (parsed.error) return parsed.error
 
     const { token, password } = parsed.data
     const tokenHash = createHash('sha256').update(token).digest('hex')
@@ -44,7 +37,7 @@ export async function POST(request: NextRequest) {
       { $set: { used_at: now } },
     )
     if (!tokenDoc) {
-      return NextResponse.json({ error: INVALID_LINK }, { status: 400 })
+      return badRequest(INVALID_LINK)
     }
 
     const usersCol = await users()
@@ -52,11 +45,11 @@ export async function POST(request: NextRequest) {
       { _id: tokenDoc.user_id, status_id: (await getStatus('active'))._id },
       // password_changed_at derruba as sessões abertas (ver lib/auth/session.ts)
       // Senha escolhida pelo próprio dono (provou o email): não precisa trocar de novo
-      { $set: { password_hash: await hash(password, 10), password_changed_at: now }, $unset: { must_change_password: '' } },
+      { $set: { password_hash: await hashPassword(password), password_changed_at: now }, $unset: { must_change_password: '' } },
     )
     if (!user) {
       // Conta desativada depois de pedir o link
-      return NextResponse.json({ error: INVALID_LINK }, { status: 400 })
+      return badRequest(INVALID_LINK)
     }
 
     // Qualquer outro link pendente dessa conta deixa de valer
@@ -74,7 +67,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    await reportError('[reset]', err)
-    return NextResponse.json({ error: 'Erro interno.' }, { status: 500 })
+    return serverError('[reset]', err)
   }
 }

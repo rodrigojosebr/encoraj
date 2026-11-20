@@ -5,7 +5,7 @@ import { POST as createCondoRoute } from '@/app/api/admin/condos/route'
 import { POST as createOrgCondo } from '@/app/api/org/condos/route'
 import { POST as enterCondo } from '@/app/api/condos/[id]/enter/route'
 import { POST as login } from '@/app/api/auth/route'
-import { GET as listUsers, POST as createUserRoute } from '@/app/api/users/route'
+import { POST as createUserRoute } from '@/app/api/users/route'
 import { PUT as changePassword } from '@/app/api/users/me/password/route'
 import { PUT as updateUser, DELETE as deleteUser } from '@/app/api/users/[id]/route'
 import { DELETE as eraseUserRoute } from '@/app/api/users/[id]/erase/route'
@@ -126,9 +126,6 @@ describe('admin da administradora', () => {
     const joao = (await (await users()).findOne({ email: 'joao@teste.com' }))!
     expect(joao.condo_id).toEqual(second._id)
     expect(joao.org_id).toBeUndefined()
-
-    const list = await (await listUsers()).json()
-    expect(list.map((u: { email: string }) => u.email)).toEqual(['joao@teste.com'])
   })
 
   it('cria condomínio dentro da administradora dela — sem admin próprio, e já consegue entrar', async () => {

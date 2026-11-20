@@ -3,14 +3,14 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { users, condominiums } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
-import { signToken } from '@/lib/auth/jwt'
-import { AUTH_COOKIE, COOKIE_OPTIONS } from '@/lib/auth/cookies'
+import { clearSessionCookie, setSessionCookie } from '@/lib/auth/cookies'
 import { checkRateLimit, isRateLimited, clearRateLimit, clientIp } from '@/lib/auth/rateLimit'
 import { userRoleNames } from '@/lib/auth/user-roles'
-import { reportError } from '@/lib/observability/report'
+import { emailSchema } from '@/lib/auth/email'
+import { parseBody, serverError, tooManyRequests } from '@/lib/api/http'
 
 const LoginSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: emailSchema,
   password: z.string().min(1),
 })
 
@@ -20,12 +20,8 @@ const MAX_PER_IP = 50 // falhas por IP (portaria inteira atrás do mesmo IP)
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const parsed = LoginSchema.safeParse(body)
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
-    }
+    const parsed = await parseBody(request, LoginSchema)
+    if (parsed.error) return parsed.error
 
     const { email, password } = parsed.data
 
@@ -34,10 +30,7 @@ export async function POST(request: NextRequest) {
     const accountKey = `login:${ip}:${email}`
     const ipKey = `login-ip:${ip}`
     if ((await isRateLimited(accountKey, MAX_PER_ACCOUNT)) || (await isRateLimited(ipKey, MAX_PER_IP))) {
-      return NextResponse.json(
-        { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
-        { status: 429 },
-      )
+      return tooManyRequests()
     }
 
     const col = await users()
@@ -53,7 +46,7 @@ export async function POST(request: NextRequest) {
         checkRateLimit(accountKey, MAX_PER_ACCOUNT, WINDOW_MS),
         checkRateLimit(ipKey, MAX_PER_IP, WINDOW_MS),
       ])
-      return NextResponse.json({ error: 'Email ou senha incorretos' }, { status: 401 })
+      return NextResponse.json({ error: 'Email ou senha incorretos.' }, { status: 401 })
     }
 
     if (!user.condo_id) {
@@ -73,27 +66,22 @@ export async function POST(request: NextRequest) {
 
     await clearRateLimit(accountKey)
 
-    const token = await signToken({
-      sub: user._id!.toString(),
-      name: user.name,
-      roles: roleNames,
-      condo_id: user.condo_id.toString(),
-      condo_name: condo.name,
-      ...(user.photo_url ? { photo_url: user.photo_url } : {}),
-      ...(condo.photo_url ? { condo_photo_url: condo.photo_url } : {}),
-    })
-
     const response = NextResponse.json({ ok: true })
-    response.cookies.set(AUTH_COOKIE, token, COOKIE_OPTIONS)
+    await setSessionCookie(response, {
+      userId: user._id!.toString(),
+      userName: user.name,
+      roles: roleNames,
+      condoId: user.condo_id.toString(),
+      condoName: condo.name,
+    })
     return response
   } catch (err) {
-    await reportError('[POST /api/auth]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[POST /api/auth]', err)
   }
 }
 
 export async function DELETE() {
   const response = NextResponse.json({ ok: true })
-  response.cookies.set(AUTH_COOKIE, '', { ...COOKIE_OPTIONS, maxAge: 0 })
+  clearSessionCookie(response)
   return response
 }

@@ -159,9 +159,9 @@ describe('GET /api/reports/export', () => {
     expect(text.charCodeAt(0)).toBe(0xfeff)
     const lines = text.slice(1).split('\n')
     expect(lines).toHaveLength(2)
-    expect(lines[0]).toBe('"Código";"Morador";"Apartamento";"Status";"Chegada";"Notificado";"Retirado"')
+    expect(lines[0]).toBe('"Código";"Morador";"Unidade";"Status";"Chegada";"Notificado";"Retirado"')
     expect(lines[1]).toBe(
-      `"${pkg.code}";"Ana ""Aninha"" Souza";"A, Apto 101";"Retirado";"17/03/2026, 12:00:00";"17/03/2026, 13:00:00";"17/03/2026, 15:30:00"`,
+      `"${pkg.code}";"Ana ""Aninha"" Souza";"Bloco A · Apto 101";"Retirado";"17/03/2026, 12:00:00";"17/03/2026, 13:00:00";"17/03/2026, 15:30:00"`,
     )
     expect(text).not.toMatch(/delivery_pin|public_token|Outro Condomínio/)
   })

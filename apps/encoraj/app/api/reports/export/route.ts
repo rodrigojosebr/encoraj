@@ -1,23 +1,23 @@
 import { NextResponse } from 'next/server'
-import { ObjectId } from 'mongodb'
-import { packages, residents } from '@/lib/db/collections'
+import { packages } from '@/lib/db/collections'
+import { formatUnit, getResidentMap } from '@/lib/residents/lookup'
 import { getStatusById } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { buildPackageFilter, EXPORT_MAX_ROWS } from '@/lib/packages/filter'
 import { csvCell } from '@/lib/text/csv'
 import { fmtDateTime } from '@/lib/date/tz'
-import { reportError } from '@/lib/observability/report'
 import { can } from '@/lib/auth/permissions'
+import { forbidden, serverError, unauthorized } from '@/lib/api/http'
 
-const COLUMNS = ['Código', 'Morador', 'Apartamento', 'Status', 'Chegada', 'Notificado', 'Retirado']
+const COLUMNS = ['Código', 'Morador', 'Unidade', 'Status', 'Chegada', 'Notificado', 'Retirado']
 
 /** CSV das encomendas com os mesmos filtros da tela de relatórios (todas as páginas). */
 export async function GET(request: Request) {
   try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!session) return unauthorized()
     if (!can(session, 'reports.view')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return forbidden()
     }
 
     const sp = new URL(request.url).searchParams
@@ -41,16 +41,7 @@ export async function GET(request: Request) {
       .limit(EXPORT_MAX_ROWS)
       .toArray()
 
-    const residentIds = [...new Map(docs.map((d) => [d.resident_id.toString(), d.resident_id])).values()]
-    const residentDocs = residentIds.length
-      ? await (await residents())
-          .find(
-            { _id: { $in: residentIds }, condo_id: new ObjectId(session.condoId) },
-            { projection: { name: 1, apartment: 1, bloco: 1 } },
-          )
-          .toArray()
-      : []
-    const residentById = new Map(residentDocs.map((r) => [r._id.toString(), r]))
+    const residentById = await getResidentMap(session.condoId, docs.map((d) => d.resident_id))
 
     const lines = [COLUMNS.map(csvCell).join(';')]
     for (const pkg of docs) {
@@ -60,7 +51,7 @@ export async function GET(request: Request) {
         [
           pkg.code,
           resident?.name ?? '',
-          resident ? `${resident.bloco ? `${resident.bloco}, ` : ''}Apto ${resident.apartment}` : '',
+          resident ? formatUnit(resident) : '',
           label,
           fmtDateTime(pkg.arrived_at),
           pkg.notified_at ? fmtDateTime(pkg.notified_at) : '',
@@ -80,7 +71,6 @@ export async function GET(request: Request) {
       },
     })
   } catch (err) {
-    await reportError('[GET /api/reports/export]', err)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return serverError('[GET /api/reports/export]', err)
   }
 }

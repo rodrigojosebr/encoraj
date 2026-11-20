@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { escapeRegex } from '@/lib/db/escape-regex'
-import { emailSchema, passwordSchema, PASSWORD_MIN } from '@/lib/auth/email'
+import { emailSchema } from '@/lib/auth/email'
+import { passwordSchema, PASSWORD_MIN } from '@/lib/auth/password'
 import { safeNextPath } from '@/lib/auth/safe-next'
 import { formatTermsVersion, legalInfo, TERMS_VERSION } from '@/lib/legal/terms'
 import { toSlug } from '@/lib/text/slug'

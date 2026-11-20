@@ -43,17 +43,15 @@ import { requestState } from '../helpers/request-state'
 const tryLogin = (email: string) => login(jsonRequest('POST', { email, password: PASSWORD }))
 
 describe('login — dados inconsistentes no banco', () => {
-  it('leva as fotos do usuário e do condomínio para o token', async () => {
+  it('token leva só identidade e condomínio, nunca a foto', async () => {
     const condo = await createCondo()
     const user = await createUser(condo)
     await (await users()).updateOne({ _id: user._id }, { $set: { photo_url: 'https://x/u.jpg' } })
     await (await condominiums()).updateOne({ _id: condo._id }, { $set: { photo_url: 'https://x/c.jpg' } })
 
     const res = await tryLogin(user.email)
-    expect(await verifyToken(res.cookies.get(AUTH_COOKIE)!.value)).toMatchObject({
-      photo_url: 'https://x/u.jpg',
-      condo_photo_url: 'https://x/c.jpg',
-    })
+    const token = await verifyToken(res.cookies.get(AUTH_COOKIE)!.value)
+    expect(Object.keys(token).sort()).toEqual(['condo_id', 'condo_name', 'exp', 'iat', 'name', 'roles', 'sub'])
   })
 
   it('usuário sem condomínio → 403', async () => {

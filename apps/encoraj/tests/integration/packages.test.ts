@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ObjectId } from 'mongodb'
-import { GET as listPackages, POST as createPackageRoute } from '@/app/api/packages/route'
-import { GET as getPackage } from '@/app/api/packages/[id]/route'
+import { POST as createPackageRoute } from '@/app/api/packages/route'
 import { POST as deliver } from '@/app/api/packages/[id]/deliver/route'
 import { POST as notify } from '@/app/api/packages/[id]/notify/route'
 import { auditLogs, packages, residents } from '@/lib/db/collections'
@@ -92,41 +91,6 @@ describe('POST /api/packages', () => {
     await (await residents()).updateOne({ _id: resident._id }, { $set: { status_id: (await getStatus('deleted'))._id } })
     expect((await post(resident._id.toString())).status).toBe(404)
     expect(await (await packages()).countDocuments({})).toBe(0)
-  })
-})
-
-describe('GET /api/packages', () => {
-  it('lista só o próprio condomínio, sem PIN nem token, com filtro de status', async () => {
-    const { condo, resident } = await scenario()
-    const mine = await createPackage(condo, resident._id)
-    const delivered = await createPackage(condo, resident._id)
-    await (await packages()).updateOne({ _id: delivered._id }, { $set: { status_id: (await getStatus('delivered'))._id } })
-    const otherCondo = await createCondo()
-    await createPackage(otherCondo, (await createResident(otherCondo))._id)
-
-    const all = await (await listPackages(jsonRequest('GET'))).json()
-    expect(all).toHaveLength(2)
-    expect(JSON.stringify(all)).not.toMatch(/delivery_pin|public_token/)
-
-    const arrived = await (await listPackages(jsonRequest('GET', undefined, {}, 'http://localhost/api/packages?status=arrived'))).json()
-    expect(arrived.map((p: { _id: string }) => p._id)).toEqual([mine._id.toString()])
-
-    const invalid = await listPackages(jsonRequest('GET', undefined, {}, 'http://localhost/api/packages?status=active'))
-    expect(invalid.status).toBe(400)
-  })
-
-  it('detalhe: próprio condomínio sem PIN; outro condomínio → 404', async () => {
-    const { condo, resident } = await scenario()
-    const mine = await createPackage(condo, resident._id)
-    const otherCondo = await createCondo()
-    const foreign = await createPackage(otherCondo, (await createResident(otherCondo))._id)
-
-    const res = await getPackage(jsonRequest('GET'), routeCtx(mine._id))
-    expect(res.status).toBe(200)
-    expect(JSON.stringify(await res.json())).not.toMatch(/delivery_pin|public_token/)
-
-    expect((await getPackage(jsonRequest('GET'), routeCtx(foreign._id))).status).toBe(404)
-    expect((await getPackage(jsonRequest('GET'), routeCtx('abc'))).status).toBe(400)
   })
 })
 

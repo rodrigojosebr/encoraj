@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { css } from '@/styled-system/css'
 
-export default function DeletedToggle() {
+/** Alterna entre ativos e excluídos (`?deleted=1`), voltando à primeira página. */
+export default function DeletedToggle({ pathname }: { pathname: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const checked = searchParams.get('deleted') === '1'
@@ -17,7 +18,7 @@ export default function DeletedToggle() {
       params.set('deleted', '1')
       params.delete('q')
     }
-    router.push(`/residents?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   return (

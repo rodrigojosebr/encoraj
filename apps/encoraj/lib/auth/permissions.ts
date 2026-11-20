@@ -18,11 +18,6 @@ import { hasRole, ORG_ADMIN_ROLE, SUPER_ADMIN_ROLE } from './roles'
  * Arquivo puro (sem banco), para servir também ao proxy.
  */
 export const PERMISSIONS = {
-  'packages.read': {
-    group: 'Encomendas',
-    label: 'Consultar encomendas',
-    roles: [ORG_ADMIN_ROLE, 'admin', 'porteiro', 'sindico'],
-  },
   'packages.register': {
     group: 'Encomendas',
     label: 'Registrar chegada (foto, leitura da etiqueta)',
@@ -37,11 +32,6 @@ export const PERMISSIONS = {
     group: 'Encomendas',
     label: 'Confirmar retirada',
     roles: [ORG_ADMIN_ROLE, 'admin', 'porteiro'],
-  },
-  'residents.read': {
-    group: 'Moradores',
-    label: 'Consultar moradores',
-    roles: [ORG_ADMIN_ROLE, 'admin', 'zelador', 'porteiro'],
   },
   'residents.write': {
     group: 'Moradores',
