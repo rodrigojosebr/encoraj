@@ -5,12 +5,13 @@ import { packages } from '@/lib/db/collections'
 import { formatUnit, getResidentMap } from '@/lib/residents/lookup'
 import { getStatusById } from '@/lib/db/status-map'
 import { css } from '@/styled-system/css'
-import { Badge, Button } from '@encoraj/ui'
-import { Eye, Package, Bell, CheckCircle2, BarChart3 } from 'lucide-react'
+import { Button } from '@encoraj/ui'
+import { BarChart3 } from 'lucide-react'
 import ExportCSV from './_components/ExportCSV'
+import { ReportCard, ReportRow, type ReportListItem } from './_components/ReportItems'
 import ReportsFilterBar from './_components/ReportsFilterBar'
 import SearchInput from '../_components/SearchInput'
-import { getTodayRange, fmtDate } from '@/lib/date/tz'
+import { getTodayRange } from '@/lib/date/tz'
 import { buildPackageFilter, packageStatusOptions } from '@/lib/packages/filter'
 import { getPackageStats } from '@/lib/packages/stats'
 import { pageHref, paginate, parsePage } from '@/lib/pagination'
@@ -46,8 +47,21 @@ export default async function ReportsPage({
     .toArray()
 
   const residentMap = await getResidentMap(condoId, docs.map((d) => d.resident_id))
-
   const statusInfos = await Promise.all(docs.map((d) => getStatusById(d.status_id)))
+  const items: ReportListItem[] = docs.map((pkg, i) => {
+    const resident = residentMap.get(pkg.resident_id.toString())
+    return {
+      id: pkg._id!.toString(),
+      code: pkg.code,
+      residentName: resident?.name ?? '—',
+      unit: resident ? formatUnit(resident) : '—',
+      statusName: statusInfos[i].name,
+      statusLabel: statusInfos[i].label,
+      arrivedAt: pkg.arrived_at,
+      notifiedAt: pkg.notified_at,
+      deliveredAt: pkg.delivered_at,
+    }
+  })
 
   const exportHref = pageHref('/api/reports/export', listParams, 1)
 
@@ -123,7 +137,7 @@ export default async function ReportsPage({
           _dark: { bg: 'gray.900', borderColor: 'gray.700' },
         })}
       >
-        {docs.length === 0 ? (
+        {items.length === 0 ? (
           <p className={css({ p: '8', textAlign: 'center', color: 'gray.500', fontSize: 'sm', _dark: { color: 'gray.400' } })}>
             Nenhuma encomenda encontrada.
           </p>
@@ -131,75 +145,7 @@ export default async function ReportsPage({
           <>
             {/* Mobile: cards */}
             <div className={css({ display: { base: 'flex', md: 'none' }, flexDir: 'column', gap: '3', p: '3' })}>
-              {docs.map((pkg, i) => {
-                const resident = residentMap.get(pkg.resident_id.toString())
-                const { name: statusName, label: statusLabel } = statusInfos[i]
-                const apt = resident ? formatUnit(resident) : '—'
-                return (
-                  <div
-                    key={pkg._id!.toString()}
-                    className={css({
-                      bg: 'gray.50', border: '1px solid', borderColor: 'gray.200',
-                      borderRadius: 'lg', p: '4', display: 'flex', flexDir: 'column', gap: '3',
-                      _dark: { bg: 'gray.800', borderColor: 'gray.700' },
-                    })}
-                  >
-                    {/* Header: código + badge */}
-                    <div className={css({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })}>
-                      <span className={css({ fontSize: 'sm', fontWeight: 'bold', fontFamily: 'mono', color: 'gray.900', _dark: { color: 'gray.100' } })}>
-                        {pkg.code}
-                      </span>
-                      <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>
-                        {statusLabel}
-                      </Badge>
-                    </div>
-
-                    {/* Morador + apto */}
-                    <div>
-                      <p className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', _dark: { color: 'gray.100' } })}>
-                        {resident?.name ?? '—'}
-                      </p>
-                      <p className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                        {apt}
-                      </p>
-                    </div>
-
-                    {/* Timeline */}
-                    <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
-                      <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', flex: '1' })}>
-                        <Package size={14} className={css({ color: 'green.500', _dark: { color: 'green.400' } })} />
-                        <span className={css({ fontSize: '10px', fontWeight: 'medium', color: 'green.600', _dark: { color: 'green.400' } })}>Chegada</span>
-                        <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                          {fmtDate(pkg.arrived_at)}
-                        </span>
-                      </div>
-                      <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
-                      <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', flex: '1' })}>
-                        <Bell size={14} className={css({ color: pkg.notified_at ? 'blue.500' : 'gray.300', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })} />
-                        <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.notified_at ? 'blue.600' : 'gray.400', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })}>Notif.</span>
-                        <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                          {pkg.notified_at ? fmtDate(pkg.notified_at) : '—'}
-                        </span>
-                      </div>
-                      <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
-                      <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', flex: '1' })}>
-                        <CheckCircle2 size={14} className={css({ color: pkg.delivered_at ? 'green.500' : 'gray.300', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })} />
-                        <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.delivered_at ? 'green.600' : 'gray.400', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })}>Retirada</span>
-                        <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                          {pkg.delivered_at ? fmtDate(pkg.delivered_at) : '—'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Ação */}
-                    <Link href={`/packages/${pkg._id!.toString()}`}>
-                      <Button variant="outline" intent="primary" size="sm" leftIcon={<Eye size={14} />} style={{ width: '100%' }}>
-                        Ver encomenda
-                      </Button>
-                    </Link>
-                  </div>
-                )
-              })}
+              {items.map((item) => <ReportCard key={item.id} item={item} />)}
             </div>
 
             {/* Desktop: tabela */}
@@ -223,73 +169,7 @@ export default async function ReportsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {docs.map((pkg, i) => {
-                    const resident = residentMap.get(pkg.resident_id.toString())
-                    const { name: statusName, label: statusLabel } = statusInfos[i]
-                    const apt = resident ? formatUnit(resident) : '—'
-                    return (
-                      <tr
-                        key={pkg._id!.toString()}
-                        className={css({
-                          borderBottom: '1px solid', borderColor: 'gray.100',
-                          _hover: { bg: 'gray.50' },
-                          _dark: { borderColor: 'gray.800', _hover: { bg: 'gray.800' } },
-                        })}
-                      >
-                        <td className={css({ px: '4', py: '3', fontSize: 'sm', fontWeight: 'medium', fontFamily: 'mono', color: 'gray.900', _dark: { color: 'gray.100' } })}>
-                          {pkg.code}
-                        </td>
-                        <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.900', _dark: { color: 'gray.100' } })}>
-                          {resident?.name ?? '—'}
-                        </td>
-                        <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                          {apt}
-                        </td>
-                        <td className={css({ px: '4', py: '3', fontSize: 'sm', color: 'gray.600', _dark: { color: 'gray.400' } })}>
-                          {fmtDate(pkg.arrived_at)}
-                        </td>
-                        <td className={css({ px: '4', py: '3' })}>
-                          <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
-                            <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', minW: '48px' })}>
-                              <Package size={14} className={css({ color: 'green.500', _dark: { color: 'green.400' } })} />
-                              <span className={css({ fontSize: '10px', fontWeight: 'medium', color: 'green.600', _dark: { color: 'green.400' } })}>Chegada</span>
-                              <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                                {fmtDate(pkg.arrived_at)}
-                              </span>
-                            </div>
-                            <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
-                            <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', minW: '48px' })}>
-                              <Bell size={14} className={css({ color: pkg.notified_at ? 'blue.500' : 'gray.300', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })} />
-                              <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.notified_at ? 'blue.600' : 'gray.400', _dark: { color: pkg.notified_at ? 'blue.400' : 'gray.600' } })}>Notif.</span>
-                              <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                                {pkg.notified_at ? fmtDate(pkg.notified_at) : '—'}
-                              </span>
-                            </div>
-                            <span className={css({ color: 'gray.300', fontSize: 'xs', _dark: { color: 'gray.600' } })}>──</span>
-                            <div className={css({ display: 'flex', flexDir: 'column', alignItems: 'center', gap: '0.5', minW: '48px' })}>
-                              <CheckCircle2 size={14} className={css({ color: pkg.delivered_at ? 'green.500' : 'gray.300', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })} />
-                              <span className={css({ fontSize: '10px', fontWeight: 'medium', color: pkg.delivered_at ? 'green.600' : 'gray.400', _dark: { color: pkg.delivered_at ? 'green.400' : 'gray.600' } })}>Retirada</span>
-                              <span className={css({ fontSize: '10px', color: 'gray.500', _dark: { color: 'gray.400' } })}>
-                                {pkg.delivered_at ? fmtDate(pkg.delivered_at) : '—'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={css({ px: '4', py: '3' })}>
-                          <Badge status={statusName as 'arrived' | 'notified' | 'delivered' | 'neutral'}>
-                            {statusLabel}
-                          </Badge>
-                        </td>
-                        <td className={css({ px: '4', py: '3' })}>
-                          <Link href={`/packages/${pkg._id!.toString()}`}>
-                            <Button variant="ghost" intent="primary" size="sm" leftIcon={<Eye size={14} />}>
-                              Ver
-                            </Button>
-                          </Link>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {items.map((item) => <ReportRow key={item.id} item={item} />)}
                 </tbody>
               </table>
             </div>

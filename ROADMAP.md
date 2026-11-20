@@ -407,7 +407,7 @@ Aberto — nomes e limpeza:
 - [x] Corpo dos requests em snake_case: criação de condomínio e de administradora (`condo_name`, `org_name`, `admin_name`, `admin_email`, `admin_password`)
 - [x] `lib/auth/rateLimit.ts` → `rate-limit.ts`; janelas de limite soltas viraram constantes nomeadas (`/p/[id]`, reset, client-errors)
 - [x] Rótulos do `reportError`: rota em `[MÉTODO /api/rota]`; fora de rota, módulo em inglês (`[ocr]`, `[ai-usage]`, `[client]`, `[error-log]`)
-- [ ] Arquivos grandes: `NewPackageForm.tsx` (486), `reports/management/page.tsx` (375), `ProfileClient.tsx` (372), `SidebarShell.tsx` (340), `reports/page.tsx` (339)
+- [x] Arquivos grandes divididos: `NewPackageForm` (foto + destinatário), relatório gerencial (uma seção por arquivo), `/reports` (`ReportItems`), barra lateral (topo, menu, rodapé), perfil (`ChangePasswordSection`). Nenhum arquivo de tela passa de 260 linhas
 - [x] `users/page.tsx`: `UserRow`/`UserCard` extraídos, casts removidos, rótulo "Ativo" vem do banco
 - [x] Prop morta `role` removida; `console.error` duplicado do `(dashboard)/error.tsx` removido; mínimo de senha da tela vem de `lib/auth/password-rules.ts`
 - [x] Busca de moradores pelo `SearchInput` (dispara a partir de 1 caractere, para achar o apto "12")
@@ -430,6 +430,11 @@ Páginas e visual não têm teste automático. Conferir no navegador, em claro e
 - [ ] Lote 3 — perfil e configurações: escolher a mesma foto duas vezes seguidas também envia
 - [ ] Lote 4 — `/admin/condos`: criar condomínio autogerido e administradora (o formulário mudou os nomes dos campos); `/condos`: criar condomínio na administradora
 - [ ] Lote 4 — morador: cadastrar e editar com bloco; o bloco aparece na lista, na busca, no OCR e em "Por bloco" do relatório gerencial
+- [ ] Divisão — registrar chegada: fotografar e carregar arquivo, OCR sugere → confirmar / selecionar manualmente / "Alterar", remover imagem, escolher a mesma foto de novo
+- [ ] Divisão — relatório gerencial: todas as seções e os botões de CSV; período e atalhos
+- [ ] Divisão — `/reports`: cartão (mobile) e linha (desktop) com a linha do tempo de chegada, aviso e retirada
+- [ ] Divisão — barra lateral: recolher/expandir, menu ativo, fechar no mobile, rodapé recolhido e expandido; foto do condomínio no topo do mobile atualiza sem recarregar
+- [ ] Divisão — perfil: abrir/fechar "Alterar senha", trocar a senha, cancelar
 
 ---
 

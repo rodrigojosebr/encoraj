@@ -211,7 +211,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           page.tsx
           _components/
             DashboardShell.tsx  ← Client; gerencia mobileOpen
-            SidebarShell.tsx    ← Client; gerencia collapsed + mobile overlay
+            SidebarShell.tsx    ← Client; gerencia collapsed + mobile overlay (SidebarHeader, SidebarNav, SidebarFooter)
             MobileTopBar.tsx    ← Client; topbar fixa no mobile
             Avatar.tsx          ← iniciais com cor por hash; aceita photoUrl
             ThemeToggle.tsx     ← dark mode
@@ -220,11 +220,11 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             SearchInput.tsx     ← busca com debounce na URL (`?q=`): encomendas, relatórios, moradores
           _lib/
             styles.ts           ← cardCss, h1Css, mutedCss, labelCss, thCss… repetidos entre páginas
-            compress-image.ts, use-photo-upload.ts, use-local-storage.ts
+            compress-image.ts, use-photo-upload.ts (usePhotoUpload / usePhotoUpdates), use-local-storage.ts
           packages/
             page.tsx
             new/page.tsx        ← câmera/upload → form → S3 + QR code
-            new/_components/NewPackageForm.tsx
+            new/_components/NewPackageForm.tsx ← estado e envio; LabelPhotoPicker (foto) e RecipientPicker (OCR + lista)
             [id]/page.tsx       ← exibe foto + QR code
           residents/
             page.tsx
@@ -237,9 +237,9 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             [id]/edit/page.tsx
             _components/        ← UserForm, DeleteUserButton, UserItems (linha e cartão da lista)
           settings/page.tsx     ← Client; edita nome e foto do condo
-          profile/page.tsx      ← todos os logados: dados, foto e troca de senha (`_components/ProfileClient.tsx`)
-          reports/page.tsx      ← indicadores, filtros, timeline, export CSV
-          reports/management/page.tsx ← relatório gerencial (período, picos, unidades, equipe, paradas)
+          profile/page.tsx      ← todos os logados: dados, foto (`ProfileClient`) e troca de senha (`ChangePasswordSection`)
+          reports/page.tsx      ← indicadores, filtros, export CSV; cartão, linha e timeline em `_components/ReportItems.tsx`
+          reports/management/page.tsx ← relatório gerencial (período, picos, unidades, equipe, paradas); uma seção por arquivo em `_components/`
           admin/condos/page.tsx ← super admin: lista todos os condomínios, cria administradora ou condomínio autogerido, entra em qualquer um
           condos/page.tsx       ← administradora: condomínios dela, cria condomínio, entra em qualquer um deles
           admin/errors/page.tsx ← super admin: erros do sistema, de todos os condomínios

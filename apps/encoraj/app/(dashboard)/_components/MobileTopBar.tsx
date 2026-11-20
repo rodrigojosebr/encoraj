@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { Menu } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import Avatar from './Avatar'
+import { usePhotoUpdates } from '../_lib/use-photo-upload'
 
 interface MobileTopBarProps {
   condoName: string
@@ -12,13 +12,8 @@ interface MobileTopBarProps {
 }
 
 export default function MobileTopBar({ condoName, condoPhoto: initialCondoPhoto, onOpen }: MobileTopBarProps) {
-  const [condoPhoto, setCondoPhoto] = useState(initialCondoPhoto)
+  const condoPhoto = usePhotoUpdates('condo-photo-updated', initialCondoPhoto)
 
-  useEffect(() => {
-    function onCondoPhoto(e: Event) { setCondoPhoto((e as CustomEvent<string>).detail) }
-    window.addEventListener('condo-photo-updated', onCondoPhoto)
-    return () => window.removeEventListener('condo-photo-updated', onCondoPhoto)
-  }, [])
   return (
     <div
       className={css({
