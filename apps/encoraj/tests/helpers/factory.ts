@@ -87,7 +87,7 @@ export async function createResident(condo: TestCondo, name = `Morador ${++seq}`
     condo_id: condo._id,
     name,
     apartment: '101',
-    bloco: 'A',
+    block: 'A',
     whatsapp: '+5511999990000',
     status_id: (await getStatus('active'))._id,
     created_at: new Date(),

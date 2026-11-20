@@ -11,7 +11,7 @@ import { badRequest, forbidden, notFound, parseBody, serverError, unauthorized }
 const UpdateResidentSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   apartment: z.string().trim().min(1).max(20).optional(),
-  bloco: z.string().trim().max(20).optional(),
+  block: z.string().trim().max(20).optional(),
   whatsapp: z.string().trim().min(8).max(20).optional(),
 })
 

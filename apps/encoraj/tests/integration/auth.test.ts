@@ -206,7 +206,7 @@ describe('recuperação de senha', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     expect((await forgot(jsonRequest('POST', { email: 'ana@teste.com' }))).status).toBe(200)
-    expect(log).toHaveBeenCalledWith('[forgot] envio falhou', expect.any(Error))
+    expect(log).toHaveBeenCalledWith('[POST /api/auth/forgot]', expect.any(Error))
     log.mockRestore()
   })
 

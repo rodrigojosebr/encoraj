@@ -6,11 +6,15 @@ import { packages, residents, condominiums } from '@/lib/db/collections'
 import { getStatusById, getStatus } from '@/lib/db/status-map'
 import { fmtDateTime } from '@/lib/date/tz'
 import { css } from '@/styled-system/css'
-import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { checkRateLimit, clientIp } from '@/lib/auth/rate-limit'
 import { signS3Url } from '@/lib/s3/sign'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
 export const dynamic = 'force-dynamic'
+
+/** Aberturas do link público por IP a cada 10 minutos. */
+const MAX_VIEWS_PER_IP = 60
+const VIEW_WINDOW_MS = 10 * 60 * 1000
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -20,7 +24,7 @@ export default async function PublicPackagePage({ params }: RouteContext) {
   const { id } = await params
 
   // Rota sem login: limita tentativas por IP para dificultar varredura de links
-  const rl = await checkRateLimit(`public-pkg:${clientIp(await headers())}`, 60, 10 * 60 * 1000)
+  const rl = await checkRateLimit(`public-pkg:${clientIp(await headers())}`, MAX_VIEWS_PER_IP, VIEW_WINDOW_MS)
   if (rl.blocked) notFound()
 
   // O link é /p/{public_token}: token aleatório, nunca o _id (que é sequencial)

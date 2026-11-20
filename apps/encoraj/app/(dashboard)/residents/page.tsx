@@ -35,7 +35,7 @@ export default async function ResidentsPage({
 
   if (q?.trim()) {
     const regex = { $regex: escapeRegex(q.trim()), $options: 'i' }
-    filter.$or = [{ name: regex }, { apartment: regex }, { bloco: regex }]
+    filter.$or = [{ name: regex }, { apartment: regex }, { block: regex }]
   }
 
   const pagination = paginate(await col.countDocuments(filter), parsePage(pageParam))

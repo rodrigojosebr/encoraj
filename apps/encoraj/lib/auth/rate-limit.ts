@@ -10,7 +10,7 @@ interface RateLimitResult {
  * Incrementa o contador da chave e diz se o limite foi estourado.
  * Usa MongoDB com TTL index para limpar automaticamente janelas expiradas.
  *
- * @param key     identificador único (ex: `register:1.2.3.4`, `forgot:email@x.com`)
+ * @param key     identificador único (ex: `reset:1.2.3.4`, `forgot:email@x.com`)
  * @param max     máximo de tentativas permitidas na janela
  * @param windowMs duração da janela em milissegundos
  */

@@ -12,8 +12,8 @@ vi.mock('@/lib/auth/session', () => {
 // Rotas públicas não passam pela sessão: o primeiro acesso ao banco delas é o limite de
 // tentativas. Desligado por padrão; cada teste liga quando quer simular o banco fora do ar.
 const rateLimitState = vi.hoisted(() => ({ down: false }))
-vi.mock('@/lib/auth/rateLimit', async (importOriginal) => {
-  const real = await importOriginal<typeof import('@/lib/auth/rateLimit')>()
+vi.mock('@/lib/auth/rate-limit', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/auth/rate-limit')>()
   const guard = () => {
     if (rateLimitState.down) throw new Error('banco fora do ar')
   }

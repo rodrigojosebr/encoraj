@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       id: r._id!.toString(),
       name: r.name,
       apartment: r.apartment,
-      bloco: r.bloco,
+      block: r.block,
     }))
 
     let usage: OcrUsage | undefined

@@ -16,7 +16,7 @@ import { auditLogs, condominiums, users } from '@/lib/db/collections'
 import { ALL_ROLES, createCondo, createResident, createUser, jsonRequest, loginAs, routeCtx } from '../helpers/factory'
 import { requestState } from '../helpers/request-state'
 
-const body = { condoName: 'Residencial São José', adminName: 'Ana', adminEmail: 'Ana@Teste.com', adminPassword: 'senha-forte-123' }
+const body = { condo_name: 'Residencial São José', admin_name: 'Ana', admin_email: 'Ana@Teste.com', admin_password: 'senha-forte-123' }
 const post = (data: object = body) => createCondoRoute(jsonRequest('POST', data))
 const enter = (id: ObjectId | string) => enterCondo(jsonRequest('POST'), routeCtx(String(id)))
 
@@ -50,7 +50,7 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
     const admin = (await (await users()).findOne({ email: 'ana@teste.com' }))!
     expect(admin).toMatchObject({ name: 'Ana', condo_id: condo._id })
     expect(await userRoleNames(admin)).toEqual(['admin'])
-    expect(await bcrypt.compare(body.adminPassword, admin.password_hash)).toBe(true)
+    expect(await bcrypt.compare(body.admin_password, admin.password_hash)).toBe(true)
 
     const log = await (await auditLogs()).findOne({ entity: 'condominiums', entity_id: condo._id })
     expect(log).toMatchObject({ action: 'created', condo_id: condo._id, actor_id: owner._id })
@@ -65,16 +65,16 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
     const other = await createCondo()
     await createUser(other, 'porteiro')
 
-    const session = await adopt(await login(jsonRequest('POST', { email: 'ana@teste.com', password: body.adminPassword })))
+    const session = await adopt(await login(jsonRequest('POST', { email: 'ana@teste.com', password: body.admin_password })))
     expect(session.roles).toEqual(['admin'])
     // a senha foi definida pelo super admin: antes de trocar, nada abre
     expect((await getCondo()).status).toBe(401)
-    await adopt(await changePassword(jsonRequest('PUT', { current_password: body.adminPassword, new_password: 'so-eu-sei-123' })))
+    await adopt(await changePassword(jsonRequest('PUT', { current_password: body.admin_password, new_password: 'so-eu-sei-123' })))
 
     const ana = (await (await users()).findOne({ email: 'ana@teste.com' }))!
     expect((await getSession())!.condoId).toBe(ana.condo_id.toString())
     expect((await createUserRoute(jsonRequest('POST', {}))).status).toBe(400) // passou pela permissão; só falta o corpo
-    expect((await post({ ...body, adminEmail: 'outra@teste.com' })).status).toBe(403)
+    expect((await post({ ...body, admin_email: 'outra@teste.com' })).status).toBe(403)
     expect((await enter(other._id)).status).toBe(403)
   })
 
@@ -84,7 +84,7 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
 
     expect((await post()).status).toBe(403)
     expect((await enter(target._id)).status).toBe(403)
-    expect(await (await condominiums()).countDocuments({ name: body.condoName })).toBe(0)
+    expect(await (await condominiums()).countDocuments({ name: body.condo_name })).toBe(0)
   })
 
   it('nunca reaproveita condomínio de mesmo nome: slug repetido ganha sufixo', async () => {
@@ -92,7 +92,7 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
     const existing = await createCondo('Residencial São José')
 
     expect((await post()).status).toBe(201)
-    expect((await post({ ...body, adminEmail: 'outra@teste.com' })).status).toBe(201)
+    expect((await post({ ...body, admin_email: 'outra@teste.com' })).status).toBe(201)
 
     const slugs = (await (await condominiums()).find({ slug: /^residencial/ }).toArray()).map((c) => c.slug).sort()
     expect(slugs).toEqual(['residencial-sao-jose', 'residencial-sao-jose-2'])
@@ -101,7 +101,7 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
 
   it('nome sem letra latina ganha slug padrão', async () => {
     await asSuperAdmin()
-    expect((await post({ ...body, condoName: '日本語マンション' })).status).toBe(201)
+    expect((await post({ ...body, condo_name: '日本語マンション' })).status).toBe(201)
     expect((await (await condominiums()).findOne({ name: '日本語マンション' }))!.slug).toBe('condominio')
   })
 
@@ -110,18 +110,18 @@ describe('POST /api/admin/condos — só o super admin cria condomínio', () => 
     await createUser(await createCondo(), 'zelador', { email: 'ana@teste.com' })
 
     expect((await post()).status).toBe(409)
-    expect(await (await condominiums()).countDocuments({ name: body.condoName })).toBe(0)
+    expect(await (await condominiums()).countDocuments({ name: body.condo_name })).toBe(0)
   })
 
   it.each([
-    ['senha curta', { adminPassword: '1234567' }],
-    ['email inválido', { adminEmail: 'x' }],
-    ['nome de condomínio curto', { condoName: 'ab' }],
-    ['sem nome do administrador', { adminName: '' }],
+    ['senha curta', { admin_password: '1234567' }],
+    ['email inválido', { admin_email: 'x' }],
+    ['nome de condomínio curto', { condo_name: 'ab' }],
+    ['sem nome do administrador', { admin_name: '' }],
   ])('%s → 400', async (_name, override) => {
     await asSuperAdmin()
     expect((await post({ ...body, ...override })).status).toBe(400)
-    expect(await (await condominiums()).countDocuments({ name: body.condoName })).toBe(0)
+    expect(await (await condominiums()).countDocuments({ name: body.condo_name })).toBe(0)
   })
 })
 

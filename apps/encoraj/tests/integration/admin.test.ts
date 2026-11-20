@@ -169,7 +169,7 @@ describe('erros guardados para /admin/errors', () => {
   })
 
   it('valor que não é Error é guardado sem pilha; contexto vazio some', async () => {
-    await reportError('[tela]', 'texto solto', { digest: undefined })
+    await reportError('[client]', 'texto solto', { digest: undefined })
     const doc = (await (await errorLogs()).findOne({}))!
     expect(doc).toMatchObject({ name: 'Erro', message: 'texto solto', extra: {}, count: 1 })
     expect(doc.stack).toBeUndefined()
@@ -192,7 +192,7 @@ describe('erros guardados para /admin/errors', () => {
     vi.spyOn(collections, 'errorLogs').mockRejectedValueOnce(new Error('sem conexão'))
 
     await expect(reportError('[x]', new Error('falha'))).resolves.toBeUndefined()
-    expect(console.error).toHaveBeenCalledWith('[registro de erro falhou]', expect.any(Error))
+    expect(console.error).toHaveBeenCalledWith('[error-log]', expect.any(Error))
   })
 })
 
@@ -285,7 +285,7 @@ describe('uso de IA', () => {
   it('falha ao gravar não derruba a leitura da etiqueta', async () => {
     await expect(recordAiUsage({ condoId: 'id-invalido', userId: 'x', imageBytes: 1, usage: usage() })).resolves.toBeUndefined()
     expect(await (await aiUsage()).countDocuments({})).toBe(0)
-    expect(console.error).toHaveBeenCalledWith('[uso de IA]', expect.any(Error))
+    expect(console.error).toHaveBeenCalledWith('[ai-usage]', expect.any(Error))
   })
 
   it('preço vem do ambiente; sem ele (ou inválido) não há custo', () => {

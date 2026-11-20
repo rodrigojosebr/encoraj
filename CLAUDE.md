@@ -41,7 +41,7 @@ Docs do repo — quando ler:
 - **Filtro de encomendas é um só**: `buildPackageFilter()` em `lib/packages/filter.ts` serve `/packages`, `/reports` e o export CSV (`GET /api/reports/export`, todas as páginas, teto de 10 mil linhas).
 - **Relatório gerencial** (`/reports/management`): todo número sai de `getManagementReport()` em `lib/reports/management.ts` — página e export CSV usam a mesma função. Datas, dia da semana e hora sempre via `tzParts()` (fuso de São Paulo). Indicador novo entra lá, com teste.
 - **PWA sem cache de página**: `public/sw.js` é escrito à mão (sem build) e só serve `/offline.html` quando a navegação falha. Não adicionar cache de página, API ou imagem — aparelho de portaria é compartilhado. Mudou o arquivo? Trocar `VERSION` dentro dele.
-- **Erro de servidor passa por `reportError(label, err)`** (`lib/observability/report.ts`), nunca por `console.error` solto: registra no log e guarda agrupado em `error_logs` (tela `/admin/errors`). **Nada é enviado para fora do sistema.** Email, telefone, token e link assinado são mascarados antes de gravar. Erro fora de try/catch chega pelo `instrumentation.ts`; erro de tela, pelos `error.tsx` → `POST /api/client-errors`.
+- **Erro de servidor passa por `reportError(label, err)`** (`lib/observability/report.ts`), nunca por `console.error` solto: registra no log e guarda agrupado em `error_logs` (tela `/admin/errors`). **Nada é enviado para fora do sistema.** Email, telefone, token e link assinado são mascarados antes de gravar. Erro fora de try/catch chega pelo `instrumentation.ts`; erro de tela, pelos `error.tsx` → `POST /api/client-errors`. Rótulo: `[MÉTODO /api/rota]` em rota; fora de rota, o módulo em inglês (`[ocr]`, `[ai-usage]`, `[indexes]`, `[client]` = erro da tela).
 - **Chamada de IA deixa rastro**: toda chamada ao modelo registra modelo, resultado, tokens e tempo em `ai_usage` via `recordAiUsage()` (`lib/ai/usage.ts`) — nunca o texto lido nem a imagem. Recurso novo com IA tem que registrar também.
 - Índices ficam em `lib/db/indexes.ts` (criados uma vez por processo no `getDb()`), não dentro dos helpers de collection.
 
@@ -163,6 +163,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - Use `yarn` (not npm/pnpm/bun)
 - Prefer Server Components; mark client components with `'use client'`
 - Validate all external input with Zod at API/server boundaries
+- Corpo JSON dos requests em snake_case, como o banco (`condo_name`, `admin_email`, `current_password`); a rota converte para camelCase ao chamar `lib/` quando a função pede (`createCondoWithAdmin({ condoName })`)
 - Keep secrets in environment variables, never hardcode
 - Imagens do S3 usam `<Image unoptimized>`: o link assinado muda a cada render e não deve passar pelo otimizador do Next
 - Acesso: toda rota e página protegida checa com `can(session, 'permissão')` — página de condomínio: `readSession()` e logo depois `if (!can(session, '...')) notFound()`. Exceções (qualquer logado): `/`, `/profile`, `users/me/*`, `GET /api/condo`, `POST /api/client-errors`
@@ -235,7 +236,8 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             new/page.tsx
             [id]/edit/page.tsx
             _components/        ← UserForm, DeleteUserButton, UserItems (linha e cartão da lista)
-          settings/page.tsx     ← Client; edita nome do condo
+          settings/page.tsx     ← Client; edita nome e foto do condo
+          profile/page.tsx      ← todos os logados: dados, foto e troca de senha (`_components/ProfileClient.tsx`)
           reports/page.tsx      ← indicadores, filtros, timeline, export CSV
           reports/management/page.tsx ← relatório gerencial (período, picos, unidades, equipe, paradas)
           admin/condos/page.tsx ← super admin: lista todos os condomínios, cria administradora ou condomínio autogerido, entra em qualquer um
@@ -272,7 +274,10 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           users/me/photo/route.ts ← POST/DELETE foto de perfil → S3 + DB
       lib/
         db/         ← client.ts, collections.ts, status-map.ts, indexes.ts, escape-regex.ts
-        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rateLimit.ts, email.ts, password.ts (passwordSchema/hashPassword), password-rules.ts (PASSWORD_MIN, sem dependência de servidor), current-password.ts (verifyCurrentPassword), safe-next.ts
+        date/       ← tz.ts → APP_TZ, getTodayRange(), parseDateAsTZ(), fmtDate(), tzParts() (fuso de São Paulo)
+        legal/      ← terms.ts → TERMS_VERSION, legalInfo() (dados de /termos e /privacidade)
+        pagination.ts ← paginate() / parsePage() / pageHref()
+        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rate-limit.ts (checkRateLimit/isRateLimited/clientIp), email.ts, password.ts (passwordSchema/hashPassword), password-rules.ts (PASSWORD_MIN, sem dependência de servidor), current-password.ts (verifyCurrentPassword), safe-next.ts
         api/        ← http.ts → respostas padrão das rotas + parseBody()
         text/       ← slug.ts, csv.ts
         upload/     ← image.ts → readImageUpload()
@@ -319,7 +324,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
   deleted_at?, deleted_by? }
 
 // residents
-{ _id, condo_id, name, apartment, bloco?, whatsapp, status_id, created_at, created_by,
+{ _id, condo_id, name, apartment, block?, whatsapp, status_id, created_at, created_by,
   deleted_at?, deleted_by? }   // sem updated_at: histórico vive no audit_log
 
 // packages
@@ -331,7 +336,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 // QR code aponta para APP_URL/packages/{id} (porteiro); morador recebe o link público /p/{public_token}
 
 // rate_limits
-{ _id, key, attempts, reset_at }   // TTL em reset_at; ver lib/auth/rateLimit.ts
+{ _id, key, attempts, reset_at }   // TTL em reset_at; ver lib/auth/rate-limit.ts
 
 // audit_logs
 { _id, condo_id, entity: 'residents'|'users'|'packages'|'condominiums', entity_id, action: 'created'|'updated'|'deleted',

@@ -149,7 +149,7 @@ Admin ou Síndico acessa /reports
   condo_id: ObjectId    // ref: condominiums
   name: string
   apartment: string     // ex: "101", "5B"
-  bloco?: string        // ex: "A", "Torre 1" (opcional)
+  block?: string        // ex: "A", "Torre 1" (opcional; na tela, "Bloco")
   whatsapp: string      // formato internacional: +5511999999999
   status_id: ObjectId   // ref: statuses
   created_at: Date
@@ -361,7 +361,7 @@ apps/encoraj/
     auth/
       jwt.ts
       cookies.ts
-      rateLimit.ts               ← checkRateLimit(key, max, windowMs)
+      rate-limit.ts              ← checkRateLimit(key, max, windowMs)
     audit/log.ts
     email/
       mailer.ts                  ← Nodemailer SMTP

@@ -39,7 +39,7 @@ export async function recordAiUsage(input: {
       created_at: new Date(),
     })
   } catch (err) {
-    await reportError('[uso de IA]', err)
+    await reportError('[ai-usage]', err)
   }
 }
 

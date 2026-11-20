@@ -30,14 +30,14 @@ import {
 import { requestState } from '../helpers/request-state'
 
 const orgBody = {
-  orgName: 'Administradora Prime',
-  condoName: 'Residencial Banana',
-  adminName: 'Carla',
-  adminEmail: 'Carla@Prime.com',
-  adminPassword: 'senha-forte-123',
+  org_name: 'Administradora Prime',
+  condo_name: 'Residencial Banana',
+  admin_name: 'Carla',
+  admin_email: 'Carla@Prime.com',
+  admin_password: 'senha-forte-123',
 }
 const enter = (id: ObjectId | string) => enterCondo(jsonRequest('POST'), routeCtx(String(id)))
-const newOrgCondo = (condoName = 'Residencial Maçã') => createOrgCondo(jsonRequest('POST', { condoName }))
+const newOrgCondo = (condo_name = 'Residencial Maçã') => createOrgCondo(jsonRequest('POST', { condo_name }))
 const rolesOf = async (id: ObjectId) => (await userRoleNames((await (await users()).findOne({ _id: id }))!)).sort()
 
 /** Faz o "request atual" usar o cookie devolvido pela rota, como o navegador faria. */
@@ -78,15 +78,15 @@ describe('POST /api/admin/organizations — só o super admin cria administrador
     await asSuperAdmin()
     await createOrgRoute(jsonRequest('POST', orgBody))
 
-    const token = await adopt(await login(jsonRequest('POST', { email: 'carla@prime.com', password: orgBody.adminPassword })))
+    const token = await adopt(await login(jsonRequest('POST', { email: 'carla@prime.com', password: orgBody.admin_password })))
     expect(token.roles).toEqual(['administradora'])
     expect(await getSession()).toBeNull() // senha definida pelo super admin: primeiro troca
-    await adopt(await changePassword(jsonRequest('PUT', { current_password: orgBody.adminPassword, new_password: 'so-eu-sei-123' })))
+    await adopt(await changePassword(jsonRequest('PUT', { current_password: orgBody.admin_password, new_password: 'so-eu-sei-123' })))
     const org = (await (await organizations()).findOne({}))!
     expect((await getSession())!.orgId).toBe(org._id.toString())
 
-    expect((await createOrgRoute(jsonRequest('POST', { ...orgBody, adminEmail: 'x@prime.com' }))).status).toBe(403)
-    expect((await createCondoRoute(jsonRequest('POST', { ...orgBody, adminEmail: 'x@prime.com' }))).status).toBe(403)
+    expect((await createOrgRoute(jsonRequest('POST', { ...orgBody, admin_email: 'x@prime.com' }))).status).toBe(403)
+    expect((await createCondoRoute(jsonRequest('POST', { ...orgBody, admin_email: 'x@prime.com' }))).status).toBe(403)
   })
 
   it('email em uso → 409 e nada fica para trás; dados inválidos → 400', async () => {
@@ -94,11 +94,11 @@ describe('POST /api/admin/organizations — só o super admin cria administrador
     await createUser(await createCondo(), 'zelador', { email: 'carla@prime.com' })
 
     expect((await createOrgRoute(jsonRequest('POST', orgBody))).status).toBe(409)
-    for (const override of [{ orgName: 'ab' }, { condoName: '' }, { adminEmail: 'x' }, { adminPassword: '123' }]) {
-      expect((await createOrgRoute(jsonRequest('POST', { ...orgBody, adminEmail: 'ok@prime.com', ...override }))).status).toBe(400)
+    for (const override of [{ org_name: 'ab' }, { condo_name: '' }, { admin_email: 'x' }, { admin_password: '123' }]) {
+      expect((await createOrgRoute(jsonRequest('POST', { ...orgBody, admin_email: 'ok@prime.com', ...override }))).status).toBe(400)
     }
     expect(await (await organizations()).countDocuments({})).toBe(0)
-    expect(await (await condominiums()).countDocuments({ name: orgBody.condoName })).toBe(0)
+    expect(await (await condominiums()).countDocuments({ name: orgBody.condo_name })).toBe(0)
   })
 
   it.each([...ALL_ROLES, 'administradora' as const])('role %s não cria administradora', async (role) => {
@@ -210,7 +210,7 @@ describe('POST /api/org/condos — a administradora é a do condomínio da sess�
     const rival = await createOrg('Rival')
     await loginAs(orgAdmin)
 
-    const res = await createOrgCondo(jsonRequest('POST', { condoName: 'Residencial Maçã', org_id: rival._id.toString(), orgId: rival._id.toString() }))
+    const res = await createOrgCondo(jsonRequest('POST', { condo_name: 'Residencial Maçã', org_id: rival._id.toString(), orgId: rival._id.toString() }))
     expect(res.status).toBe(201)
     expect((await (await condominiums()).findOne({ name: 'Residencial Maçã' }))!.org_id).toEqual(org._id)
   })

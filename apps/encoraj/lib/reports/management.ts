@@ -192,7 +192,7 @@ export async function getManagementReport(
   const unitOf = (residentId: ObjectId) => {
     const resident = residentById.get(residentId.toString())
     if (!resident) return { key: '', label: NO_RESIDENT_LABEL, block: NO_BLOCK_LABEL, name: NO_RESIDENT_LABEL }
-    const block = resident.bloco?.trim() || NO_BLOCK_LABEL
+    const block = resident.block?.trim() || NO_BLOCK_LABEL
     return {
       key: `${block}|${resident.apartment}`,
       label: formatUnit(resident),

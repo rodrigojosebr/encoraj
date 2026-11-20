@@ -14,7 +14,7 @@ vi.mock('@google/generative-ai', () => ({
 import { analyzePackageLabel } from '@/lib/gemini/ocr'
 
 const residents = [
-  { id: 'r1', name: 'Maria Silva', apartment: '101', bloco: 'A' },
+  { id: 'r1', name: 'Maria Silva', apartment: '101', block: 'A' },
   { id: 'r2', name: 'João Souza', apartment: '202' },
 ]
 
@@ -50,7 +50,7 @@ describe('analyzePackageLabel', () => {
     reply('{"resident_id":"r2","confidence":"medium","extracted_text":"Joao"}')
     await analyzePackageLabel('base64', 'image/jpeg', residents)
     const prompt = generateContent.mock.calls[0][0][0].text as string
-    expect(prompt).toContain('id: r1 | name: Maria Silva | apartment: 101 | bloco: A')
+    expect(prompt).toContain('id: r1 | name: Maria Silva | apartment: 101 | block: A')
     expect(prompt).toContain('id: r2 | name: João Souza | apartment: 202')
   })
 

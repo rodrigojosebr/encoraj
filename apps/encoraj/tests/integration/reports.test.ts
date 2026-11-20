@@ -186,7 +186,7 @@ describe('GET /api/reports/export', () => {
   it('morador sem bloco, encomenda sem datas e fórmula no nome', async () => {
     const condo = await createCondo()
     const resident = await createResident(condo, '=HYPERLINK("http://evil")')
-    await (await residents()).updateOne({ _id: resident._id }, { $unset: { bloco: '' } })
+    await (await residents()).updateOne({ _id: resident._id }, { $unset: { block: '' } })
     await createPackage(condo, resident._id)
     const noResident = await createPackage(condo, new ObjectId()) // morador que não existe mais
     await loginAs(await createUser(condo, 'admin'))

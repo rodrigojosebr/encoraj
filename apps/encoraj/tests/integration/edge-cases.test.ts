@@ -202,7 +202,7 @@ describe('rotas — respostas 4xx restantes', () => {
   it('OCR monta o rótulo de morador sem bloco', async () => {
     const condo = await createCondo()
     const resident = await createResident(condo, 'Ana')
-    await (await residents()).updateOne({ _id: resident._id }, { $unset: { bloco: '' } })
+    await (await residents()).updateOne({ _id: resident._id }, { $unset: { block: '' } })
     await loginAs(await createUser(condo, 'porteiro'))
     vi.mocked(analyzePackageLabel).mockResolvedValueOnce({
       resident_id: resident._id.toString(),

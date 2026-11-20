@@ -11,7 +11,7 @@ import { forbidden, parseBody, serverError, unauthorized } from '@/lib/api/http'
 const CreateResidentSchema = z.object({
   name: z.string().trim().min(2).max(120),
   apartment: z.string().trim().min(1).max(20),
-  bloco: z.string().trim().max(20).optional(),
+  block: z.string().trim().max(20).optional(),
   whatsapp: z.string().trim().min(8).max(20),
 })
 

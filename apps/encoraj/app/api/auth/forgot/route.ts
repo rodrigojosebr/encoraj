@@ -5,7 +5,7 @@ import { users, condominiums, passwordResetTokens } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { sendEmail } from '@/lib/email/mailer'
 import { resetPasswordEmail } from '@/lib/email/templates'
-import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { checkRateLimit, clientIp } from '@/lib/auth/rate-limit'
 import { emailSchema } from '@/lib/auth/email'
 import { reportError } from '@/lib/observability/report'
 import { parseBody, serverError } from '@/lib/api/http'
@@ -74,13 +74,13 @@ export async function POST(request: NextRequest) {
           })
         } catch (err) {
           // Falha de SMTP não pode virar resposta diferente (revelaria que o email existe)
-          await reportError('[forgot] envio falhou', err)
+          await reportError('[POST /api/auth/forgot]', err)
         }
       }),
     )
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    return serverError('[forgot]', err)
+    return serverError('[POST /api/auth/forgot]', err)
   }
 }

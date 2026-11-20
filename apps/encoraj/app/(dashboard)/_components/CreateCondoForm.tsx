@@ -58,11 +58,11 @@ export default function CreateCondoForm({ endpoint, withOrg = false, withAdmin =
 
       <div className={css({ display: 'grid', gridTemplateColumns: { base: '1fr', md: withOrg ? '1fr 1fr' : '1fr' }, gap: '4' })}>
         {withOrg && (
-          <FormField label="Nome da administradora" name="orgName" required minLength={3} maxLength={120} placeholder="Administradora Exemplo" />
+          <FormField label="Nome da administradora" name="org_name" required minLength={3} maxLength={120} placeholder="Administradora Exemplo" />
         )}
         <FormField
           label={withOrg ? 'Primeiro condomínio' : 'Nome do condomínio'}
-          name="condoName"
+          name="condo_name"
           required
           minLength={3}
           maxLength={120}
@@ -73,12 +73,12 @@ export default function CreateCondoForm({ endpoint, withOrg = false, withAdmin =
       {withAdmin && (
         <>
           <div className={css({ display: 'grid', gridTemplateColumns: { base: '1fr', md: '1fr 1fr' }, gap: '4' })}>
-            <FormField label="Nome do administrador" name="adminName" required minLength={2} maxLength={120} placeholder="Nome completo" />
-            <FormField label="E-mail do administrador" name="adminEmail" type="email" required placeholder="email@exemplo.com" autoComplete="off" />
+            <FormField label="Nome do administrador" name="admin_name" required minLength={2} maxLength={120} placeholder="Nome completo" />
+            <FormField label="E-mail do administrador" name="admin_email" type="email" required placeholder="email@exemplo.com" autoComplete="off" />
           </div>
           <PasswordField
             label="Senha inicial do administrador"
-            name="adminPassword"
+            name="admin_password"
             required
             minLength={PASSWORD_MIN}
             placeholder={PASSWORD_MIN_HINT}

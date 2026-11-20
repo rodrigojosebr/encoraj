@@ -80,7 +80,8 @@ async function storeError(label: string, error: unknown, extra: Record<string, s
 /**
  * Registra um erro. Mesma ordem de argumentos do `console.error` que substitui.
  *
- * @param label  de onde veio, entre colchetes: `[POST /api/packages]`
+ * @param label  de onde veio, entre colchetes: `[MÉTODO /api/rota]` em rota (`[POST /api/packages]`);
+ *               fora de rota, o módulo em inglês (`[ocr]`, `[ai-usage]`, `[indexes]`, `[client]` = erro da tela)
  * @param extra  contexto curto e sem dado pessoal (ids, rota) — fica nos detalhes do erro
  */
 export async function reportError(
@@ -92,6 +93,6 @@ export async function reportError(
   try {
     await storeError(label, error, extra)
   } catch (storeFailure) {
-    console.error('[registro de erro falhou]', storeFailure)
+    console.error('[error-log]', storeFailure)
   }
 }

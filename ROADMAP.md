@@ -403,15 +403,15 @@ Aberto — duplicação / lugar das coisas:
 
 Aberto — nomes e limpeza:
 
-- [ ] Campo de banco `bloco` em português → `block` (a base será recriada, então é só renomear em código, testes e docs)
-- [ ] Corpo dos requests mistura camelCase (`condoName`, `adminEmail`) e snake_case (`resident_id`, `current_password`): padronizar em snake_case, que é o do banco
-- [ ] `lib/auth/rateLimit.ts` → `rate-limit.ts` (o resto de `lib/` é kebab-case); janelas de limite como constantes nomeadas
-- [ ] Rótulos do `reportError` fora do formato `[MÉTODO /api/...]`: `[me/password]`, `[reset]`, `[forgot]`, `[tela]`
+- [x] Campo de banco `bloco` → `block` (código, testes e docs; na tela continua "Bloco")
+- [x] Corpo dos requests em snake_case: criação de condomínio e de administradora (`condo_name`, `org_name`, `admin_name`, `admin_email`, `admin_password`)
+- [x] `lib/auth/rateLimit.ts` → `rate-limit.ts`; janelas de limite soltas viraram constantes nomeadas (`/p/[id]`, reset, client-errors)
+- [x] Rótulos do `reportError`: rota em `[MÉTODO /api/rota]`; fora de rota, módulo em inglês (`[ocr]`, `[ai-usage]`, `[client]`, `[error-log]`)
 - [ ] Arquivos grandes: `NewPackageForm.tsx` (486), `reports/management/page.tsx` (375), `ProfileClient.tsx` (372), `SidebarShell.tsx` (340), `reports/page.tsx` (339)
 - [x] `users/page.tsx`: `UserRow`/`UserCard` extraídos, casts removidos, rótulo "Ativo" vem do banco
 - [x] Prop morta `role` removida; `console.error` duplicado do `(dashboard)/error.tsx` removido; mínimo de senha da tela vem de `lib/auth/password-rules.ts`
 - [x] Busca de moradores pelo `SearchInput` (dispara a partir de 1 caractere, para achar o apto "12")
-- [ ] Árvore de pastas do `CLAUDE.md` incompleta (faltam `profile/`, `lib/date`, `lib/legal`, `lib/pagination.ts`; `(auth)`, `_lib` e `SearchInput` já entraram)
+- [x] Árvore de pastas do `CLAUDE.md` completa (`(auth)`, `_lib`, `SearchInput`, `profile/`, `lib/date`, `lib/legal`, `lib/pagination.ts`)
 
 ### Teste manual pendente (lotes da dívida de padrão)
 
@@ -428,6 +428,8 @@ Páginas e visual não têm teste automático. Conferir no navegador, em claro e
 - [ ] Lote 3 — `/admin/ai`, `/admin/condos`, `/admin/errors`, `/admin/permissions`, `/condos`, `/reports/management`, perfil e detalhe da encomenda: cartões, títulos e tabelas com a mesma cara de antes
 - [ ] Lote 3 — `/residents`: busca dispara sozinha ao digitar (nome ou apto), mantém "excluídos" marcado e volta para a página 1
 - [ ] Lote 3 — perfil e configurações: escolher a mesma foto duas vezes seguidas também envia
+- [ ] Lote 4 — `/admin/condos`: criar condomínio autogerido e administradora (o formulário mudou os nomes dos campos); `/condos`: criar condomínio na administradora
+- [ ] Lote 4 — morador: cadastrar e editar com bloco; o bloco aparece na lista, na busca, no OCR e em "Por bloco" do relatório gerencial
 
 ---
 

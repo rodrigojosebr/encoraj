@@ -10,10 +10,10 @@ import { createCondo, createPackage, createResident } from '../helpers/factory'
 
 describe('unidade do morador', () => {
   it('mostra o bloco só quando há bloco', () => {
-    expect(formatUnit({ apartment: '101', bloco: 'A' })).toBe('Bloco A · Apto 101')
+    expect(formatUnit({ apartment: '101', block: 'A' })).toBe('Bloco A · Apto 101')
     expect(formatUnit({ apartment: '7' })).toBe('Apto 7')
-    expect(formatUnit({ apartment: '7', bloco: '  ' })).toBe('Apto 7')
-    expect(residentLabel({ name: 'Ana', apartment: '101', bloco: 'A' })).toBe('Ana — Bloco A · Apto 101')
+    expect(formatUnit({ apartment: '7', block: '  ' })).toBe('Apto 7')
+    expect(residentLabel({ name: 'Ana', apartment: '101', block: 'A' })).toBe('Ana — Bloco A · Apto 101')
   })
 })
 
@@ -25,7 +25,7 @@ describe('getResidentMap', () => {
 
     const map = await getResidentMap(condo._id, [ana._id, ana._id, outsider._id, new ObjectId()])
     expect([...map.keys()]).toEqual([ana._id.toString()])
-    expect(map.get(ana._id.toString())).toMatchObject({ name: 'Ana', apartment: '101', bloco: 'A' })
+    expect(map.get(ana._id.toString())).toMatchObject({ name: 'Ana', apartment: '101', block: 'A' })
     expect(map.get(ana._id.toString())).not.toHaveProperty('whatsapp') // só o que as telas mostram
   })
 

@@ -9,7 +9,7 @@ import { logAction } from '@/lib/audit/log'
 import { conflict, forbidden, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const schema = z.object({
-  condoName: z.string().trim().min(3, 'Nome do condomínio muito curto.').max(120),
+  condo_name: z.string().trim().min(3, 'Nome do condomínio muito curto.').max(120),
 })
 
 /**
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       return conflict('Este condomínio é autogerido: não pertence a uma administradora.')
     }
 
-    const { condoId, slug } = await createCondoInOrganization(current.org_id, parsed.data.condoName)
+    const { condoId, slug } = await createCondoInOrganization(current.org_id, parsed.data.condo_name)
 
     await logAction({
       condo_id: condoId,
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       action: 'created',
       actor_id: new ObjectId(session.userId),
       actor_name: session.userName,
-      after: { name: parsed.data.condoName, slug, org_id: current.org_id },
+      after: { name: parsed.data.condo_name, slug, org_id: current.org_id },
     })
 
     return NextResponse.json({ _id: condoId, slug }, { status: 201 })

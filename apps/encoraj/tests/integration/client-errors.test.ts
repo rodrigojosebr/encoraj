@@ -21,8 +21,8 @@ describe('POST /api/client-errors', () => {
     const res = await send({ message: 'Cannot read properties of null', digest: '123456789', path: '/packages/new?x=1' })
     expect(res.status).toBe(204)
 
-    expect(console.error).toHaveBeenCalledWith('[tela]', expect.objectContaining({ message: 'Cannot read properties of null' }))
-    const doc = (await (await errorLogs()).findOne({ label: '[tela]' }))!
+    expect(console.error).toHaveBeenCalledWith('[client]', expect.objectContaining({ message: 'Cannot read properties of null' }))
+    const doc = (await (await errorLogs()).findOne({ label: '[client]' }))!
     expect(doc).toMatchObject({
       message: 'Cannot read properties of null',
       count: 1,

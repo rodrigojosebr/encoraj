@@ -1,7 +1,7 @@
 import { compare } from 'bcryptjs'
 import { ObjectId } from 'mongodb'
 import { users } from '@/lib/db/collections'
-import { checkRateLimit, isRateLimited } from './rateLimit'
+import { checkRateLimit, isRateLimited } from './rate-limit'
 
 const MAX_FAILURES = 5
 const WINDOW_MS = 15 * 60 * 1000

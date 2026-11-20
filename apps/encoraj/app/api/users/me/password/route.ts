@@ -58,6 +58,6 @@ export async function PUT(request: Request) {
     await setSessionCookie(response, session)
     return response
   } catch (err) {
-    return serverError('[me/password]', err)
+    return serverError('[PUT /api/users/me/password]', err)
   }
 }

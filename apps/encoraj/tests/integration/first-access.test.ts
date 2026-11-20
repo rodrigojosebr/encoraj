@@ -84,11 +84,11 @@ describe('senha definida por outra pessoa → troca obrigatória no primeiro ace
 
   it('admin criado junto com o condomínio ou com a administradora também troca no primeiro acesso', async () => {
     await loginAs(await createUser(await createCondo(), 'superadmin'))
-    const admin = { adminName: 'Ana', adminPassword: INITIAL }
+    const admin = { admin_name: 'Ana', admin_password: INITIAL }
 
-    expect((await createCondoRoute(jsonRequest('POST', { ...admin, condoName: 'Residencial Sol', adminEmail: 'ana@teste.com' }))).status).toBe(201)
+    expect((await createCondoRoute(jsonRequest('POST', { ...admin, condo_name: 'Residencial Sol', admin_email: 'ana@teste.com' }))).status).toBe(201)
     expect(
-      (await createOrgRoute(jsonRequest('POST', { ...admin, orgName: 'Administradora Prime', condoName: 'Residencial Lua', adminEmail: 'bia@teste.com' }))).status,
+      (await createOrgRoute(jsonRequest('POST', { ...admin, org_name: 'Administradora Prime', condo_name: 'Residencial Lua', admin_email: 'bia@teste.com' }))).status,
     ).toBe(201)
 
     expect(await flagOf({ email: 'ana@teste.com' })).toBe(true)

@@ -63,7 +63,7 @@ export interface ResidentDoc {
   condo_id: ObjectId
   name: string
   apartment: string
-  bloco?: string
+  block?: string
   whatsapp: string
   status_id: ObjectId
   created_at: Date

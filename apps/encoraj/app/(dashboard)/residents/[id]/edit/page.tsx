@@ -60,7 +60,7 @@ export default async function EditResidentPage({ params }: EditResidentPageProps
           defaultValues={{
             name: resident.name,
             apartment: resident.apartment,
-            bloco: resident.bloco,
+            block: resident.block,
             whatsapp: resident.whatsapp,
           }}
         />

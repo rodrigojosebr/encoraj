@@ -10,11 +10,11 @@ import { logAction } from '@/lib/audit/log'
 import { conflict, forbidden, parseBody, serverError, unauthorized } from '@/lib/api/http'
 
 const schema = z.object({
-  orgName: z.string().trim().min(3, 'Nome da administradora muito curto.').max(120),
-  condoName: z.string().trim().min(3, 'Nome do condomínio muito curto.').max(120),
-  adminName: z.string().trim().min(2, 'Nome do administrador muito curto.').max(120),
-  adminEmail: emailSchema,
-  adminPassword: passwordSchema,
+  org_name: z.string().trim().min(3, 'Nome da administradora muito curto.').max(120),
+  condo_name: z.string().trim().min(3, 'Nome do condomínio muito curto.').max(120),
+  admin_name: z.string().trim().min(2, 'Nome do administrador muito curto.').max(120),
+  admin_email: emailSchema,
+  admin_password: passwordSchema,
 })
 
 /**
@@ -30,7 +30,14 @@ export async function POST(request: Request) {
     const parsed = await parseBody(request, schema)
     if (parsed.error) return parsed.error
 
-    const result = await createOrganizationWithAdmin(parsed.data)
+    const data = parsed.data
+    const result = await createOrganizationWithAdmin({
+      orgName: data.org_name,
+      condoName: data.condo_name,
+      adminName: data.admin_name,
+      adminEmail: data.admin_email,
+      adminPassword: data.admin_password,
+    })
     if (!result.ok) {
       return conflict('Este email já está em uso.')
     }
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
       action: 'created',
       actor_id: new ObjectId(session.userId),
       actor_name: session.userName,
-      after: { name: parsed.data.condoName, slug: result.slug, org_id: result.orgId, org_name: parsed.data.orgName, admin_id: result.adminId },
+      after: { name: data.condo_name, slug: result.slug, org_id: result.orgId, org_name: data.org_name, admin_id: result.adminId },
     })
 
     return NextResponse.json({ _id: result.orgId, condo_id: result.condoId }, { status: 201 })

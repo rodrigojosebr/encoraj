@@ -56,11 +56,11 @@ async function movement(condo: TestCondo, residentId: ObjectId, m: Movement) {
   return pkg
 }
 
-async function resident(condo: TestCondo, name: string, apartment: string, bloco?: string) {
+async function resident(condo: TestCondo, name: string, apartment: string, block?: string) {
   const r = await createResident(condo, name)
   await (await residents()).updateOne(
     { _id: r._id },
-    bloco ? { $set: { apartment, bloco } } : { $set: { apartment }, $unset: { bloco: '' } },
+    block ? { $set: { apartment, block } } : { $set: { apartment }, $unset: { block: '' } },
   )
   return r
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth/session'
-import { checkRateLimit } from '@/lib/auth/rateLimit'
+import { checkRateLimit } from '@/lib/auth/rate-limit'
 import { reportError } from '@/lib/observability/report'
 import { parseBody, serverError, tooManyRequests, unauthorized } from '@/lib/api/http'
 
@@ -11,6 +11,10 @@ const schema = z.object({
   digest: z.string().max(100).optional(),
   path: z.string().max(200).optional(),
 })
+
+/** Relatos por usuário a cada 10 minutos. */
+const MAX_REPORTS = 10
+const REPORT_WINDOW_MS = 10 * 60 * 1000
 
 /**
  * Recebe erros que estouraram na tela do usuário (error.tsx). Só de quem está logado,
@@ -24,11 +28,11 @@ export async function POST(request: Request) {
     const parsed = await parseBody(request, schema)
     if (parsed.error) return parsed.error
 
-    const rl = await checkRateLimit(`client-error:${session.userId}`, 10, 10 * 60 * 1000)
+    const rl = await checkRateLimit(`client-error:${session.userId}`, MAX_REPORTS, REPORT_WINDOW_MS)
     if (rl.blocked) return tooManyRequests('Muitos relatos.')
 
     const { message, digest, path } = parsed.data
-    await reportError('[tela]', new Error(message), {
+    await reportError('[client]', new Error(message), {
       digest,
       path: path?.split('?')[0],
       roles: session.roles.join(', '),

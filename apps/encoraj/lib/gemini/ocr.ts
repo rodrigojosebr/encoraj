@@ -5,7 +5,7 @@ export interface ResidentContext {
   id: string
   name: string
   apartment: string
-  bloco?: string
+  block?: string
 }
 
 export interface OcrResult {
@@ -32,7 +32,7 @@ You are analyzing a package delivery label photo.
 Your task is to identify which resident in the list below is the intended recipient.
 
 RESIDENTS LIST:
-${residents.map((r) => `- id: ${r.id} | name: ${r.name} | apartment: ${r.apartment}${r.bloco ? ` | bloco: ${r.bloco}` : ''}`).join('\n')}
+${residents.map((r) => `- id: ${r.id} | name: ${r.name} | apartment: ${r.apartment}${r.block ? ` | block: ${r.block}` : ''}`).join('\n')}
 
 Look for the following on the label:
 - Recipient name
@@ -73,7 +73,7 @@ export async function analyzePackageLabel(
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
       // OCR desligado por configuração: o porteiro só vê a seleção manual — precisa de alerta
-      await reportError('[OCR]', new Error('GEMINI_API_KEY não definida'))
+      await reportError('[ocr]', new Error('GEMINI_API_KEY não definida'))
       report('disabled')
       return null
     }
@@ -108,7 +108,7 @@ export async function analyzePackageLabel(
       parsed = JSON.parse(jsonText)
     } catch {
       // Sem o texto da resposta: ele traz o que foi lido da etiqueta (nome, apartamento)
-      await reportError('[OCR]', new Error('resposta do modelo não é JSON válido'))
+      await reportError('[ocr]', new Error('resposta do modelo não é JSON válido'))
       report('invalid_response')
       return null
     }
@@ -121,7 +121,7 @@ export async function analyzePackageLabel(
     // Validate that the returned id actually exists in our list
     const match = residents.find((r) => r.id === parsed.resident_id)
     if (!match) {
-      await reportError('[OCR]', new Error('modelo devolveu morador que não está na lista'))
+      await reportError('[ocr]', new Error('modelo devolveu morador que não está na lista'))
       report('invalid_response')
       return null
     }
@@ -138,7 +138,7 @@ export async function analyzePackageLabel(
     }
   } catch (err) {
     // Falha do Gemini (modelo aposentado, cota, rede): o fallback é silencioso para o porteiro
-    await reportError('[OCR]', err)
+    await reportError('[ocr]', err)
     report('error')
     return null
   }

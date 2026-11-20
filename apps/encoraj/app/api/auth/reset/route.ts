@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { users, passwordResetTokens } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { hashPassword, passwordSchema } from '@/lib/auth/password'
-import { checkRateLimit, clientIp } from '@/lib/auth/rateLimit'
+import { checkRateLimit, clientIp } from '@/lib/auth/rate-limit'
 import { logAction } from '@/lib/audit/log'
 import { badRequest, parseBody, serverError, tooManyRequests } from '@/lib/api/http'
 
@@ -15,10 +15,13 @@ const schema = z.object({
 
 const INVALID_LINK = 'Link inválido ou expirado. Solicite um novo.'
 
+/** Tentativas por IP a cada 15 minutos. */
+const MAX_PER_IP = 10
+const WINDOW_MS = 15 * 60 * 1000
+
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit: 10 tentativas por IP a cada 15 min
-    const rl = await checkRateLimit(`reset:${clientIp(request.headers)}`, 10, 15 * 60 * 1000)
+    const rl = await checkRateLimit(`reset:${clientIp(request.headers)}`, MAX_PER_IP, WINDOW_MS)
     if (rl.blocked) {
       return tooManyRequests()
     }
@@ -67,6 +70,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    return serverError('[reset]', err)
+    return serverError('[POST /api/auth/reset]', err)
   }
 }
