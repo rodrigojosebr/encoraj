@@ -28,9 +28,9 @@ Docs do repo — quando ler:
 - **Toda query leva `condo_id`** — inclusive em Server Components e inclusive no `updateOne` depois de um `findOne` já filtrado. Página pega o `condoId` de `readSession()`.
 - **Nunca devolver documento inteiro**: projetar fora `password_hash`, `delivery_pin`, `public_token`.
 - **Texto do usuário em `$regex` passa por `escapeRegex()`** (`lib/db/escape-regex.ts`).
-- **Foto é reduzida no navegador antes de subir**: `compressImage()` em `app/(dashboard)/_lib/compress-image.ts` (a Vercel recusa corpo acima de ~4,5 MB).
+- **Foto é reduzida no navegador antes de subir**: `compressImage()` em `app/(dashboard)/_lib/compress-image.ts` (a Vercel recusa corpo acima de ~4,5 MB). Foto de perfil e do condomínio passam por `usePhotoUpload()` (`app/(dashboard)/_lib/use-photo-upload.ts`), que já reduz e avisa a barra lateral.
 - **Upload de imagem passa por `readImageUpload()`** (`lib/upload/image.ts`): limite de tamanho e formato conferido pelos bytes.
-- **Email e senha usam `emailSchema` (`lib/auth/email.ts`) / `passwordSchema` + `hashPassword()` (`lib/auth/password.ts`)**: email sempre gravado e buscado em minúsculas, senha mínima única, um só custo de bcrypt. Nunca chamar `bcrypt.hash` direto. Email é único entre usuários ativos (índice parcial no banco).
+- **Email e senha usam `emailSchema` (`lib/auth/email.ts`) / `passwordSchema` + `hashPassword()` (`lib/auth/password.ts`)**: email sempre gravado e buscado em minúsculas, senha mínima única, um só custo de bcrypt. Nunca chamar `bcrypt.hash` direto. Email é único entre usuários ativos (índice parcial no banco). O mínimo de senha mora em `lib/auth/password-rules.ts` (`PASSWORD_MIN`), que a tela também lê; campo de senha é sempre `<PasswordField>` de `@encoraj/ui`.
 - **URL de imagem só sai assinada**: no banco fica a URL canônica; tudo que entrega imagem ao navegador passa por `signS3Url()` (`lib/s3/sign.ts`). Nunca mandar `photo_url`/`qrcode_url` cru para o cliente.
 - **Link público é `/p/{public_token}`**, nunca o `_id` (ObjectId é sequencial, não é segredo). Não há mais aceitação de link antigo por id.
 - **Ninguém se cadastra sozinho**: usuário só nasce cadastrado por quem está acima (tela Usuários, ou junto com o condomínio/administradora), já dentro do condomínio. Não criar rota pública de cadastro nem lista de "usuários sem condomínio".
@@ -197,7 +197,10 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         p/
           [id]/page.tsx     ← pública (sem login): foto, código, QR code; delivered → "retirada"
         (auth)/
+          layout.tsx        ← moldura (cartão centralizado) das telas sem login
+          _components/AuthHeader.tsx ← título + texto de apoio do cartão
           login/page.tsx
+          forgot-password/page.tsx, reset-password/page.tsx ← recuperação de senha (link do login segue comentado)
           change-password/page.tsx ← primeiro acesso: troca obrigatória da senha recebida de outra pessoa
         (legal)/
           termos/page.tsx, privacidade/page.tsx ← públicas
@@ -213,6 +216,10 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             ThemeToggle.tsx     ← dark mode
             LogoutButton.tsx
             DeletedToggle.tsx   ← ativos/excluídos (`?deleted=1`) em moradores e usuários
+            SearchInput.tsx     ← busca com debounce na URL (`?q=`): encomendas, relatórios, moradores
+          _lib/
+            styles.ts           ← cardCss, h1Css, mutedCss, labelCss, thCss… repetidos entre páginas
+            compress-image.ts, use-photo-upload.ts, use-local-storage.ts
           packages/
             page.tsx
             new/page.tsx        ← câmera/upload → form → S3 + QR code
@@ -265,7 +272,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           users/me/photo/route.ts ← POST/DELETE foto de perfil → S3 + DB
       lib/
         db/         ← client.ts, collections.ts, status-map.ts, indexes.ts, escape-regex.ts
-        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rateLimit.ts, email.ts, password.ts (passwordSchema/hashPassword), current-password.ts (verifyCurrentPassword), safe-next.ts
+        auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rateLimit.ts, email.ts, password.ts (passwordSchema/hashPassword), password-rules.ts (PASSWORD_MIN, sem dependência de servidor), current-password.ts (verifyCurrentPassword), safe-next.ts
         api/        ← http.ts → respostas padrão das rotas + parseBody()
         text/       ← slug.ts, csv.ts
         upload/     ← image.ts → readImageUpload()
@@ -287,7 +294,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         preflight.ts ← conferência do banco (somente leitura)
       styled-system/  ← gerado por panda codegen (gitignored)
   packages/
-    ui/             ← @encoraj/ui (Button, Input, Text, Badge, Spinner, FormField, Card, Alert, Toast, ConfirmDialog)
+    ui/             ← @encoraj/ui (Button, Input, Text, Badge, Spinner, FormField, PasswordField, Card, Alert, Toast, ConfirmDialog)
     panda-config/   ← @encoraj/panda-config (tokens + recipes)
     tsconfig/       ← @encoraj/tsconfig
 ```

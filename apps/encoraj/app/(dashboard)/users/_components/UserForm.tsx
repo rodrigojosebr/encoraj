@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, FormField, Alert, useToast } from '@encoraj/ui'
+import { Button, FormField, Alert, PasswordField, useToast } from '@encoraj/ui'
+import { PASSWORD_MIN, PASSWORD_MIN_HINT } from '@/lib/auth/password-rules'
 import { css } from '@/styled-system/css'
 
 interface RoleOption {
@@ -105,13 +106,12 @@ export default function UserForm({ id, defaultValues, roleOptions, rolesOptional
         </span>
       </div>
 
-      <FormField
+      <PasswordField
         label={id ? 'Nova senha (deixe em branco para manter)' : 'Senha'}
         name="password"
-        type="password"
         required={!id}
-        minLength={8}
-        placeholder={id ? '••••••••' : 'Mínimo 8 caracteres'}
+        minLength={PASSWORD_MIN}
+        placeholder={id ? undefined : PASSWORD_MIN_HINT}
         autoComplete="new-password"
         hint="A pessoa terá que trocar esta senha ao entrar."
       />

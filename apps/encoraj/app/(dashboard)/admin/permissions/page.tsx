@@ -5,12 +5,11 @@ import { getSuperAdminSession } from '@/lib/auth/super-admin'
 import { can, EVERYONE_CAN, PAGE_PERMISSIONS, PERMISSIONS, type Permission } from '@/lib/auth/permissions'
 import { ASSIGNABLE_ROLES, ORG_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '@/lib/auth/roles'
 import { getRole } from '@/lib/db/status-map'
+import { h2Css, mutedCss } from '@/app/(dashboard)/_lib/styles'
 
-const mutedCss = css({ fontSize: 'sm', color: 'gray.500', _dark: { color: 'gray.400' } })
 const thCss = css({ px: '3', py: '2', fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', textAlign: 'center', _dark: { color: 'gray.400' } })
 const tdCss = css({ px: '3', py: '2.5', fontSize: 'sm', color: 'gray.800', borderTop: '1px solid', borderColor: 'gray.100', _dark: { color: 'gray.200', borderColor: 'gray.800' } })
 const cardCss = css({ bg: 'white', border: '1px solid', borderColor: 'gray.200', borderRadius: 'lg', p: { base: '4', md: '6' }, display: 'flex', flexDir: 'column', gap: '3', _dark: { bg: 'gray.900', borderColor: 'gray.700' } })
-const h2Css = css({ fontSize: 'lg', fontWeight: 'semibold', color: 'gray.900', _dark: { color: 'gray.50' } })
 
 /**
  * Consulta: o que cada role pode fazer. Só leitura, gerada do mapa de permissões do

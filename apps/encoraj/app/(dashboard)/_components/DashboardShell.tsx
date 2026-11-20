@@ -12,7 +12,6 @@ interface NavItem {
 
 interface DashboardShellProps {
   name: string
-  role: string
   roleLabel: string
   condoName: string
   userPhoto: string | null
@@ -23,7 +22,6 @@ interface DashboardShellProps {
 
 export default function DashboardShell({
   name,
-  role,
   roleLabel,
   condoName,
   userPhoto,
@@ -37,7 +35,6 @@ export default function DashboardShell({
     <div className={css({ display: 'flex', minH: '100vh', bg: 'gray.50', _dark: { bg: 'gray.950' } })}>
       <SidebarShell
         name={name}
-        role={role}
         roleLabel={roleLabel}
         condoName={condoName}
         userPhoto={userPhoto}

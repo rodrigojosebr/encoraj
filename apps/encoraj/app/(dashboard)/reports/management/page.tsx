@@ -7,34 +7,12 @@ import { addDays, fmtDate, fmtDateTime, tzParts } from '@/lib/date/tz'
 import { pageHref } from '@/lib/pagination'
 import { can } from '@/lib/auth/permissions'
 import { getManagementReport, resolvePeriod, TOP_N } from '@/lib/reports/management'
+import { cardCss, labelCss, mutedCss, tdCss, thCss } from '@/app/(dashboard)/_lib/styles'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const QUICK_RANGES = [7, 30, 90, 365]
 // Cor fixa: o tema do projeto não define a escala âmbar
 const AMBER = '#d97706'
-
-const cardCss = css({
-  bg: 'white',
-  border: '1px solid',
-  borderColor: 'gray.200',
-  borderRadius: 'lg',
-  p: { base: '4', md: '6' },
-  display: 'flex',
-  flexDir: 'column',
-  gap: '4',
-  _dark: { bg: 'gray.900', borderColor: 'gray.700' },
-})
-const labelCss = css({
-  fontSize: 'xs',
-  fontWeight: 'semibold',
-  color: 'gray.500',
-  textTransform: 'uppercase',
-  letterSpacing: 'wide',
-  _dark: { color: 'gray.400' },
-})
-const mutedCss = css({ fontSize: 'sm', color: 'gray.500', _dark: { color: 'gray.400' } })
-const thCss = css({ textAlign: 'left', px: '3', py: '2', fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', _dark: { color: 'gray.400' } })
-const tdCss = css({ px: '3', py: '2', fontSize: 'sm', color: 'gray.800', borderTop: '1px solid', borderColor: 'gray.100', _dark: { color: 'gray.200', borderColor: 'gray.800' } })
 const inputCss = css({
   px: '3',
   py: '2',

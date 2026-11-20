@@ -390,14 +390,14 @@ Aberto — segurança/regra (fazer primeiro):
 Aberto — duplicação / lugar das coisas:
 
 - [x] Fotos saíram do JWT (o layout lê do banco); as rotas de foto não mexem mais no cookie. Emissão e limpeza do cookie por `setSessionCookie()` / `clearSessionCookie()` em `lib/auth/cookies.ts`
-- [ ] `PasswordField` (campo com olho) triplicado em login, reset e perfil, com SVG à mão → um componente em `@encoraj/ui` com `lucide-react`; usar também em `/change-password`
-- [ ] Moldura das telas de `(auth)` copiada em 4 páginas → `app/(auth)/layout.tsx`
-- [ ] `mutedCss`/`cardCss`/`thCss`/`tdCss` repetidos em 6 páginas; `Card` e `Text` de `@encoraj/ui` não são usados (o `Card` não tem dark mode) → corrigir o `Card` e usar, ou recipes no Panda
+- [x] `PasswordField` em `@encoraj/ui` (ícones `lucide-react`): login, primeiro acesso, redefinir, perfil, cadastro de usuário e de condomínio
+- [x] Moldura das telas de `(auth)` → `app/(auth)/layout.tsx` + `AuthHeader`
+- [x] Estilos repetidos → `app/(dashboard)/_lib/styles.ts` (9 páginas). `Card` ganhou modo escuro, mas segue sem uso nas páginas (o `cardCss` tem padding responsivo); `Text` também sem uso
 - [x] Contagens do painel → `getPackageStats()` (`lib/packages/stats.ts`); opções do filtro de status → `packageStatusOptions()` (`lib/packages/filter.ts`), em `/packages` e `/reports`
 - [x] Unidade num formato só ("Bloco A · Apto 101") por `formatUnit()` / `residentLabel()`; colunas viraram "Unidade" (inclusive no CSV). O detalhe da encomenda não mostrava o bloco
 - [x] Mapa de moradores por id → `getResidentMap(condoId, ids)` (`lib/residents/lookup.ts`), em 5 lugares
 - [x] ~~`lib/packages/create.ts`~~ descartado: só a rota cria encomenda, extrair seria mover código sem tirar duplicação
-- [ ] Upload de foto duplicado entre `/settings` e perfil → hook `usePhotoUpload`
+- [x] Upload de foto → `usePhotoUpload()` em `/settings` e no perfil; remover foto agora avisa quando falha
 - [x] Senha atual com limite → `verifyCurrentPassword()` (`lib/auth/current-password.ts`), em `condo/erase` e `users/me/password`
 - [x] 401/403/500 e mensagens pelos helpers de `lib/api/http.ts`, todas com ponto final
 
@@ -409,9 +409,25 @@ Aberto — nomes e limpeza:
 - [ ] Rótulos do `reportError` fora do formato `[MÉTODO /api/...]`: `[me/password]`, `[reset]`, `[forgot]`, `[tela]`
 - [ ] Arquivos grandes: `NewPackageForm.tsx` (486), `reports/management/page.tsx` (375), `ProfileClient.tsx` (372), `SidebarShell.tsx` (340), `reports/page.tsx` (339)
 - [x] `users/page.tsx`: `UserRow`/`UserCard` extraídos, casts removidos, rótulo "Ativo" vem do banco
-- [ ] Prop morta `role` em `DashboardShell`/`SidebarShell`; `console.error` duplicado em `(dashboard)/error.tsx`; mínimo de senha "8" fixo no cliente
-- [ ] Busca de moradores com `<form>` próprio em vez do `SearchInput`
-- [ ] Árvore de pastas do `CLAUDE.md` incompleta (faltam `profile/`, `forgot-password`, `reset-password`, `lib/date`, `lib/legal`, `lib/pagination.ts`, componentes compartilhados)
+- [x] Prop morta `role` removida; `console.error` duplicado do `(dashboard)/error.tsx` removido; mínimo de senha da tela vem de `lib/auth/password-rules.ts`
+- [x] Busca de moradores pelo `SearchInput` (dispara a partir de 1 caractere, para achar o apto "12")
+- [ ] Árvore de pastas do `CLAUDE.md` incompleta (faltam `profile/`, `lib/date`, `lib/legal`, `lib/pagination.ts`; `(auth)`, `_lib` e `SearchInput` já entraram)
+
+### Teste manual pendente (lotes da dívida de padrão)
+
+Páginas e visual não têm teste automático. Conferir no navegador, em claro e escuro, mobile e desktop, antes de subir:
+
+- [ ] Lote 1 — `/users`: paginação, seletor ativos/desativados, linha (desktop) e cartão (mobile)
+- [ ] Lote 1 — formulários mostram mensagem em PT-BR com ponto final quando o dado é inválido (login com email inválido, senha curta)
+- [ ] Lote 2 — trocar e remover a foto de perfil e a do condomínio: barra lateral e topo do mobile atualizam sem recarregar
+- [ ] Lote 2 — "Entrar" em outro condomínio (`/condos` e `/admin/condos`) e voltar
+- [ ] Lote 2 — coluna "Unidade" ("Bloco A · Apto 101") no início, `/packages`, `/reports`, `/residents`, detalhe da encomenda e CSV
+- [ ] Lote 2 — cartões de números e filtro de status em `/` e `/reports` batem com a lista
+- [ ] Lote 3 — telas sem login (entrar, primeiro acesso, redefinir): cartão centralizado igual nas três; olho mostra/oculta a senha
+- [ ] Lote 3 — olho de senha também no perfil, no cadastro/edição de usuário e na criação de condomínio; senha curta é barrada na tela
+- [ ] Lote 3 — `/admin/ai`, `/admin/condos`, `/admin/errors`, `/admin/permissions`, `/condos`, `/reports/management`, perfil e detalhe da encomenda: cartões, títulos e tabelas com a mesma cara de antes
+- [ ] Lote 3 — `/residents`: busca dispara sozinha ao digitar (nome ou apto), mantém "excluídos" marcado e volta para a página 1
+- [ ] Lote 3 — perfil e configurações: escolher a mesma foto duas vezes seguidas também envia
 
 ---
 

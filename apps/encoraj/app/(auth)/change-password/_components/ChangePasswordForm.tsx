@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Alert, Button, FormField } from '@encoraj/ui'
+import { Alert, Button, PasswordField } from '@encoraj/ui'
+import { PASSWORD_MIN, PASSWORD_MIN_HINT } from '@/lib/auth/password-rules'
 import { css } from '@/styled-system/css'
 
 export default function ChangePasswordForm() {
@@ -46,17 +47,16 @@ export default function ChangePasswordForm() {
     <form onSubmit={handleSubmit} className={css({ display: 'flex', flexDir: 'column', gap: '4' })}>
       {error && <Alert variant="error">{error}</Alert>}
 
-      <FormField label="Senha recebida" name="current_password" type="password" required autoComplete="current-password" />
-      <FormField
+      <PasswordField label="Senha recebida" name="current_password" required autoComplete="current-password" />
+      <PasswordField
         label="Nova senha"
         name="new_password"
-        type="password"
         required
-        minLength={8}
-        placeholder="Mínimo 8 caracteres"
+        minLength={PASSWORD_MIN}
+        placeholder={PASSWORD_MIN_HINT}
         autoComplete="new-password"
       />
-      <FormField label="Confirmar nova senha" name="confirm_password" type="password" required minLength={8} autoComplete="new-password" />
+      <PasswordField label="Confirmar nova senha" name="confirm_password" required minLength={PASSWORD_MIN} autoComplete="new-password" />
 
       <Button type="submit" loading={loading} style={{ width: '100%' }}>
         Salvar e entrar

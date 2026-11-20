@@ -27,6 +27,7 @@ packages/
       Spinner/        ← css() inline
     molecules/
       FormField/      ← Input com label + erro (slot recipe)
+      PasswordField/  ← FormField de senha com botão mostrar/ocultar (lucide)
       Card/           ← css() inline
       Alert/          ← css() inline
 ```
@@ -257,6 +258,18 @@ Wrapper de `Input` com label automático e mensagem de erro. Usa `useId()` inter
 
 ---
 
+### PasswordField
+
+Todo campo de senha do app (login, primeiro acesso, redefinir, perfil, cadastro de usuário e de condomínio). Mesmas props do `FormField`, menos `type`; placeholder padrão `••••••••`. Não montar campo de senha à mão nem com `FormField type="password"`.
+
+Mínimo de senha na tela: `PASSWORD_MIN` / `PASSWORD_MIN_HINT` de `lib/auth/password-rules.ts` — nunca o número escrito. Componente de cliente não importa `lib/auth/password.ts` (traz o bcrypt).
+
+```tsx
+<PasswordField label="Nova senha" name="new_password" required minLength={PASSWORD_MIN} placeholder={PASSWORD_MIN_HINT} autoComplete="new-password" />
+```
+
+---
+
 ### Badge
 
 Recipe: `badgeRecipe` (`defineRecipe`).
@@ -328,11 +341,13 @@ Componente via `css()` inline — sem recipe.
 
 | Variant | Fundo | Borda | Sombra |
 |---|---|---|---|
-| `flat` | gray.50 | — | — |
-| `elevated` | white | — | `md` |
-| `outlined` | white | gray.200 1px | — |
+| `flat` | gray.50 (escuro: gray.800) | — | — |
+| `elevated` | white (escuro: gray.900) | — | `md` |
+| `outlined` | white (escuro: gray.900) | gray.200 1px (escuro: gray.700) | — |
 
 Padding fixo: `6` (24px) em todos os lados.
+
+As páginas do dashboard ainda não usam o `Card`: usam `cardCss` de `app/(dashboard)/_lib/styles.ts` (padding responsivo, conteúdo em coluna). Estilo repetido de página (`cardCss`, `h1Css`, `h2Css`, `mutedCss`, `labelCss`, `valueCss`, `thCss`, `tdCss`) vem de lá — não redeclarar na página; variação de uma tela só fica na própria tela.
 
 **Exemplos**
 ```tsx

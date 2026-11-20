@@ -7,9 +7,11 @@ import { css } from '@/styled-system/css'
 interface SearchInputProps {
   placeholder?: string
   defaultValue?: string
+  /** A partir de quantos caracteres a busca dispara. Padrão 3; apartamento "12" precisa de 1. */
+  minChars?: number
 }
 
-export default function SearchInput({ placeholder, defaultValue }: SearchInputProps) {
+export default function SearchInput({ placeholder, defaultValue, minChars = 3 }: SearchInputProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -33,7 +35,7 @@ export default function SearchInput({ placeholder, defaultValue }: SearchInputPr
 
     if (timer.current) clearTimeout(timer.current)
 
-    if (next.length >= 3 || next.length === 0) {
+    if (next.length >= minChars || next.length === 0) {
       timer.current = setTimeout(() => {
         if (next === lastPushed.current) return
         lastPushed.current = next

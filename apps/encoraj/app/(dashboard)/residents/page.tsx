@@ -16,6 +16,7 @@ import { fmtDate } from '@/lib/date/tz'
 import { paginate, parsePage } from '@/lib/pagination'
 import { can } from '@/lib/auth/permissions'
 import Pagination from '../_components/Pagination'
+import SearchInput from '../_components/SearchInput'
 
 export default async function ResidentsPage({
   searchParams,
@@ -59,26 +60,7 @@ export default async function ResidentsPage({
 
       {/* Search + filtro */}
       <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '3', alignItems: 'center' })}>
-        <form method="GET" className={css({ flex: 1, minW: '200px' })}>
-          {showDeleted && <input type="hidden" name="deleted" value="1" />}
-          <input
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="Buscar por nome ou apartamento…"
-          className={css({
-            w: 'full',
-            px: '3',
-            py: '2',
-            border: '1px solid',
-            borderColor: 'gray.300',
-            borderRadius: 'md',
-            fontSize: 'sm',
-            outline: 'none',
-            _focus: { borderColor: 'blue.500', ring: '1px', ringColor: 'blue.500' },
-            _dark: { bg: 'gray.900', borderColor: 'gray.700', color: 'gray.100', _placeholder: { color: 'gray.500' } },
-          })}
-        />
-        </form>
+        <SearchInput placeholder="Buscar por nome ou apartamento…" defaultValue={q ?? ''} minChars={1} />
         <DeletedToggle pathname="/residents" />
       </div>
 

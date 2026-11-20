@@ -8,10 +8,7 @@ import { paginate, parsePage } from '@/lib/pagination'
 import Pagination from '../_components/Pagination'
 import CondoList from '../_components/CondoList'
 import CreateCondoForm from '../_components/CreateCondoForm'
-
-const mutedCss = css({ fontSize: 'sm', color: 'gray.500', _dark: { color: 'gray.400' } })
-const cardCss = css({ bg: 'white', border: '1px solid', borderColor: 'gray.200', borderRadius: 'lg', p: { base: '4', md: '6' }, display: 'flex', flexDir: 'column', gap: '4', _dark: { bg: 'gray.900', borderColor: 'gray.700' } })
-const h1Css = css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })
+import { cardCss, h1Css, mutedCss } from '@/app/(dashboard)/_lib/styles'
 
 /**
  * Condomínios da administradora do condomínio em que a sessão está. Para o admin da

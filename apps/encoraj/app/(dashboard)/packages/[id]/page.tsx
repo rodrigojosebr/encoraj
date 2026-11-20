@@ -12,6 +12,7 @@ import { signS3Url } from '@/lib/s3/sign'
 import DeliverButton from './_components/DeliverButton'
 import { can } from '@/lib/auth/permissions'
 import NotifyButton from './_components/NotifyButton'
+import { labelCss, valueCss } from '@/app/(dashboard)/_lib/styles'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -48,8 +49,6 @@ export default async function PackageDetailPage({ params }: RouteContext) {
   const condoName = session.condoName
 
   const rowCss = css({ display: 'flex', flexDir: 'column', gap: '0.5' })
-  const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', _dark: { color: 'gray.400' } })
-  const valueCss = css({ fontSize: 'sm', color: 'gray.900', _dark: { color: 'gray.100' } })
 
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '6', maxW: '640px' })}>

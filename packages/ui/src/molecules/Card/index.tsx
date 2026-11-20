@@ -4,9 +4,15 @@ import { css, cx } from '@encoraj/styled-system/css'
 type CardVariant = 'flat' | 'elevated' | 'outlined'
 
 const variantStyles: Record<CardVariant, string> = {
-  flat: css({ bg: 'gray.50', borderRadius: 'lg' }),
-  elevated: css({ bg: 'white', borderRadius: 'lg', boxShadow: 'md' }),
-  outlined: css({ bg: 'white', borderRadius: 'lg', border: '1px solid', borderColor: 'gray.200' }),
+  flat: css({ bg: 'gray.50', borderRadius: 'lg', _dark: { bg: 'gray.800' } }),
+  elevated: css({ bg: 'white', borderRadius: 'lg', boxShadow: 'md', _dark: { bg: 'gray.900' } }),
+  outlined: css({
+    bg: 'white',
+    borderRadius: 'lg',
+    border: '1px solid',
+    borderColor: 'gray.200',
+    _dark: { bg: 'gray.900', borderColor: 'gray.700' },
+  }),
 }
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {

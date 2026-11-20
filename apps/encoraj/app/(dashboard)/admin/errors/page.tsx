@@ -8,8 +8,8 @@ import { fmtDateTime } from '@/lib/date/tz'
 import { pageHref, paginate, parsePage } from '@/lib/pagination'
 import Pagination from '../../_components/Pagination'
 import ResolveButton from './_components/ResolveButton'
+import { mutedCss } from '@/app/(dashboard)/_lib/styles'
 
-const mutedCss = css({ fontSize: 'sm', color: 'gray.500', _dark: { color: 'gray.400' } })
 const tabCss = (active: boolean) =>
   css({
     px: '3',

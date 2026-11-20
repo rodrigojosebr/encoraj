@@ -49,7 +49,6 @@ interface NavItem {
 
 interface SidebarShellProps {
   name: string
-  role: string
   roleLabel: string
   condoName: string
   userPhoto: string | null

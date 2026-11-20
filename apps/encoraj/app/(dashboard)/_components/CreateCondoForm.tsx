@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2 } from 'lucide-react'
-import { Alert, Button, FormField, useToast } from '@encoraj/ui'
+import { Alert, Button, FormField, PasswordField, useToast } from '@encoraj/ui'
+import { PASSWORD_MIN, PASSWORD_MIN_HINT } from '@/lib/auth/password-rules'
 import { css } from '@/styled-system/css'
 
 interface CreateCondoFormProps {
@@ -75,13 +76,12 @@ export default function CreateCondoForm({ endpoint, withOrg = false, withAdmin =
             <FormField label="Nome do administrador" name="adminName" required minLength={2} maxLength={120} placeholder="Nome completo" />
             <FormField label="E-mail do administrador" name="adminEmail" type="email" required placeholder="email@exemplo.com" autoComplete="off" />
           </div>
-          <FormField
+          <PasswordField
             label="Senha inicial do administrador"
             name="adminPassword"
-            type="password"
             required
-            minLength={8}
-            placeholder="Mínimo 8 caracteres"
+            minLength={PASSWORD_MIN}
+            placeholder={PASSWORD_MIN_HINT}
             autoComplete="new-password"
           />
           <span className={css({ fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>

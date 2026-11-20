@@ -16,12 +16,7 @@ import { getPackageStats } from '@/lib/packages/stats'
 import { pageHref, paginate, parsePage } from '@/lib/pagination'
 import { can } from '@/lib/auth/permissions'
 import Pagination from '../_components/Pagination'
-
-const labelCss = css({
-  fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500',
-  textTransform: 'uppercase', letterSpacing: 'wide',
-  _dark: { color: 'gray.400' },
-})
+import { labelCss } from '@/app/(dashboard)/_lib/styles'
 
 export default async function ReportsPage({
   searchParams,

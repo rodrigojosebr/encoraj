@@ -18,6 +18,9 @@ export type { SpinnerProps } from './atoms/Spinner'
 export { FormField } from './molecules/FormField'
 export type { FormFieldProps } from './molecules/FormField'
 
+export { PasswordField } from './molecules/PasswordField'
+export type { PasswordFieldProps } from './molecules/PasswordField'
+
 export { Card } from './molecules/Card'
 export type { CardProps } from './molecules/Card'
 

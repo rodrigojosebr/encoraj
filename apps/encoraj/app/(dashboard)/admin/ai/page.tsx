@@ -6,6 +6,7 @@ import { getAiUsageReport } from '@/lib/ai/usage'
 import { resolvePeriod } from '@/lib/reports/management'
 import { addDays, fmtDate, tzParts } from '@/lib/date/tz'
 import { pageHref } from '@/lib/pagination'
+import { cardCss, h2Css, labelCss, mutedCss, tdCss, thCss } from '@/app/(dashboard)/_lib/styles'
 
 const QUICK_RANGES = [7, 30, 90, 365]
 const OUTCOME_LABELS = {
@@ -22,23 +23,6 @@ const OUTCOME_COLORS = {
   error: '#dc2626',
   disabled: '#dc2626',
 } as const
-
-const cardCss = css({
-  bg: 'white',
-  border: '1px solid',
-  borderColor: 'gray.200',
-  borderRadius: 'lg',
-  p: { base: '4', md: '6' },
-  display: 'flex',
-  flexDir: 'column',
-  gap: '4',
-  _dark: { bg: 'gray.900', borderColor: 'gray.700' },
-})
-const labelCss = css({ fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', letterSpacing: 'wide', _dark: { color: 'gray.400' } })
-const mutedCss = css({ fontSize: 'sm', color: 'gray.500', _dark: { color: 'gray.400' } })
-const h2Css = css({ fontSize: 'lg', fontWeight: 'semibold', color: 'gray.900', _dark: { color: 'gray.50' } })
-const thCss = css({ textAlign: 'left', px: '3', py: '2', fontSize: 'xs', fontWeight: 'semibold', color: 'gray.500', textTransform: 'uppercase', _dark: { color: 'gray.400' } })
-const tdCss = css({ px: '3', py: '2', fontSize: 'sm', color: 'gray.800', borderTop: '1px solid', borderColor: 'gray.100', _dark: { color: 'gray.200', borderColor: 'gray.800' } })
 const inputCss = css({ px: '3', py: '2', fontSize: 'sm', borderRadius: 'md', border: '1px solid', borderColor: 'gray.300', bg: 'white', color: 'gray.900', _dark: { bg: 'gray.900', borderColor: 'gray.600', color: 'gray.100' } })
 const buttonCss = css({
   display: 'inline-flex',

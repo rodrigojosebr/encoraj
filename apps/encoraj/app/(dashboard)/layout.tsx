@@ -63,7 +63,6 @@ export default async function DashboardLayout({
   return (
     <DashboardShell
       name={name}
-      role={roles.join(',')}
       roleLabel={roleLabel}
       condoName={condoName}
       userPhoto={userPhoto}

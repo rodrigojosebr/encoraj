@@ -1,20 +1,27 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Camera, Trash2 } from 'lucide-react'
 import { css } from '@/styled-system/css'
 import { Button, FormField, Alert, useToast } from '@encoraj/ui'
-import { compressImage } from '../_lib/compress-image'
+import { PHOTO_ACCEPT, usePhotoUpload } from '../_lib/use-photo-upload'
 
 export default function SettingsPage() {
   const { toast } = useToast()
-  const photoInputRef = useRef<HTMLInputElement>(null)
+  // Desestruturado de propósito: com `photo.inputRef` a regra react-hooks/refs trata o objeto todo como ref e barra o render
+  const {
+    photoUrl,
+    setPhotoUrl,
+    uploading: uploadingPhoto,
+    inputRef: photoInputRef,
+    openPicker: openPhotoPicker,
+    onFileChange: handlePhotoChange,
+    remove: removePhoto,
+  } = usePhotoUpload('/api/condo/photo', 'condo-photo-updated', null)
   const [name, setName] = useState('')
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -22,27 +29,7 @@ export default function SettingsPage() {
       .then((r) => r.json())
       .then((data) => { setName(data.name ?? ''); setPhotoUrl(data.photo_url ?? null); setLoading(false) })
       .catch(() => { setError('Erro ao carregar dados do condomínio'); setLoading(false) })
-  }, [])
-
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingPhoto(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', await compressImage(file, 512))
-      const res = await fetch('/api/condo/photo', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) { toast({ variant: 'error', message: data.error ?? 'Erro ao enviar foto.' }); return }
-      setPhotoUrl(data.photo_url)
-      window.dispatchEvent(new CustomEvent('condo-photo-updated', { detail: data.photo_url }))
-      toast({ variant: 'success', message: 'Foto atualizada!' })
-    } catch {
-      toast({ variant: 'error', message: 'Erro de conexão. Tente novamente.' })
-    } finally {
-      setUploadingPhoto(false)
-    }
-  }
+  }, [setPhotoUrl])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -84,7 +71,7 @@ export default function SettingsPage() {
           <div className={css({ display: 'flex', alignItems: 'center', gap: '4' })}>
             <button
               type="button"
-              onClick={() => photoInputRef.current?.click()}
+              onClick={openPhotoPicker}
               disabled={uploadingPhoto}
               title="Trocar foto do condomínio"
               className={css({ position: 'relative', cursor: 'pointer', border: 'none', p: '0', bg: 'transparent', flexShrink: 0 })}
@@ -125,14 +112,7 @@ export default function SettingsPage() {
               {photoUrl && !uploadingPhoto && (
                 <button
                   type="button"
-                  onClick={async () => {
-                    const res = await fetch('/api/condo/photo', { method: 'DELETE' })
-                    if (res.ok) {
-                      setPhotoUrl(null)
-                      window.dispatchEvent(new CustomEvent('condo-photo-updated', { detail: null }))
-                      toast({ variant: 'success', message: 'Foto removida.' })
-                    }
-                  }}
+                  onClick={removePhoto}
                   className={css({
                     display: 'inline-flex', alignItems: 'center', gap: '1',
                     fontSize: 'xs', color: 'red.500', bg: 'none', border: 'none',
@@ -147,7 +127,7 @@ export default function SettingsPage() {
             <input
               ref={photoInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept={PHOTO_ACCEPT}
               className={css({ display: 'none' })}
               onChange={handlePhotoChange}
             />
