@@ -10,6 +10,7 @@ import { csvCell, csvDocument, csvResponse } from '@/lib/text/csv'
 import { clientIp } from '@/lib/auth/rate-limit'
 import { fmtDate, fmtDateTime, getTodayRange, parseDateAsTZ } from '@/lib/date/tz'
 import { MAX_IMAGE_BYTES, readImageUpload } from '@/lib/upload/image'
+import { searchResidents } from '@/lib/residents/search'
 import { imageForm, JPEG, PNG, WEBP } from '../helpers/factory'
 
 describe('escapeRegex', () => {
@@ -176,5 +177,61 @@ describe('readImageUpload', () => {
     form.set('file', 'texto')
     expect(await readImageUpload(form)).toEqual({ error: 'Arquivo não enviado.' })
     expect(await readImageUpload(new FormData())).toEqual({ error: 'Arquivo não enviado.' })
+  })
+})
+
+describe('searchResidents', () => {
+  // Na ordem em que a página manda: por nome
+  const people = [
+    { id: 'ana', name: 'Ana Souza', apartment: '101', block: '2' },
+    { id: 'bia', name: 'Beatriz Araújo', apartment: '1', block: '2' },
+    { id: 'caio', name: 'Caio Lima', apartment: '201', block: '1' },
+    { id: 'dora', name: 'Dora Aparecida', apartment: '10' },
+    { id: 'edu', name: 'Eduardo Blanco', apartment: '12-B', block: 'A' },
+  ]
+  const ids = (query: string) => searchResidents(people, query)?.map((p) => p.id) ?? null
+
+  it('sem nada para buscar devolve null — inclusive "apto" ou "bloco" ainda sem valor', () => {
+    expect(ids('')).toBeNull()
+    expect(ids('   ')).toBeNull()
+    expect(ids('—')).toBeNull()
+    expect(ids('apto')).toBeNull()
+    expect(ids('Bloco ')).toBeNull()
+  })
+
+  it('acha pelo começo de cada palavra do nome, sem ligar para acento ou maiúscula', () => {
+    expect(ids('ARAUJO')).toEqual(['bia'])
+    expect(ids('ana so')).toEqual(['ana'])
+    expect(ids('apa')).toEqual(['dora']) // "apa" não é "ap": continua sendo nome
+    expect(searchResidents(people, 'caio')?.[0]).toBe(people[2])
+  })
+
+  it('acha pela unidade, e quem bate por inteiro vem primeiro', () => {
+    expect(ids('10')).toEqual(['dora', 'ana']) // apto 10 antes do 101
+    expect(ids('apt 1')).toEqual(['bia', 'ana', 'dora', 'edu'])
+    expect(ids('apartamento 201')).toEqual(['caio'])
+  })
+
+  it('depois de "apto" e "bloco" o valor só vale para aquele campo', () => {
+    expect(ids('bloco 2 apto 1')).toEqual(['bia', 'ana'])
+    // sem as palavras, "2" e "1" batem em qualquer campo: entra o apto 201 do bloco 1
+    expect(ids('2 1')).toEqual(['bia', 'ana', 'caio'])
+    expect(ids('bloco 1')).toEqual(['caio']) // quem não tem bloco fica de fora
+  })
+
+  it('aceita abreviação e apartamento com letra', () => {
+    expect(ids('ap 12 bl a')).toEqual(['edu'])
+    expect(ids('12 b')).toEqual(['edu'])
+    expect(ids('apto 12b')).toEqual(['edu'])
+    expect(ids('apto 12-B')).toEqual(['edu'])
+  })
+
+  it('"apto" sobrando no fim não atrapalha o que já foi digitado', () => {
+    expect(ids('ana apto')).toEqual(['ana'])
+  })
+
+  it('ninguém bate: lista vazia, não null', () => {
+    expect(ids('tigrão')).toEqual([])
+    expect(ids('bloco 9')).toEqual([])
   })
 })

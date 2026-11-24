@@ -180,6 +180,7 @@ export default async function PackageDetailPage({ params }: RouteContext) {
               publicToken={pkg.public_token}
               deliveryPin={pkg.delivery_pin ?? pkg.code}
               condoName={condoName}
+              notes={pkg.notes}
               alreadyNotified={isNotified}
               notifiedAt={pkg.notified_at ?? null}
             />

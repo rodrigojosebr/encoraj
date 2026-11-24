@@ -7,11 +7,12 @@ import { Button, FormField, useToast } from '@encoraj/ui'
 import { compressImage } from '../../../_lib/compress-image'
 import LabelPhotoPicker from './LabelPhotoPicker'
 import RecipientPicker, { type OcrStatus, type ResidentOption } from './RecipientPicker'
+import type { ResidentChoice } from './ResidentSearch'
 
-/** Tempo máximo do OCR: passou disso, o porteiro escolhe na lista e segue. */
+/** Tempo máximo do OCR: passou disso, o porteiro busca o morador e segue. */
 const OCR_TIMEOUT_MS = 15000
 
-export default function NewPackageForm({ residents }: { residents: ResidentOption[] }) {
+export default function NewPackageForm({ residents }: { residents: ResidentChoice[] }) {
   const router = useRouter()
   const { toast } = useToast()
 
@@ -52,11 +53,11 @@ export default function NewPackageForm({ residents }: { residents: ResidentOptio
         setOcrExtractedText(data.extracted_text ?? '')
         setOcrStatus('matched')
       } else {
-        // Sem sugestão ou confiança baixa → direto para a lista
+        // Sem sugestão ou confiança baixa → direto para a busca
         setOcrStatus('not_found')
       }
     } catch {
-      // Tempo esgotado ou falha de rede: segue na lista, sem travar a portaria
+      // Tempo esgotado ou falha de rede: segue na busca, sem travar a portaria
       setOcrStatus('error')
     } finally {
       clearTimeout(timeout)
@@ -143,10 +144,10 @@ export default function NewPackageForm({ residents }: { residents: ResidentOptio
 
       <FormField
         label="Observações"
-        hint="Opcional — frágil, volumoso, etc."
+        hint="Opcional. Vai no aviso ao morador: se a encomenda é de outra pessoa da unidade, diga para quem é."
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        placeholder="Ex: Frágil, caixa grande…"
+        placeholder="Ex: Para o Tigrão; frágil; caixa grande…"
       />
 
       {error && (

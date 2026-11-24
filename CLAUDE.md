@@ -83,6 +83,7 @@ Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mo
 - Roles do banco → nomes/rótulos: `userRoleNames()`, `roleLabels()` em `lib/auth/user-roles.ts`.
 - A tela e a API de usuários só mexem em `ASSIGNABLE_ROLES` (`admin`, `zelador`, `porteiro`, `sindico`). `superadmin` e `administradora` nunca entram nem saem por ali. As demais (`UNASSIGNABLE_ROLES`) não entram nem saem por ali — ao editar, são preservadas como estão no banco.
 - Não há compatibilidade com o formato antigo de role única: usuário sem `role_ids` não entra.
+- **O porteiro não cadastra morador** (decisão de 24/nov/2026). Destinatário fora da lista: ele registra a encomenda para outro morador da mesma unidade, com o nome nas observações, ou interfona; depois quem tem `residents.write` cadastra, se for o caso. Não dar `residents.write` ao porteiro nem criar cadastro rápido dentro do registro de chegada.
 
 ## Super admin (plataforma)
 
@@ -192,7 +193,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - `administradora` — admin de uma administradora: tudo que o `admin` pode, em todos os condomínios dela; cria condomínios nela (ver "Administradora")
 - `admin` — admin de **um** condomínio: residents, users, packages, reports, settings
 - `zelador` — residents CRUD
-- `porteiro` — register arrivals, confirm deliveries
+- `porteiro` — register arrivals, confirm deliveries; não cadastra morador (ver "Permissões")
 - `sindico` — read-only: reports and listings
 - `morador` — reserved, not implemented
 
@@ -232,7 +233,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           packages/
             page.tsx
             new/page.tsx        ← câmera/upload → form → S3 + QR code
-            new/_components/NewPackageForm.tsx ← estado e envio; LabelPhotoPicker (foto) e RecipientPicker (OCR + lista)
+            new/_components/NewPackageForm.tsx ← estado e envio; LabelPhotoPicker (foto), RecipientPicker (sugestão do OCR) e ResidentSearch (busca por nome ou unidade)
             [id]/page.tsx       ← exibe foto + QR code
           residents/
             page.tsx
@@ -296,7 +297,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         lgpd/       ← erase.ts → eraseResident / eraseUser / eraseCondo
         condos/     ← create.ts → createCondoWithAdmin() / createOrganizationWithAdmin() / createCondoInOrganization()
         packages/   ← filter.ts → buildPackageFilter() / packageStatusOptions(); stats.ts → getPackageStats()
-        residents/  ← lookup.ts → getResidentMap() / formatUnit() / residentLabel()
+        residents/  ← lookup.ts → getResidentMap() / formatUnit() / residentLabel(); search.ts → searchResidents() (puro, sem banco: roda no navegador)
         reports/    ← management.ts → resolvePeriod() / getManagementReport()
         releases/   ← history.ts → RELEASES, APP_VERSION, currentDeploy()
         observability/ ← report.ts → reportError()

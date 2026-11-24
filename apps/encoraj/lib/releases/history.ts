@@ -43,6 +43,17 @@ export interface Release {
 /** Da mais nova para a mais antiga. */
 export const RELEASES: Release[] = [
   {
+    version: '0.16.0',
+    date: '2026-11-24',
+    title: 'Destinatário fora da lista',
+    summary: 'Quando a encomenda chega para alguém que não é morador cadastrado, o porteiro acha quem mora na unidade e registra para essa pessoa. Cadastrar morador continua sendo da administração.',
+    changes: [
+      { type: 'feature', text: 'No registro de chegada, o morador é escolhido por busca: basta digitar o nome ou a unidade ("apto 101", "bloco 2 apto 1").' },
+      { type: 'improvement', text: 'Se o destinatário não está na lista, a tela orienta o porteiro: registrar para outro morador da unidade, anotando para quem é, ou interfonar.' },
+      { type: 'improvement', text: 'O aviso do WhatsApp leva a observação da portaria, para o morador saber quando a encomenda é de outra pessoa da unidade.' },
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-11-20',
     title: 'OCR de volta',
@@ -51,6 +62,7 @@ export const RELEASES: Release[] = [
       { type: 'fix', text: 'O OCR volta a sugerir o morador: o modelo gemini-2.0-flash, desligado pelo Google em 1º/jun/2026, foi trocado pelo gemini-3.6-flash.' },
       { type: 'infra', text: 'OCR no SDK novo do Google (@google/genai), com tempo máximo de 15 segundos por leitura.' },
     ],
+    commits: ['47ac332'],
   },
   {
     version: '0.14.0',

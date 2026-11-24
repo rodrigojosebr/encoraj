@@ -302,11 +302,12 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] `canvas` só serve ao `gen-icons` — mover para script avulso
 - [x] `next lint` → ESLint CLI (`eslint .`)
 - [ ] Morador com mais de um telefone / mais de um morador por apartamento
-- [ ] **Destinatário que não está cadastrado** (decisão de 23/nov/2026, caminho A): hoje o porteiro trava — a encomenda exige morador ativo e só admin, administradora e zelador cadastram morador. Fazer:
-  - permissão nova `residents.create` (porteiro, zelador, admin, administradora); editar/excluir/restaurar seguem em `residents.write`
-  - "+ Novo morador" dentro do registro de chegada (`RecipientPicker`): nome, bloco, apto, WhatsApp → cria e já seleciona; audit log registra quem cadastrou
-  - trocar o `<select>` de moradores por busca com digitação (condomínio grande tem centenas)
-  - depois, se os condomínios pedirem: encomenda para a unidade, com nome escrito à mão (caminho B — muda o modelo de dados)
+- [x] **Destinatário que não está cadastrado** (decisão de 24/nov/2026, substitui a de 23/nov): **o porteiro não cadastra morador.** Ele registra a encomenda para outro morador da mesma unidade ou interfona; depois, quem gere o cadastro (admin ou zelador) inclui a pessoa, se for o caso. As permissões não mudaram. Feito na tela (release 0.16.0):
+  - busca do morador por digitação, por nome **ou unidade** ("apto 101", "bloco 2 apto 1"), no lugar do `<select>` — `lib/residents/search.ts`
+  - orientação na tela quando o destinatário não está na lista
+  - a observação da portaria vai no aviso do WhatsApp: é onde aparece para quem é a encomenda
+  - descartados: cadastro pelo porteiro e, por ora, encomenda para a unidade sem pessoa (muda o modelo de dados)
+- [ ] Decidir se o síndico também cadastra morador: hoje é só leitura; se for, é mudança no mapa de permissões (`residents.write`)
 - [ ] Lembrete de encomenda parada há N dias
 - [x] Atualizar `PROJECT.md` (marcações de OCR pendente)
 
@@ -450,6 +451,7 @@ Páginas e visual não têm teste automático. Conferir no navegador, em claro e
 - [ ] Divisão — `/reports`: cartão (mobile) e linha (desktop) com a linha do tempo de chegada, aviso e retirada
 - [ ] Divisão — barra lateral: recolher/expandir, menu ativo, fechar no mobile, rodapé recolhido e expandido; foto do condomínio no topo do mobile atualiza sem recarregar
 - [ ] Divisão — perfil: abrir/fechar "Alterar senha", trocar a senha, cancelar
+- [ ] 0.16.0 — registrar chegada: buscar morador por nome e por unidade ("apto 101", "bloco 2 apto 1"), escolher e "Alterar"; Enter com um resultado só escolhe e não envia o formulário; busca sem resultado abre a orientação; a observação aparece no aviso do WhatsApp
 
 ---
 

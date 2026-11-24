@@ -15,6 +15,8 @@ interface NotifyButtonProps {
   residentName: string
   deliveryPin: string
   condoName: string
+  /** Observação da portaria: é onde aparece para quem é, quando não é o morador avisado */
+  notes?: string
   alreadyNotified: boolean
   notifiedAt?: Date | null
 }
@@ -26,7 +28,7 @@ function formatWhatsApp(raw: string): string {
   return digits.startsWith('55') ? digits : `55${digits}`
 }
 
-export default function NotifyButton({ id, publicToken, whatsapp, residentName, deliveryPin, condoName, alreadyNotified, notifiedAt }: NotifyButtonProps) {
+export default function NotifyButton({ id, publicToken, whatsapp, residentName, deliveryPin, condoName, notes, alreadyNotified, notifiedAt }: NotifyButtonProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -41,6 +43,7 @@ export default function NotifyButton({ id, publicToken, whatsapp, residentName, 
       ``,
       `Olá, ${residentName}!`,
       `Chegou uma encomenda para você em *${condoName}*.`,
+      ...(notes ? [`Observação da portaria: ${notes}`] : []),
       ``,
       `Código de retirada: *${deliveryPin}*`,
       `Ver encomenda: ${publicUrl}`,

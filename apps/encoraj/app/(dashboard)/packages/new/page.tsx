@@ -17,13 +17,20 @@ export default async function NewPackagePage() {
   const activeStatus = await getStatus('active')
   const col = await residents()
   const docs = await col
-    .find({ condo_id: new ObjectId(condoId), status_id: activeStatus._id })
+    .find(
+      { condo_id: new ObjectId(condoId), status_id: activeStatus._id },
+      { projection: { name: 1, apartment: 1, block: 1 } },
+    )
     .sort({ name: 1 })
     .toArray()
 
+  // name, apartment e block vão separados para a busca por nome ou unidade, no navegador
   const options = docs.map((r) => ({
     value: r._id!.toString(),
     label: residentLabel(r),
+    name: r.name,
+    apartment: r.apartment,
+    block: r.block,
   }))
 
   return (

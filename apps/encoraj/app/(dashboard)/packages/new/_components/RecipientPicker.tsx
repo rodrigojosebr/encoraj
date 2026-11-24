@@ -2,28 +2,70 @@
 
 import { X, CheckCircle2, AlertCircle, Loader2, UserCheck } from 'lucide-react'
 import { css } from '@/styled-system/css'
+import ResidentSearch, { type ResidentChoice } from './ResidentSearch'
 
+/** O que basta para mostrar um morador: é o que o OCR devolve. */
 export interface ResidentOption {
   value: string
   label: string
 }
 
-/** Etapas da leitura da etiqueta: o OCR sugere, o porteiro confirma ou escolhe na lista. */
+/** Etapas da leitura da etiqueta: o OCR sugere, o porteiro confirma ou busca o morador. */
 export type OcrStatus = 'idle' | 'loading' | 'matched' | 'confirmed' | 'rejected' | 'not_found' | 'error'
 
 interface RecipientPickerProps {
-  residents: ResidentOption[]
+  residents: ResidentChoice[]
   residentId: string
   onResidentChange: (id: string) => void
   ocrStatus: OcrStatus
   ocrMatch: ResidentOption | null
   ocrExtractedText: string
   onConfirm: () => void
-  /** "Selecionar manualmente" ou "Alterar": volta para a lista */
+  /** "Selecionar manualmente" ou "Alterar": volta para a busca */
   onReject: () => void
 }
 
-/** Morador destinatário: sugestão do OCR para confirmar, ou seleção manual. */
+/** Morador já escolhido (pelo OCR ou pela busca), com o caminho para trocar. */
+function SelectedResident({ label, onChange }: { label: string; onChange: () => void }) {
+  return (
+    <div className={css({
+      border: '1px solid',
+      borderColor: 'green.200',
+      borderRadius: 'lg',
+      px: '4',
+      py: '3',
+      bg: 'green.50',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '3',
+      _dark: { bg: 'green.950', borderColor: 'green.800' },
+    })}>
+      <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
+        <CheckCircle2 size={16} className={css({ color: 'green.600', flexShrink: '0', _dark: { color: 'green.400' } })} />
+        <span className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', _dark: { color: 'gray.50' } })}>
+          {label}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onChange}
+        className={css({
+          fontSize: 'xs',
+          color: 'gray.500',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          _hover: { color: 'gray.700' },
+          _dark: { color: 'gray.400', _hover: { color: 'gray.200' } },
+        })}
+      >
+        Alterar
+      </button>
+    </div>
+  )
+}
+
+/** Morador destinatário: sugestão do OCR para confirmar, ou busca por nome ou unidade. */
 export default function RecipientPicker({
   residents,
   residentId,
@@ -34,7 +76,8 @@ export default function RecipientPicker({
   onConfirm,
   onReject,
 }: RecipientPickerProps) {
-  const showManualSelect = ocrStatus === 'not_found' || ocrStatus === 'rejected' || ocrStatus === 'error' || ocrStatus === 'idle'
+  const manual = ocrStatus === 'not_found' || ocrStatus === 'rejected' || ocrStatus === 'error' || ocrStatus === 'idle'
+  const selected = manual ? residents.find((r) => r.value === residentId) : undefined
 
   return (
     <div className={css({ display: 'flex', flexDir: 'column', gap: '3' })}>
@@ -116,45 +159,9 @@ export default function RecipientPicker({
         </div>
       )}
 
-      {/* Sugestão confirmada */}
-      {ocrStatus === 'confirmed' && ocrMatch && (
-        <div className={css({
-          border: '1px solid',
-          borderColor: 'green.200',
-          borderRadius: 'lg',
-          px: '4',
-          py: '3',
-          bg: 'green.50',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '3',
-          _dark: { bg: 'green.950', borderColor: 'green.800' },
-        })}>
-          <div className={css({ display: 'flex', alignItems: 'center', gap: '2' })}>
-            <CheckCircle2 size={16} className={css({ color: 'green.600', flexShrink: '0', _dark: { color: 'green.400' } })} />
-            <span className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.900', _dark: { color: 'gray.50' } })}>
-              {ocrMatch.label}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onReject}
-            className={css({
-              fontSize: 'xs',
-              color: 'gray.500',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              _hover: { color: 'gray.700' },
-              _dark: { color: 'gray.400', _hover: { color: 'gray.200' } },
-            })}
-          >
-            Alterar
-          </button>
-        </div>
-      )}
+      {ocrStatus === 'confirmed' && ocrMatch && <SelectedResident label={ocrMatch.label} onChange={onReject} />}
 
-      {ocrStatus === 'not_found' && (
+      {ocrStatus === 'not_found' && !selected && (
         <div className={css({
           display: 'flex',
           alignItems: 'center',
@@ -168,41 +175,19 @@ export default function RecipientPicker({
           _dark: { color: 'amber.400', bg: 'amber.950' },
         })}>
           <AlertCircle size={14} className={css({ flexShrink: '0' })} />
-          Não identificamos automaticamente. Selecione o morador:
+          Não identificamos automaticamente. Busque o morador:
         </div>
       )}
 
-      {ocrStatus === 'rejected' && (
+      {ocrStatus === 'rejected' && !selected && (
         <div className={css({ display: 'flex', alignItems: 'center', gap: '2', fontSize: 'xs', color: 'gray.500', _dark: { color: 'gray.400' } })}>
           <AlertCircle size={14} className={css({ flexShrink: '0' })} />
-          Selecione o morador correto:
+          Busque o morador correto:
         </div>
       )}
 
-      {showManualSelect && (
-        <select
-          value={residentId}
-          onChange={(e) => onResidentChange(e.target.value)}
-          className={css({
-            w: 'full',
-            px: '3',
-            py: '2',
-            border: '1px solid',
-            borderColor: 'gray.300',
-            borderRadius: 'md',
-            fontSize: 'sm',
-            bg: 'white',
-            outline: 'none',
-            _focus: { borderColor: 'blue.500', ring: '1px', ringColor: 'blue.500' },
-            _dark: { bg: 'gray.900', borderColor: 'gray.700', color: 'gray.100' },
-          })}
-        >
-          <option value="">Selecione o morador…</option>
-          {residents.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </select>
-      )}
+      {selected && <SelectedResident label={selected.label} onChange={() => onResidentChange('')} />}
+      {manual && !selected && <ResidentSearch residents={residents} onSelect={onResidentChange} />}
     </div>
   )
 }

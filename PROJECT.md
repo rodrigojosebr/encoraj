@@ -42,7 +42,9 @@ Porteiro abre o app
   → Toca "Registrar Encomenda"
   → Tira foto da etiqueta
   → Gemini Flash extrai nome e apartamento da etiqueta  ← Fase 3c ✅
-  → Porteiro confirma ou ajusta o destinatário
+  → Porteiro confirma ou ajusta o destinatário (busca por nome ou unidade)
+       → destinatário fora da lista: registra para outro morador da mesma unidade, com o nome
+         nas observações, ou interfona. Porteiro não cadastra morador
   → Sistema gera código único + QR Code (salvo no S3)
   → Foto da etiqueta salva no S3, registro criado no MongoDB
   → Porteiro toca "Notificar via WhatsApp" (link wa.me com a mensagem pronta):
