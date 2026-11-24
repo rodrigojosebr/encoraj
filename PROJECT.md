@@ -23,7 +23,7 @@ Tudo rastreado. Tudo auditável.
 Usa o sistema no dia a dia. Precisa de uma interface rápida e simples — registrar chegada e confirmar retirada em poucos toques, mesmo com as mãos ocupadas. Não é usuário técnico.
 
 ### Síndico
-Quer visibilidade sem precisar perguntar ao porteiro. Acessa relatórios para ver volume de entregas, encomendas em aberto, histórico de retiradas.
+Quer visibilidade sem precisar perguntar ao porteiro. Acessa relatórios para ver volume de entregas, encomendas em aberto, histórico de retiradas. Também cuida do cadastro de moradores, como o zelador. Não registra nem entrega encomendas.
 
 ### Zelador
 Responsável pelo cadastro de moradores — cria, edita e desativa registros. Não acessa encomendas nem relatórios.

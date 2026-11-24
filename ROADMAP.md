@@ -302,12 +302,12 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] `canvas` só serve ao `gen-icons` — mover para script avulso
 - [x] `next lint` → ESLint CLI (`eslint .`)
 - [ ] Morador com mais de um telefone / mais de um morador por apartamento
-- [x] **Destinatário que não está cadastrado** (decisão de 24/nov/2026, substitui a de 23/nov): **o porteiro não cadastra morador.** Ele registra a encomenda para outro morador da mesma unidade ou interfona; depois, quem gere o cadastro (admin ou zelador) inclui a pessoa, se for o caso. As permissões não mudaram. Feito na tela (release 0.16.0):
+- [x] **Destinatário que não está cadastrado** (decisão de 24/nov/2026, substitui a de 23/nov): **o porteiro não cadastra morador.** Ele registra a encomenda para outro morador da mesma unidade ou interfona; depois, quem gere o cadastro (admin, zelador ou síndico) inclui a pessoa, se for o caso. As permissões não mudaram. Feito na tela (release 0.16.0):
   - busca do morador por digitação, por nome **ou unidade** ("apto 101", "bloco 2 apto 1"), no lugar do `<select>` — `lib/residents/search.ts`
   - orientação na tela quando o destinatário não está na lista
   - a observação da portaria vai no aviso do WhatsApp: é onde aparece para quem é a encomenda
   - descartados: cadastro pelo porteiro e, por ora, encomenda para a unidade sem pessoa (muda o modelo de dados)
-- [ ] Decidir se o síndico também cadastra morador: hoje é só leitura; se for, é mudança no mapa de permissões (`residents.write`)
+- [x] O síndico também cadastra morador (decisão de 24/nov/2026): entrou em `residents.write`, com tudo que a permissão cobre — cadastrar, editar, excluir e restaurar (release 0.17.0)
 - [ ] Lembrete de encomenda parada há N dias
 - [x] Atualizar `PROJECT.md` (marcações de OCR pendente)
 

@@ -43,6 +43,15 @@ export interface Release {
 /** Da mais nova para a mais antiga. */
 export const RELEASES: Release[] = [
   {
+    version: '0.17.0',
+    date: '2026-11-24',
+    title: 'Síndico cuida dos moradores',
+    summary: 'O síndico deixa de ser só leitura no cadastro de moradores.',
+    changes: [
+      { type: 'feature', text: 'O síndico passa a cadastrar, editar, excluir e restaurar moradores, como o zelador e o administrador. O menu Moradores aparece para ele.' },
+    ],
+  },
+  {
     version: '0.16.0',
     date: '2026-11-24',
     title: 'Destinatário fora da lista',
@@ -52,6 +61,7 @@ export const RELEASES: Release[] = [
       { type: 'improvement', text: 'Se o destinatário não está na lista, a tela orienta o porteiro: registrar para outro morador da unidade, anotando para quem é, ou interfonar.' },
       { type: 'improvement', text: 'O aviso do WhatsApp leva a observação da portaria, para o morador saber quando a encomenda é de outra pessoa da unidade.' },
     ],
+    commits: ['662f04f'],
   },
   {
     version: '0.15.0',

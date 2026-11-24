@@ -103,6 +103,7 @@ describe('proxy', () => {
     ['/reports/management', 'zelador', false],
     ['/residents', 'zelador', true],
     ['/residents', 'porteiro', false],
+    ['/residents', 'sindico', true],
     ['/packages', 'porteiro', true],
     ['/packages/new', 'sindico', false],
     // super admin entra em todas as telas, de plataforma e de condomínio

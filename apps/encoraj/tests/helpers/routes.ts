@@ -40,10 +40,10 @@ export const PROTECTED_ROUTES: Array<{ name: string; call: () => Promise<Respons
   { name: 'POST /api/users/me/photo', call: () => myPhoto.POST(req('POST')), roles: ALL_ROLES },
   { name: 'DELETE /api/users/me/photo', call: () => myPhoto.DELETE(), roles: ALL_ROLES },
 
-  { name: 'POST /api/residents', call: () => residentsRoute.POST(req('POST')), roles: ['admin', 'zelador'] },
-  { name: 'PUT /api/residents/[id]', call: () => residentRoute.PUT(req('PUT'), id()), roles: ['admin', 'zelador'] },
-  { name: 'PATCH /api/residents/[id]', call: () => residentRoute.PATCH(req('PATCH'), id()), roles: ['admin', 'zelador'] },
-  { name: 'DELETE /api/residents/[id]', call: () => residentRoute.DELETE(req('DELETE'), id()), roles: ['admin', 'zelador'] },
+  { name: 'POST /api/residents', call: () => residentsRoute.POST(req('POST')), roles: ['admin', 'zelador', 'sindico'] },
+  { name: 'PUT /api/residents/[id]', call: () => residentRoute.PUT(req('PUT'), id()), roles: ['admin', 'zelador', 'sindico'] },
+  { name: 'PATCH /api/residents/[id]', call: () => residentRoute.PATCH(req('PATCH'), id()), roles: ['admin', 'zelador', 'sindico'] },
+  { name: 'DELETE /api/residents/[id]', call: () => residentRoute.DELETE(req('DELETE'), id()), roles: ['admin', 'zelador', 'sindico'] },
 
   { name: 'POST /api/packages', call: () => packagesRoute.POST(req('POST')), roles: ['admin', 'porteiro'] },
   { name: 'POST /api/packages/[id]/deliver', call: () => deliverRoute.POST(req('POST'), id()), roles: ['admin', 'porteiro'] },

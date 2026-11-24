@@ -36,7 +36,7 @@ export const PERMISSIONS = {
   'residents.write': {
     group: 'Moradores',
     label: 'Cadastrar, editar, excluir e restaurar moradores',
-    roles: [ORG_ADMIN_ROLE, 'admin', 'zelador'],
+    roles: [ORG_ADMIN_ROLE, 'admin', 'zelador', 'sindico'],
   },
   'reports.view': {
     group: 'Relatórios',

@@ -194,7 +194,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - `admin` — admin de **um** condomínio: residents, users, packages, reports, settings
 - `zelador` — residents CRUD
 - `porteiro` — register arrivals, confirm deliveries; não cadastra morador (ver "Permissões")
-- `sindico` — read-only: reports and listings
+- `sindico` — reports (read-only) + residents CRUD
 - `morador` — reserved, not implemented
 
 ## Monorepo Structure

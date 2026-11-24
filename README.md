@@ -103,4 +103,4 @@ packages/
 | `admin` | Tudo: moradores, usuários, encomendas, relatórios |
 | `zelador` | CRUD de moradores |
 | `porteiro` | Registrar chegadas e confirmar retiradas |
-| `sindico` | Relatórios e listagens (somente leitura) |
+| `sindico` | Relatórios (somente leitura) e CRUD de moradores |
