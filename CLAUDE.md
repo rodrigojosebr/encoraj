@@ -37,6 +37,8 @@ Docs do repo — quando ler:
 - **Senha definida por outra pessoa obriga a troca** (`users.must_change_password`): ligada ao cadastrar e quando alguém redefine a senha de outro; desligada só quando o dono troca (`PUT /api/users/me/password`) ou redefine pelo link do email. Enquanto ligada, `getSession()` devolve `null` — nenhuma rota atende — e o layout manda para `/change-password`. Só essa tela, a rota de troca e o layout usam `getSessionForPasswordChange()`; **não usar essa função em mais nada**. Fluxo novo que define senha de terceiro tem que ligar a marca.
 - **Limite que conta só falha** (login, PIN): `isRateLimited()` antes, `checkRateLimit()` na falha. Senha atual de quem já está logado: `verifyCurrentPassword()` (`lib/auth/current-password.ts`), que já faz isso.
 - **Cookie de sessão só por `setSessionCookie()` / `clearSessionCookie()`** (`lib/auth/cookies.ts`). O token leva só identidade e condomínio (ver "JWT payload") — foto e o que mais mudar à toa ficam no banco.
+- **Importação de moradores (`/residents/import`) confere antes de gravar**: o mesmo CSV vai duas vezes a `POST /api/residents/import` — `mode=check` só responde quem entra, quem já existe e os erros por linha; `mode=import` grava. Erro em qualquer linha recusa a planilha inteira; morador que já existe (mesmo nome na mesma unidade) é pulado, nunca alterado; o arquivo não é guardado. Leitura e validação em `lib/residents/sheet.ts` (puro), quem entra em `lib/residents/import.ts`. Limite: 1 MB e 2.000 linhas. Só CSV — não trazer biblioteca de XLSX para ler arquivo enviado por usuário.
+- **Campos do morador têm um schema só**: `residentSchema` em `lib/residents/schema.ts` serve o cadastro, a edição (`.partial()`) e os limites da planilha (`RESIDENT_LIMITS`).
 - **Listagem é paginada**: `paginate()` / `parsePage()` de `lib/pagination.ts` + `<Pagination>`; nada de `find().toArray()` sem `limit`. Componente que muda filtro apaga o `page` da URL.
 - **Filtro de encomendas é um só**: `buildPackageFilter()` em `lib/packages/filter.ts` serve `/packages`, `/reports` e o export CSV (`GET /api/reports/export`, todas as páginas, teto de 10 mil linhas).
 - **Relatório gerencial** (`/reports/management`): todo número sai de `getManagementReport()` em `lib/reports/management.ts` — página e export CSV usam a mesma função. Datas, dia da semana e hora sempre via `tzParts()` (fuso de São Paulo). Indicador novo entra lá, com teste.
@@ -83,6 +85,7 @@ Testes (`tests/`): `helpers/setup.ts` sobe o ambiente (Mongo em memória via `mo
 - Roles do banco → nomes/rótulos: `userRoleNames()`, `roleLabels()` em `lib/auth/user-roles.ts`.
 - A tela e a API de usuários só mexem em `ASSIGNABLE_ROLES` (`admin`, `zelador`, `porteiro`, `sindico`). `superadmin` e `administradora` nunca entram nem saem por ali. As demais (`UNASSIGNABLE_ROLES`) não entram nem saem por ali — ao editar, são preservadas como estão no banco.
 - Não há compatibilidade com o formato antigo de role única: usuário sem `role_ids` não entra.
+- **Importar moradores por planilha é permissão à parte** (`residents.import`, decisão de 24/nov/2026): síndico, admin e administradora. O zelador cadastra um por um (`residents.write`) e não importa.
 - **O porteiro não cadastra morador** (decisão de 24/nov/2026). Destinatário fora da lista: ele registra a encomenda para outro morador da mesma unidade, com o nome nas observações, ou interfona; depois quem tem `residents.write` cadastra, se for o caso. Não dar `residents.write` ao porteiro nem criar cadastro rápido dentro do registro de chegada.
 
 ## Super admin (plataforma)
@@ -150,7 +153,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 3. Nada depende do proxy para segurança: se ele for contornado (o Next já teve CVE disso), rota e página continuam exigindo cookie válido.
 4. O proxy só protege páginas; **cada rota de API checa a permissão por conta própria**.
 5. Roles se somam (ver "Permissões"). Multi-tenancy é por filtro: não existe isolamento no banco. Email é único entre usuários **ativos de todos os condomínios** — a pessoa só entra em outro condomínio depois de desativada no anterior; condomínio novo só nasce em `/admin/condos`.
-6. Páginas do dashboard leem o MongoDB direto (Server Components). As únicas rotas `GET /api/*` são `/api/condo` (tela de configurações), os exports CSV e o logout.
+6. Páginas do dashboard leem o MongoDB direto (Server Components). As únicas rotas `GET /api/*` são `/api/condo` (tela de configurações), os exports CSV, o modelo da planilha de moradores e o logout.
 
 ## Stack
 
@@ -192,9 +195,9 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - `superadmin` — operador da plataforma: pode tudo, em qualquer condomínio; cria administradoras e condomínios autogeridos (ver "Super admin")
 - `administradora` — admin de uma administradora: tudo que o `admin` pode, em todos os condomínios dela; cria condomínios nela (ver "Administradora")
 - `admin` — admin de **um** condomínio: residents, users, packages, reports, settings
-- `zelador` — residents CRUD
+- `zelador` — residents CRUD, um por um (não importa planilha)
 - `porteiro` — register arrivals, confirm deliveries; não cadastra morador (ver "Permissões")
-- `sindico` — reports (read-only) + residents CRUD
+- `sindico` — reports (read-only) + residents CRUD + importar moradores por planilha
 - `morador` — reserved, not implemented
 
 ## Monorepo Structure
@@ -239,6 +242,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
             page.tsx
             new/page.tsx
             [id]/edit/page.tsx
+            import/page.tsx     ← importar por planilha: instruções e modelo; `_components/ImportResidentsForm.tsx` envia, mostra a conferência e importa
             _components/        ← DeleteButton, RestoreButton, WhatsAppField, ResidentForm
           users/
             page.tsx
@@ -263,6 +267,8 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
           condo/route.ts        ← GET/PUT condo info
           residents/route.ts    ← POST
           residents/[id]/route.ts ← PUT, DELETE (soft), PATCH (restore)
+          residents/import/route.ts ← POST planilha CSV: confere (padrão) ou importa (`mode=import`)
+          residents/import/template/route.ts ← GET modelo da planilha
           users/route.ts        ← POST
           users/[id]/route.ts   ← PUT, DELETE (soft)
           users/me/password/route.ts ← PUT altera senha do usuário logado
@@ -289,15 +295,15 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
         pagination.ts ← paginate() / parsePage() / pageHref()
         auth/       ← jwt.ts, cookies.ts, session.ts (getSession/readSession), permissions.ts (can), roles.ts, user-roles.ts, super-admin.ts, rate-limit.ts (checkRateLimit/isRateLimited/clientIp), email.ts, password.ts (passwordSchema/hashPassword), password-rules.ts (PASSWORD_MIN, sem dependência de servidor), current-password.ts (verifyCurrentPassword), safe-next.ts
         api/        ← http.ts → respostas padrão das rotas + parseBody()
-        text/       ← slug.ts, csv.ts
+        text/       ← slug.ts, csv.ts (escreve: csvDocument / csvResponse; lê: parseCsv)
         upload/     ← image.ts → readImageUpload()
-        audit/      ← log.ts → logAction()
+        audit/      ← log.ts → logAction() / logActions() (várias de uma vez)
         email/      ← mailer.ts (Nodemailer SMTP), templates.ts (HTML emails)
         s3/         ← client.ts, upload.ts (uploadToS3 → URL canônica), sign.ts (signS3Url), delete.ts
         lgpd/       ← erase.ts → eraseResident / eraseUser / eraseCondo
         condos/     ← create.ts → createCondoWithAdmin() / createOrganizationWithAdmin() / createCondoInOrganization()
         packages/   ← filter.ts → buildPackageFilter() / packageStatusOptions(); stats.ts → getPackageStats()
-        residents/  ← lookup.ts → getResidentMap() / formatUnit() / residentLabel(); search.ts → searchResidents() (puro, sem banco: roda no navegador)
+        residents/  ← lookup.ts → getResidentMap() / formatUnit() / residentLabel(); search.ts → searchResidents() (puro, sem banco: roda no navegador); schema.ts → residentSchema / RESIDENT_LIMITS; sheet.ts → residentSheetTemplate() / readResidentSheet() (puro); import.ts → planResidentImport() / importResidents()
         reports/    ← management.ts → resolvePeriod() / getManagementReport()
         releases/   ← history.ts → RELEASES, APP_VERSION, currentDeploy()
         observability/ ← report.ts → reportError()

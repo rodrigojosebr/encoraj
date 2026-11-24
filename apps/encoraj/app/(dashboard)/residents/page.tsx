@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Pencil, UserPlus } from 'lucide-react'
+import { FileSpreadsheet, Pencil, UserPlus } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import { ObjectId } from 'mongodb'
 import { residents } from '@/lib/db/collections'
@@ -53,9 +53,16 @@ export default async function ResidentsPage({
         <h1 className={css({ fontSize: '2xl', fontWeight: 'bold', color: 'gray.900', _dark: { color: 'gray.50' } })}>
           Moradores
         </h1>
-        <Link href="/residents/new">
-          <Button leftIcon={<UserPlus size={18} />}>Novo morador</Button>
-        </Link>
+        <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '2' })}>
+          {can(session, 'residents.import') && (
+            <Link href="/residents/import">
+              <Button variant="outline" intent="secondary" leftIcon={<FileSpreadsheet size={18} />}>Importar planilha</Button>
+            </Link>
+          )}
+          <Link href="/residents/new">
+            <Button leftIcon={<UserPlus size={18} />}>Novo morador</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Search + filtro */}

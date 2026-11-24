@@ -12,9 +12,8 @@ interface LogActionParams {
   after?: Record<string, unknown>
 }
 
-export async function logAction(params: LogActionParams): Promise<void> {
-  const col = await auditLogs()
-  await col.insertOne({
+function auditDoc(params: LogActionParams): AuditLogDoc {
+  return {
     condo_id: params.condo_id,
     entity: params.entity,
     entity_id: params.entity_id,
@@ -24,5 +23,14 @@ export async function logAction(params: LogActionParams): Promise<void> {
     before: params.before,
     after: params.after,
     timestamp: new Date(),
-  })
+  }
+}
+
+export async function logAction(params: LogActionParams): Promise<void> {
+  await (await auditLogs()).insertOne(auditDoc(params))
+}
+
+/** Várias ações numa ida só ao banco (importação): um registro por ação. A lista não pode vir vazia. */
+export async function logActions(list: LogActionParams[]): Promise<void> {
+  await (await auditLogs()).insertMany(list.map(auditDoc))
 }

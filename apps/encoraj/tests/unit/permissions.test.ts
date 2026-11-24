@@ -24,6 +24,7 @@ const EXPECTED: Record<Permission, string[]> = {
   'packages.notify': ['administradora', 'admin', 'porteiro'],
   'packages.deliver': ['administradora', 'admin', 'porteiro'],
   'residents.write': ['administradora', 'admin', 'zelador', 'sindico'],
+  'residents.import': ['administradora', 'admin', 'sindico'],
   'reports.view': ['administradora', 'admin', 'sindico'],
   'users.manage': ['administradora', 'admin'],
   'condo.manage': ['administradora', 'admin'],

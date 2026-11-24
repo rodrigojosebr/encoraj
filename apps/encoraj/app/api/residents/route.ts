@@ -1,19 +1,12 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
-import { z } from 'zod'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { can } from '@/lib/auth/permissions'
 import { forbidden, parseBody, serverError, unauthorized } from '@/lib/api/http'
-
-const CreateResidentSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  apartment: z.string().trim().min(1).max(20),
-  block: z.string().trim().max(20).optional(),
-  whatsapp: z.string().trim().min(8).max(20),
-})
+import { residentSchema } from '@/lib/residents/schema'
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +20,7 @@ export async function POST(request: Request) {
       return forbidden()
     }
 
-    const parsed = await parseBody(request, CreateResidentSchema)
+    const parsed = await parseBody(request, residentSchema)
     if (parsed.error) return parsed.error
 
     const col = await residents()

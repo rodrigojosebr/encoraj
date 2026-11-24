@@ -38,6 +38,11 @@ export const PERMISSIONS = {
     label: 'Cadastrar, editar, excluir e restaurar moradores',
     roles: [ORG_ADMIN_ROLE, 'admin', 'zelador', 'sindico'],
   },
+  'residents.import': {
+    group: 'Moradores',
+    label: 'Importar moradores por planilha',
+    roles: [ORG_ADMIN_ROLE, 'admin', 'sindico'],
+  },
   'reports.view': {
     group: 'Relatórios',
     label: 'Ver relatórios e exportar planilhas',
@@ -85,10 +90,13 @@ export function can(subject: { roles: readonly string[] }, permission: Permissio
 /**
  * Páginas do dashboard e a permissão que cada uma exige. O proxy barra por aqui;
  * o menu mostra o item com a mesma regra. `/` e `/profile` são de qualquer usuário logado.
+ * Um caminho pode casar com mais de um prefixo: aí o proxy exige todas as permissões
+ * (`/residents/import` pede `residents.write` e `residents.import`).
  */
 export const PAGE_PERMISSIONS: ReadonlyArray<{ prefix: string; permission: Permission }> = [
   { prefix: '/packages', permission: 'packages.register' },
   { prefix: '/residents', permission: 'residents.write' },
+  { prefix: '/residents/import', permission: 'residents.import' },
   { prefix: '/users', permission: 'users.manage' },
   { prefix: '/reports', permission: 'reports.view' },
   { prefix: '/settings', permission: 'condo.manage' },

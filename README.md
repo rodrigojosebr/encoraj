@@ -101,6 +101,6 @@ packages/
 | Role | Acesso |
 |---|---|
 | `admin` | Tudo: moradores, usuários, encomendas, relatórios |
-| `zelador` | CRUD de moradores |
+| `zelador` | CRUD de moradores, um por um |
 | `porteiro` | Registrar chegadas e confirmar retiradas |
-| `sindico` | Relatórios (somente leitura) e CRUD de moradores |
+| `sindico` | Relatórios (somente leitura), CRUD de moradores e importação por planilha |

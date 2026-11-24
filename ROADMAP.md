@@ -308,6 +308,7 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
   - a observação da portaria vai no aviso do WhatsApp: é onde aparece para quem é a encomenda
   - descartados: cadastro pelo porteiro e, por ora, encomenda para a unidade sem pessoa (muda o modelo de dados)
 - [x] O síndico também cadastra morador (decisão de 24/nov/2026): entrou em `residents.write`, com tudo que a permissão cobre — cadastrar, editar, excluir e restaurar (release 0.17.0)
+- [x] **Importação de moradores por planilha** (24/nov/2026, release 0.18.0): `/residents/import`, só para síndico, admin e administradora (`residents.import`; o zelador fica de fora). CSV, sem dependência nova: baixar o modelo, enviar, conferir (quem entra, quem já existe, erros por linha) e importar. Erro em qualquer linha recusa tudo; morador existente é pulado, nunca alterado. Fica para depois, se alguém pedir: aceitar XLSX, atualizar morador existente pela planilha, exportar a lista de moradores
 - [ ] Lembrete de encomenda parada há N dias
 - [x] Atualizar `PROJECT.md` (marcações de OCR pendente)
 
@@ -452,6 +453,7 @@ Páginas e visual não têm teste automático. Conferir no navegador, em claro e
 - [ ] Divisão — barra lateral: recolher/expandir, menu ativo, fechar no mobile, rodapé recolhido e expandido; foto do condomínio no topo do mobile atualiza sem recarregar
 - [ ] Divisão — perfil: abrir/fechar "Alterar senha", trocar a senha, cancelar
 - [ ] 0.16.0 — registrar chegada: buscar morador por nome e por unidade ("apto 101", "bloco 2 apto 1"), escolher e "Alterar"; Enter com um resultado só escolhe e não envia o formulário; busca sem resultado abre a orientação; a observação aparece no aviso do WhatsApp
+- [ ] 0.18.0 — importar moradores: baixar o modelo e abrir no Excel (acentos e colunas no lugar); preencher, salvar como CSV e enviar; conferência mostra quem entra; planilha com erro lista as linhas e não mostra o botão de importar; corrigir e escolher o mesmo arquivo de novo; importar e ver os moradores na lista; reenviar a mesma planilha diz que não há nada para importar; zelador não vê o botão "Importar planilha" e é barrado em `/residents/import`
 
 ---
 

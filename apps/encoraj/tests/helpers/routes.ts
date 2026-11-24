@@ -5,6 +5,8 @@ import * as myPassword from '@/app/api/users/me/password/route'
 import * as myPhoto from '@/app/api/users/me/photo/route'
 import * as residentsRoute from '@/app/api/residents/route'
 import * as residentRoute from '@/app/api/residents/[id]/route'
+import * as residentsImport from '@/app/api/residents/import/route'
+import * as residentsTemplate from '@/app/api/residents/import/template/route'
 import * as packagesRoute from '@/app/api/packages/route'
 import * as deliverRoute from '@/app/api/packages/[id]/deliver/route'
 import * as notifyRoute from '@/app/api/packages/[id]/notify/route'
@@ -44,6 +46,9 @@ export const PROTECTED_ROUTES: Array<{ name: string; call: () => Promise<Respons
   { name: 'PUT /api/residents/[id]', call: () => residentRoute.PUT(req('PUT'), id()), roles: ['admin', 'zelador', 'sindico'] },
   { name: 'PATCH /api/residents/[id]', call: () => residentRoute.PATCH(req('PATCH'), id()), roles: ['admin', 'zelador', 'sindico'] },
   { name: 'DELETE /api/residents/[id]', call: () => residentRoute.DELETE(req('DELETE'), id()), roles: ['admin', 'zelador', 'sindico'] },
+  // Importar por planilha: o zelador cadastra um por um, mas não importa
+  { name: 'POST /api/residents/import', call: () => residentsImport.POST(req('POST')), roles: ['admin', 'sindico'] },
+  { name: 'GET /api/residents/import/template', call: () => residentsTemplate.GET(), roles: ['admin', 'sindico'] },
 
   { name: 'POST /api/packages', call: () => packagesRoute.POST(req('POST')), roles: ['admin', 'porteiro'] },
   { name: 'POST /api/packages/[id]/deliver', call: () => deliverRoute.POST(req('POST'), id()), roles: ['admin', 'porteiro'] },

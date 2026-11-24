@@ -1,19 +1,14 @@
 import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
-import { z } from 'zod'
 import { residents } from '@/lib/db/collections'
 import { getStatus } from '@/lib/db/status-map'
 import { getSession } from '@/lib/auth/session'
 import { logAction } from '@/lib/audit/log'
 import { can } from '@/lib/auth/permissions'
 import { badRequest, forbidden, notFound, parseBody, serverError, unauthorized } from '@/lib/api/http'
+import { residentSchema } from '@/lib/residents/schema'
 
-const UpdateResidentSchema = z.object({
-  name: z.string().trim().min(2).max(120).optional(),
-  apartment: z.string().trim().min(1).max(20).optional(),
-  block: z.string().trim().max(20).optional(),
-  whatsapp: z.string().trim().min(8).max(20).optional(),
-})
+const UpdateResidentSchema = residentSchema.partial()
 
 interface RouteContext {
   params: Promise<{ id: string }>

@@ -23,10 +23,10 @@ Tudo rastreado. Tudo auditável.
 Usa o sistema no dia a dia. Precisa de uma interface rápida e simples — registrar chegada e confirmar retirada em poucos toques, mesmo com as mãos ocupadas. Não é usuário técnico.
 
 ### Síndico
-Quer visibilidade sem precisar perguntar ao porteiro. Acessa relatórios para ver volume de entregas, encomendas em aberto, histórico de retiradas. Também cuida do cadastro de moradores, como o zelador. Não registra nem entrega encomendas.
+Quer visibilidade sem precisar perguntar ao porteiro. Acessa relatórios para ver volume de entregas, encomendas em aberto, histórico de retiradas. Também cuida do cadastro de moradores, como o zelador, e pode importar todos de uma vez por planilha. Não registra nem entrega encomendas.
 
 ### Zelador
-Responsável pelo cadastro de moradores — cria, edita e desativa registros. Não acessa encomendas nem relatórios.
+Responsável pelo cadastro de moradores — cria, edita e desativa registros, um por um (não importa planilha). Não acessa encomendas nem relatórios.
 
 ### Admin
 Gerencia o condomínio no sistema: cadastra moradores, cria usuários (porteiros, zeladores e síndicos), configura nome e foto do condomínio.
@@ -69,6 +69,8 @@ Morador chega à portaria com código ou QR Code
 ```
 Admin acessa painel
   → CRUD de moradores (nome, bloco, apto, WhatsApp)
+  → Importa moradores por planilha em /residents/import (admin ou síndico): baixa o modelo CSV,
+    envia preenchido, confere quem entra, quem já existe e os erros por linha, e só então importa
   → Cria/edita usuários porteiros e síndicos
   → Configura nome e foto do condomínio em /settings
   → Gerencia próprio perfil em /profile (foto, senha)
@@ -296,6 +298,7 @@ apps/encoraj/
         page.tsx
         loading.tsx
         new/page.tsx
+        import/page.tsx          ← importar por planilha (síndico, admin, administradora)
         [id]/edit/
           page.tsx
           loading.tsx
@@ -332,15 +335,17 @@ apps/encoraj/
         reset/route.ts           ← POST reset-password
       condo/
         route.ts                 ← GET/PUT nome do condo
-        photo/route.ts           ← POST upload foto → S3 + re-sign JWT; DELETE remove foto
+        photo/route.ts           ← POST upload foto → S3 + banco (a foto não vai no token); DELETE remove foto
       residents/
         route.ts
         [id]/route.ts            ← PUT editar; DELETE soft-delete; PATCH restaurar
+        import/route.ts          ← POST planilha CSV: confere ou importa
+        import/template/route.ts ← GET modelo da planilha
       users/
         route.ts
         [id]/route.ts            ← PUT editar; DELETE soft-delete
         me/password/route.ts     ← PUT alterar senha logado
-        me/photo/route.ts        ← POST upload foto → S3 + re-sign JWT; DELETE remove foto
+        me/photo/route.ts        ← POST upload foto → S3 + banco (a foto não vai no token); DELETE remove foto
       packages/
         route.ts
         [id]/route.ts

@@ -43,6 +43,17 @@ export interface Release {
 /** Da mais nova para a mais antiga. */
 export const RELEASES: Release[] = [
   {
+    version: '0.18.0',
+    date: '2026-11-24',
+    title: 'Moradores por planilha',
+    summary: 'O condomínio entra no sistema de uma vez: em vez de cadastrar morador por morador, o síndico ou o administrador envia uma planilha.',
+    changes: [
+      { type: 'feature', text: 'Em Moradores, "Importar planilha": baixar o modelo, preencher e enviar. Antes de gravar, a tela mostra quantos moradores entram, quais já existem e os erros linha a linha.' },
+      { type: 'feature', text: 'Planilha com erro em qualquer linha não importa nada. Morador já cadastrado é pulado, nunca alterado: enviar a mesma planilha duas vezes não duplica ninguém.' },
+      { type: 'security', text: 'Importar é permissão à parte: síndico, administrador do condomínio e administradora. O zelador segue cadastrando um por um.' },
+    ],
+  },
+  {
     version: '0.17.0',
     date: '2026-11-24',
     title: 'Síndico cuida dos moradores',
@@ -50,6 +61,7 @@ export const RELEASES: Release[] = [
     changes: [
       { type: 'feature', text: 'O síndico passa a cadastrar, editar, excluir e restaurar moradores, como o zelador e o administrador. O menu Moradores aparece para ele.' },
     ],
+    commits: ['2803ca8'],
   },
   {
     version: '0.16.0',

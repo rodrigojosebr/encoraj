@@ -6,11 +6,12 @@ import { PASSWORD_MIN } from '@/lib/auth/password-rules'
 import { safeNextPath } from '@/lib/auth/safe-next'
 import { formatTermsVersion, legalInfo, TERMS_VERSION } from '@/lib/legal/terms'
 import { toSlug } from '@/lib/text/slug'
-import { csvCell, csvDocument, csvResponse } from '@/lib/text/csv'
+import { csvCell, csvDocument, csvResponse, parseCsv } from '@/lib/text/csv'
 import { clientIp } from '@/lib/auth/rate-limit'
 import { fmtDate, fmtDateTime, getTodayRange, parseDateAsTZ } from '@/lib/date/tz'
 import { MAX_IMAGE_BYTES, readImageUpload } from '@/lib/upload/image'
 import { searchResidents } from '@/lib/residents/search'
+import { MAX_SHEET_ROWS, readResidentSheet, residentSheetTemplate } from '@/lib/residents/sheet'
 import { imageForm, JPEG, PNG, WEBP } from '../helpers/factory'
 
 describe('escapeRegex', () => {
@@ -233,5 +234,141 @@ describe('searchResidents', () => {
   it('ninguém bate: lista vazia, não null', () => {
     expect(ids('tigrão')).toEqual([])
     expect(ids('bloco 9')).toEqual([])
+  })
+})
+
+describe('parseCsv', () => {
+  it('escolhe o separador pela primeira linha escrita: ; , ou tabulação', () => {
+    const expected = [['a', 'b'], ['1', '2']]
+    expect(parseCsv('a;b\n1;2\n')).toEqual(expected)
+    expect(parseCsv('a,b\n1,2')).toEqual(expected)
+    expect(parseCsv('a\tb\n1\t2')).toEqual(expected)
+    expect(parseCsv('\n \na,b\n1,2')).toEqual([[''], [' '], ...expected]) // linhas em branco antes não confundem
+    expect(parseCsv('a;b,c;d')).toEqual([['a', 'b,c', 'd']]) // vence o que mais aparece
+    expect(parseCsv('abc\n1;2')).toEqual([['abc'], ['1', '2']]) // sem separador na primeira linha: fica o ;
+  })
+
+  it('célula entre aspas guarda separador, aspas dobradas e quebra de linha', () => {
+    expect(parseCsv('"Silva; Ana";"diz ""oi""";"linha 1\nlinha 2"\n')).toEqual([['Silva; Ana', 'diz "oi"', 'linha 1\nlinha 2']])
+    expect(parseCsv('"";x')).toEqual([['', 'x']])
+    expect(parseCsv('a"b;c')).toEqual([['a"b', 'c']]) // aspas no meio do texto são só aspas
+  })
+
+  it('aceita fim de linha de Windows, Mac e Linux, tira o BOM e mantém a linha em branco no lugar', () => {
+    expect(parseCsv('﻿a;b\r\n1;2\r3;4\n\n5;6')).toEqual([['a', 'b'], ['1', '2'], ['3', '4'], [''], ['5', '6']])
+  })
+
+  it('arquivo vazio não tem linha; célula vazia no fim da última linha conta', () => {
+    expect(parseCsv('')).toEqual([])
+    expect(parseCsv('a;')).toEqual([['a', '']])
+    expect(parseCsv('a;""')).toEqual([['a', '']])
+  })
+})
+
+describe('readResidentSheet', () => {
+  const bytes = (text: string) => new TextEncoder().encode(text)
+  const read = (...lines: string[]) => readResidentSheet(bytes(lines.join('\n')))
+  const HEADER = 'Nome;Bloco (opcional);Apartamento;WhatsApp (DDD + número)'
+
+  it('o modelo tem só os títulos, e enviado de volta sem preencher é recusado', () => {
+    expect(residentSheetTemplate()).toBe('﻿"Nome";"Bloco (opcional)";"Apartamento";"WhatsApp (DDD + número)"')
+    expect(readResidentSheet(bytes(residentSheetTemplate()))).toEqual({
+      error: 'A planilha não tem nenhum morador. Preencha uma linha por morador, abaixo dos títulos.',
+    })
+  })
+
+  it('lê as linhas, arruma espaços e deixa o WhatsApp no formato gravado', () => {
+    const result = read(
+      HEADER,
+      '  Ana   Souza ;A;101;(11) 99999-0001',
+      'Bruno Lima;;202;5511999990002',
+      'Caio;B;01;011 99999 0003',
+      "Duda;;3;'+55 11 99999-0004",
+    )
+    expect(result).toEqual({
+      rows: [
+        { line: 2, name: 'Ana Souza', block: 'A', apartment: '101', whatsapp: '+5511999990001' },
+        { line: 3, name: 'Bruno Lima', apartment: '202', whatsapp: '+5511999990002' },
+        { line: 4, name: 'Caio', block: 'B', apartment: '01', whatsapp: '+5511999990003' },
+        { line: 5, name: 'Duda', apartment: '3', whatsapp: '+5511999990004' },
+      ],
+      problems: [],
+    })
+    // bloco em branco não vira campo vazio no cadastro
+    expect('rows' in result && result.rows[1]).not.toHaveProperty('block')
+  })
+
+  it('acha as colunas pelo título: outra ordem, outros nomes, vírgula, coluna a mais e sem bloco', () => {
+    expect(read('Telefone,Unidade,Morador,Obs', '11999990001,12,Ana,qualquer coisa')).toEqual({
+      rows: [{ line: 2, name: 'Ana', apartment: '12', whatsapp: '+5511999990001' }],
+      problems: [],
+    })
+    // título repetido: vale a primeira coluna
+    expect(read('Nome;Nome do pai;Apto;Celular', 'Ana;José;1;11999990001')).toMatchObject({ rows: [{ name: 'Ana' }] })
+  })
+
+  it('o número da linha é o do Excel: linha em branco é pulada sem mudar a conta', () => {
+    expect(read('', 'Nome;Apartamento;WhatsApp', 'Ana;1;11999990001', ';;', 'Bia;2')).toEqual({
+      rows: [{ line: 3, name: 'Ana', apartment: '1', whatsapp: '+5511999990001' }],
+      problems: [{ line: 5, message: 'Falta o WhatsApp.' }], // linha mais curta que os títulos
+    })
+  })
+
+  it('aponta cada problema com a linha, e linha com problema não entra', () => {
+    const long = 'x'.repeat(21)
+    expect(
+      read(
+        HEADER,
+        'A;;101;11999990001',
+        ';;;11999990001',
+        `${'N'.repeat(121)};${long};${long};11999990001`,
+        'Bia;;1;5,51199E+12',
+        'Caio;;2;99999-0001',
+        'Duda;;3;4411999990001',
+        'Edu;;4;1,19999999E+10',
+        'Fabi;;5;11999990005',
+      ),
+    ).toEqual({
+      rows: [{ line: 9, name: 'Fabi', apartment: '5', whatsapp: '+5511999990005' }],
+      problems: [
+        { line: 2, message: 'Nome: use de 2 a 120 caracteres.' },
+        { line: 3, message: 'Falta o nome.' },
+        { line: 3, message: 'Falta o apartamento.' },
+        { line: 4, message: 'Nome: use de 2 a 120 caracteres.' },
+        { line: 4, message: 'Apartamento: use até 20 caracteres.' },
+        { line: 4, message: 'Bloco: use até 20 caracteres.' },
+        { line: 5, message: 'WhatsApp "5,51199E+12": o Excel trocou o número por notação científica. Formate a coluna como Texto e digite de novo.' },
+        { line: 6, message: 'WhatsApp "99999-0001": use DDD + número, 11 dígitos (ex.: 11999990000).' },
+        { line: 7, message: 'WhatsApp "4411999990001": use DDD + número, 11 dígitos (ex.: 11999990000).' },
+        // notação científica que por acaso soma 11 dígitos não passa como telefone
+        { line: 8, message: 'WhatsApp "1,19999999E+10": o Excel trocou o número por notação científica. Formate a coluna como Texto e digite de novo.' },
+      ],
+    })
+  })
+
+  it('arquivo salvo pelo Excel do Windows (Windows-1252) mantém os acentos', () => {
+    const latin1 = Uint8Array.from(Buffer.from('Nome;Apartamento;WhatsApp\nJosé Conceição;1;11999990001', 'latin1'))
+    expect(readResidentSheet(latin1)).toMatchObject({ rows: [{ name: 'José Conceição' }], problems: [] })
+  })
+
+  it('recusa o arquivo inteiro quando não é uma planilha de moradores', () => {
+    expect(read('')).toEqual({ error: 'A planilha está vazia.' })
+    expect(read(' ', ';;')).toEqual({ error: 'A planilha está vazia.' })
+    expect(read('Nome;Apto', 'Ana;1')).toEqual({
+      error: 'Não encontrei a coluna WhatsApp. Baixe o modelo e preencha nele, sem mudar os títulos.',
+    })
+    expect(read('Nome;Endereço', 'Ana;Rua X')).toEqual({
+      error: 'Não encontrei as colunas Apartamento e WhatsApp. Baixe o modelo e preencha nele, sem mudar os títulos.',
+    })
+    // .xlsx é um zip: começa com "PK" e tem byte nulo logo no início
+    expect(readResidentSheet(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]))).toEqual({
+      error: 'Este arquivo não é CSV. No Excel: Arquivo → Salvar como → "CSV UTF-8 (delimitado por vírgulas)".',
+    })
+  })
+
+  it('aceita até o limite de linhas, e recusa acima dele', () => {
+    const lines = Array.from({ length: MAX_SHEET_ROWS + 1 }, (_, i) => `Morador ${i};;${i};11999990001`)
+    expect(read(HEADER, ...lines.slice(0, MAX_SHEET_ROWS))).toMatchObject({ problems: [] })
+    expect(read(HEADER, ...lines)).toEqual({ error: 'A planilha tem mais de 2.000 moradores. Divida em arquivos menores.' })
   })
 })
