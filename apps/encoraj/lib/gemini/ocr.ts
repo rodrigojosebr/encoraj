@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import { reportError } from '@/lib/observability/report'
 
 export interface ResidentContext {
@@ -14,7 +14,14 @@ export interface OcrResult {
   extracted_text: string
 }
 
-const DEFAULT_MODEL = 'gemini-2.0-flash'
+/**
+ * Modelo padrão: o substituto que o Google indica para o gemini-2.0-flash (desligado em
+ * 1º/jun/2026). Trocável por GEMINI_MODEL sem deploy de código.
+ */
+const DEFAULT_MODEL = 'gemini-3.6-flash'
+
+/** Tempo máximo da chamada no servidor (a tela também desiste em 15 s e segue na lista). */
+const TIMEOUT_MS = 15_000
 
 /** O que aconteceu numa chamada — vai para o monitoramento de uso de IA, sem texto nem imagem */
 export interface OcrUsage {
@@ -80,27 +87,27 @@ export async function analyzePackageLabel(
 
     if (residents.length === 0) return null
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: modelName })
-
-    const result = await model.generateContent([
-      { text: PROMPT_TEMPLATE(residents) },
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: PROMPT_TEMPLATE(residents) }, { inlineData: { mimeType, data: imageBase64 } }],
         },
-      },
-    ])
+      ],
+      config: { responseMimeType: 'application/json', httpOptions: { timeout: TIMEOUT_MS } },
+    })
 
-    const usage = result.response.usageMetadata
+    const usage = response.usageMetadata
     tokens.promptTokens = usage?.promptTokenCount ?? 0
     tokens.outputTokens = usage?.candidatesTokenCount ?? 0
     tokens.totalTokens = usage?.totalTokenCount ?? tokens.promptTokens + tokens.outputTokens
 
-    const text = result.response.text().trim()
+    // `text` é propriedade no SDK novo e vem vazia quando o modelo não devolve texto
+    const text = (response.text ?? '').trim()
 
-    // Strip markdown code fences if Gemini wraps the JSON anyway
+    // Cerca de markdown em volta do JSON, se o modelo mandar mesmo assim
     const jsonText = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
 
     let parsed: { resident_id: string | null; confidence: string; extracted_text: string }
@@ -118,7 +125,7 @@ export async function analyzePackageLabel(
       return null
     }
 
-    // Validate that the returned id actually exists in our list
+    // O id devolvido tem que estar na lista enviada (alucinação ou morador de outro condomínio)
     const match = residents.find((r) => r.id === parsed.resident_id)
     if (!match) {
       await reportError('[ocr]', new Error('modelo devolveu morador que não está na lista'))

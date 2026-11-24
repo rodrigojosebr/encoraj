@@ -43,6 +43,16 @@ export interface Release {
 /** Da mais nova para a mais antiga. */
 export const RELEASES: Release[] = [
   {
+    version: '0.15.0',
+    date: '2026-11-20',
+    title: 'OCR de volta',
+    summary: 'A leitura automática da etiqueta estava parada desde junho: o Google desligou o modelo usado.',
+    changes: [
+      { type: 'fix', text: 'O OCR volta a sugerir o morador: o modelo gemini-2.0-flash, desligado pelo Google em 1º/jun/2026, foi trocado pelo gemini-3.6-flash.' },
+      { type: 'infra', text: 'OCR no SDK novo do Google (@google/genai), com tempo máximo de 15 segundos por leitura.' },
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-11-20',
     title: 'Histórico de versões',
@@ -51,6 +61,7 @@ export const RELEASES: Release[] = [
       { type: 'feature', text: 'Tela Releases (/admin/releases), só para o super admin: o histórico desde o início e qual versão está no ar.' },
       { type: 'security', text: 'O admin criado pelo seed é obrigado a trocar a senha padrão no primeiro acesso.' },
     ],
+    commits: ['12d6b45'],
   },
   {
     version: '0.13.0',

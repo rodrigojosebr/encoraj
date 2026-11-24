@@ -17,7 +17,7 @@ Docs do repo — quando ler:
 - Hardening de 17/nov/2026 aplicado (sessão revogável, token do link público, rate limits, uploads, índices). O que segue aberto está em `ROADMAP.md` → Fase 10:
   - recuperação de senha: backend pronto e testado; o link "Esqueci minha senha" segue comentado no login até o SMTP estar configurado em produção
   - bucket S3 ainda público na AWS (o código já serve tudo por link assinado — falta fechar o bucket); textos legais sem revisão jurídica e sem `LEGAL_CONTACT_EMAIL` definido
-  - backup do banco; telas de super admin só aparecem para quem tem a role `superadmin` (atribuída direto no banco); OCR no SDK antigo (`@google/generative-ai`) — o modelo é trocável por `GEMINI_MODEL`
+  - backup do banco; telas de super admin só aparecem para quem tem a role `superadmin` (atribuída direto no banco); OCR no SDK `@google/genai` com modelo trocável por `GEMINI_MODEL` (padrão `gemini-3.6-flash`; o `gemini-2.0-flash` foi desligado pelo Google em 1º/jun/2026) — falta conferir com a chave em produção
   - CSP está em modo relatório (`Content-Security-Policy-Report-Only` no `next.config.ts`): só avisa no console; falta validar no navegador e ativar
 
 ## Regras de segurança (não quebrar)
@@ -161,7 +161,7 @@ Como chamar: logado como admin no navegador, no console — `await fetch('/api/r
 - **Styling**: Panda CSS 1.x — **não subir para a 2 sem ler a Etapa 5 da Fase 11** (quebra em silêncio)
 - **Icons**: `lucide-react`
 - **Storage**: AWS S3 (photos + QR code images)
-- **OCR / AI**: Google Gemini Flash (`@google/generative-ai`) — modelo `gemini-2.0-flash` em `lib/gemini/ocr.ts`
+- **OCR / AI**: Google Gemini (`@google/genai`) — modelo padrão `gemini-3.6-flash` em `lib/gemini/ocr.ts`, trocável por `GEMINI_MODEL`. Modelo é aposentado pelo Google com data marcada: conferir a página de deprecations ao mexer no OCR
 - **WhatsApp**: link `wa.me` aberto pelo porteiro (envio automático saiu do plano)
 - **Language**: TypeScript strict
 
@@ -425,7 +425,7 @@ AWS_S3_BUCKET=
 
 # Google Gemini
 GEMINI_API_KEY=
-GEMINI_MODEL=        # opcional; padrão gemini-2.0-flash
+GEMINI_MODEL=        # opcional; padrão gemini-3.6-flash
 
 # Custo estimado de IA: USD por 1 milhão de tokens
 AI_PRICE_INPUT_USD_PER_MTOK=

@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { generateContent, getGenerativeModel } = vi.hoisted(() => {
-  const generateContent = vi.fn()
-  return { generateContent, getGenerativeModel: vi.fn((_options: { model: string }) => ({ generateContent })) }
-})
+const { generateContent } = vi.hoisted(() => ({ generateContent: vi.fn() }))
 
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: class {
-    getGenerativeModel = getGenerativeModel
+vi.mock('@google/genai', () => ({
+  GoogleGenAI: class {
+    models = { generateContent }
   },
 }))
 
@@ -18,15 +15,17 @@ const residents = [
   { id: 'r2', name: 'João Souza', apartment: '202' },
 ]
 
-function reply(text: string) {
-  generateContent.mockResolvedValueOnce({ response: { text: () => text } })
+function reply(text: string | undefined) {
+  generateContent.mockResolvedValueOnce({ text })
 }
+
+/** O que foi enviado na última chamada ao modelo */
+const lastRequest = () => generateContent.mock.calls.at(-1)![0]
 
 describe('analyzePackageLabel', () => {
   beforeEach(() => {
     process.env.GEMINI_API_KEY = 'chave-de-teste'
     generateContent.mockReset()
-    getGenerativeModel.mockClear()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
@@ -49,21 +48,23 @@ describe('analyzePackageLabel', () => {
   it('manda só os moradores recebidos no prompt', async () => {
     reply('{"resident_id":"r2","confidence":"medium","extracted_text":"Joao"}')
     await analyzePackageLabel('base64', 'image/jpeg', residents)
-    const prompt = generateContent.mock.calls[0][0][0].text as string
-    expect(prompt).toContain('id: r1 | name: Maria Silva | apartment: 101 | block: A')
-    expect(prompt).toContain('id: r2 | name: João Souza | apartment: 202')
+    const [prompt, image] = lastRequest().contents[0].parts
+    expect(prompt.text).toContain('id: r1 | name: Maria Silva | apartment: 101 | block: A')
+    expect(prompt.text).toContain('id: r2 | name: João Souza | apartment: 202')
+    expect(image).toEqual({ inlineData: { mimeType: 'image/jpeg', data: 'base64' } })
+    expect(lastRequest().config).toMatchObject({ responseMimeType: 'application/json', httpOptions: { timeout: 15_000 } })
   })
 
   it('usa o modelo de GEMINI_MODEL, com um padrão quando a variável não existe', async () => {
     const json = '{"resident_id":"r1","confidence":"high","extracted_text":"x"}'
     reply(json)
     await analyzePackageLabel('b', 'image/png', residents)
-    expect(getGenerativeModel).toHaveBeenLastCalledWith({ model: 'gemini-2.0-flash' })
+    expect(lastRequest().model).toBe('gemini-3.6-flash')
 
     process.env.GEMINI_MODEL = 'modelo-novo'
     reply(json)
     await analyzePackageLabel('b', 'image/png', residents)
-    expect(getGenerativeModel).toHaveBeenLastCalledWith({ model: 'modelo-novo' })
+    expect(lastRequest().model).toBe('modelo-novo')
   })
 
   it('aceita JSON dentro de cerca de markdown', async () => {
@@ -89,6 +90,7 @@ describe('analyzePackageLabel', () => {
   it.each([
     ['resposta sem morador', '{"resident_id":null,"confidence":"low","extracted_text":""}'],
     ['resposta que não é JSON', 'não consegui ler a etiqueta'],
+    ['resposta sem texto', undefined],
   ])('devolve null com %s', async (_name, text) => {
     reply(text)
     expect(await analyzePackageLabel('b', 'image/png', residents)).toBeNull()
@@ -111,14 +113,12 @@ describe('analyzePackageLabel', () => {
     it('informa modelo, resultado, tokens e tempo quando identifica', async () => {
       const usage = await usageOf(() =>
         generateContent.mockResolvedValueOnce({
-          response: {
-            text: () => '{"resident_id":"r1","confidence":"medium","extracted_text":"Maria"}',
-            usageMetadata: { promptTokenCount: 1200, candidatesTokenCount: 40, totalTokenCount: 1240 },
-          },
+          text: '{"resident_id":"r1","confidence":"medium","extracted_text":"Maria"}',
+          usageMetadata: { promptTokenCount: 1200, candidatesTokenCount: 40, totalTokenCount: 1240 },
         }),
       )
       expect(usage).toMatchObject({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.6-flash',
         outcome: 'matched',
         confidence: 'medium',
         promptTokens: 1200,
@@ -132,7 +132,8 @@ describe('analyzePackageLabel', () => {
     it('soma os tokens quando o provedor não manda o total', async () => {
       const usage = await usageOf(() =>
         generateContent.mockResolvedValueOnce({
-          response: { text: () => '{"resident_id":null}', usageMetadata: { promptTokenCount: 900, candidatesTokenCount: 10 } },
+          text: '{"resident_id":null}',
+          usageMetadata: { promptTokenCount: 900, candidatesTokenCount: 10 },
         }),
       )
       expect(usage).toMatchObject({ outcome: 'no_match', totalTokens: 910 })

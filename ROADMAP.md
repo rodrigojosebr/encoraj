@@ -236,8 +236,9 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 
 **Verificar em produção (pode já estar quebrado)**
 - [ ] Banco de produção não tem o admin do seed (`admin@encoraj.com` / senha padrão publicada no README) — rodar `MONGODB_URI=<produção> yarn preflight` em `apps/encoraj` (somente leitura; também aponta email duplicado e índice ausente)
-- [ ] OCR ainda responde? O fallback é silencioso — testar uma etiqueta em produção. Se o modelo foi aposentado, definir `GEMINI_MODEL` na Vercel (não precisa de deploy de código)
-- [ ] Migrar o OCR para o SDK `@google/genai` — fazer junto, com a chave em mãos para testar
+- [x] OCR estava fora: o `gemini-2.0-flash` foi desligado pelo Google em 1º/jun/2026 e o fallback silencioso escondia. Padrão trocado para `gemini-3.6-flash` (20/nov/2026)
+- [x] OCR migrado para o SDK `@google/genai`, com tempo máximo de 15 s no servidor (20/nov/2026)
+- [ ] Testar uma etiqueta real em produção e conferir em `/admin/ai` que a chamada aparece como "matched"; atualizar `AI_PRICE_*` na Vercel com o preço do modelo novo
 - [x] Foto de celular acima de ~4,5 MB: agora é reduzida no navegador (máx. 1600 px, JPEG) antes do OCR e do upload — **conferir no celular**
 - [ ] **Publicar o branch `dash+pwa`** — produção ainda roda o Next 15.5.12, com 3 falhas críticas (RCE no otimizador de imagens) e bypass de middleware. O branch já está no Next 16 (typecheck, lint, 645 testes e build verdes em 19/nov/2026); **falta teste manual em preview, merge na `main` e deploy**
 - [ ] Majors pendentes — ver **Fase 11** (plano passo a passo, um por vez)
@@ -301,6 +302,11 @@ Resultado da auditoria de 17/nov/2026 (leitura de código; nada foi executado). 
 - [ ] `canvas` só serve ao `gen-icons` — mover para script avulso
 - [x] `next lint` → ESLint CLI (`eslint .`)
 - [ ] Morador com mais de um telefone / mais de um morador por apartamento
+- [ ] **Destinatário que não está cadastrado** (decisão de 23/nov/2026, caminho A): hoje o porteiro trava — a encomenda exige morador ativo e só admin, administradora e zelador cadastram morador. Fazer:
+  - permissão nova `residents.create` (porteiro, zelador, admin, administradora); editar/excluir/restaurar seguem em `residents.write`
+  - "+ Novo morador" dentro do registro de chegada (`RecipientPicker`): nome, bloco, apto, WhatsApp → cria e já seleciona; audit log registra quem cadastrou
+  - trocar o `<select>` de moradores por busca com digitação (condomínio grande tem centenas)
+  - depois, se os condomínios pedirem: encomenda para a unidade, com nome escrito à mão (caminho B — muda o modelo de dados)
 - [ ] Lembrete de encomenda parada há N dias
 - [x] Atualizar `PROJECT.md` (marcações de OCR pendente)
 
@@ -320,12 +326,12 @@ Ferramentas: `vitest` + `@vitest/coverage-v8` + `mongodb-memory-server` (banco r
    - residents: CRUD, soft-delete, restore, busca com caractere de regex
    - packages: foto de outro bucket/condo recusada, morador inativo recusado, resposta sem PIN/token; deliver (PIN errado, limite, entrega dupla → 409, audit log); notify não "desentrega"
    - upload/OCR/fotos: S3 e Gemini mockados
-   - `rateLimit`: janela, expiração, `isRateLimited`, `clearRateLimit`
+   - `rate-limit`: janela, expiração, `isRateLimited`, `clearRateLimit`
 4. **Componentes `@encoraj/ui`** — por último; baixo risco.
 
 Sem teste ponta a ponta (decisão de 17/nov/2026: não haverá Playwright). Páginas e `/p/[id]` são validadas por teste manual.
 
-**Milestone**: um condomínio real pode se cadastrar sozinho sem que dados de moradores fiquem expostos e sem depender de suporte manual para recuperar acesso.
+**Milestone**: um condomínio real, cadastrado pelo operador da plataforma, usa o app sem que dados de moradores fiquem expostos e sem depender de suporte manual para recuperar acesso.
 
 ---
 
@@ -593,7 +599,7 @@ O `typescript-eslint` mais recente (8.73.0, usado pelo `eslint-config-next`) dec
 ### Fora desta fase
 
 - `react` / `react-dom`: já na última 19.x
-- `@google/generative-ai` → `@google/genai`: é migração de SDK, não bump — item próprio na Fase 10
+- `@google/generative-ai` → `@google/genai`: feito em 20/nov/2026 (Fase 10)
 
 **Situação em 19/nov/2026**: etapas 0 a 4 concluídas e validadas (Node 22, mongodb 7, dotenv 18, lucide 1, next-pwa removido, Next 16, ESLint 10). Ficam para trás só Panda (adiado, risco visual) e TypeScript (bloqueado pelo lint).
 
